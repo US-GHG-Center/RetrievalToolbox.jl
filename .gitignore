@@ -1,0 +1,15 @@
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+.#*.jl
+deps/deps.jl
+docs/build
+tmpdata
+.DS_Store
+Manifest.toml
+.vscode
+.vscode/settings.json
+.devcontainer
+.git_backup
+launch.json
+settings.json

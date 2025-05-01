@@ -1,0 +1,391 @@
+@startuml
+
+skinparam backgroundcolor transparent
+'skinparam backgroundColor #EEEBDC
+'skinparam style strictuml
+left to right direction
+
+title RetrievalToolkit.jl
+
+'
+' SPECTROSCOPY, GASES
+'
+
+abstract class AbstractSpectroscopy
+AbstractSpectroscopy --|> ABSCOSpectroscopy
+AbstractSpectroscopy --|> HITRANSpectroscopy
+
+class ABSCOSpectroscopy {
+      ....
+      +file_name
+      +gas_name
+      +has_H2O
+      +scaling_factor
+      +wavelengths[]
+      +temperatures[]
+      +pressures[]
+      +coefficients[]
+
+      +get_coef_value_at()
+      +get_file_name()
+      +get_wavelengths()
+      +get_temperatures()
+      +get_pressures()
+      +get_scaling_factor()
+}
+
+class HITRANSpectroscopy {
+      ....
+      +file_name
+      +get_coef_value_at()
+      +get_file_name()
+}
+
+class Gas {
+      +spectroscopy
+      ....
+      +gas_name
+      +pressure_levels
+      +VMRs
+}
+
+Gas::spectroscopy <-- AbstractSpectroscopy
+
+
+'
+' AEROSOLS
+'
+
+abstract class AbstractAbsorber
+abstract class AbstractAerosolType
+abstract class AbstractAerosolProperty
+
+AbstractAbsorber --|> AbstractAerosolType
+AbstractAbsorber --|> Gas
+
+AbstractAerosolProperty --> MieMomAerosolProperty
+AbstractAerosolProperty --> HGAerosolProperty
+
+AbstractAerosolType --|> GaussAerosol
+AbstractAerosolType --|> TriangleAerosol
+
+
+class MieMomAerosolProperty {
+      ....
+      +mie_file_name
+      +mom_file_name
+      +wavelengths[]
+      +Q_sca[]
+      +Q_ext[]
+      +single_scatter_albedo[]
+      +R_eff[]
+      +sigma_ext[]
+      +max_coefs
+      +coefficients[]
+}
+
+class HGAerosolProperty {
+      ....
+      +g_value
+}
+
+class GaussAerosol {
+      +aerosol_property
+      ....
+      +height
+      +width
+      +total_optical_depth
+}
+
+class TriangleAerosol {
+      +aerosol_property
+      ....
+      +height_level
+      +total_optical_depth
+}
+
+GaussAerosol::aerosol_property <-- AbstractAerosolProperty
+TriangleAerosol::aerosol_property <-- AbstractAerosolProperty
+
+'
+' SCENE
+'
+
+abstract class AbstractSolarModel
+AbstractSolarModel --|> LineListSolarModel
+AbstractSolarModel --|> OCOSolarModel
+
+class OCOSolarModel {
+      ....
+      +file_name
+}
+
+class LineListSolarModel {
+      ....
+      +file_name
+}
+
+abstract class AbstractAtmosphere
+AbstractAtmosphere --|> EarthAtmosphere
+
+abstract class AbstractSurface
+AbstractSurface --|> BRDFSurface
+AbstractSurface --|> SimpleAlbedoSurface
+
+abstract class AbstractLocation
+AbstractLocation --|> EarthLocation
+
+abstract class AbstractScene
+abstract class AtmosphereScene
+abstract class NoAtmosphereScene
+
+AbstractScene --|> AtmosphereScene
+AbstractScene --|> NoAtmosphereScene
+
+AtmosphereScene --|> EarthScene
+NoAtmosphereScene --|> SpaceSunStaringScene
+NoAtmosphereScene --|> NoPhyiscalScene
+
+abstract class AbstractObserver
+AbstractObserver --|> SatelliteObserver
+AbstractObserver --|> UplookingGroundObserver
+AbstractObserver --|> AtHeightObserver
+
+
+class EarthScene {
+      +solar_model 
+      +atmosphere
+      +surface
+      +observer
+      +location
+      ....
+      +time
+}
+
+class SpaceSunStaringScene {
+      +solar_model
+      +observer
+}
+
+class BRDFSurface {
+      ....
+      +BRDF_kernels[]
+      +BRDF_weights[]
+      +BRDF_parameters[]
+}
+
+class SimpleAlbedoSurface {
+      ....
+      +value
+
+}
+
+class EarthAtmosphere {
+      +absorbers[]
+      +state_vector
+      ....
+      +N_layer
+      +N_level
+      +surface_pressure
+      +pressure_levels[]
+      +temperature_levels[]
+      +pressure_layers[]
+      +temperature_layers[]
+      +altitude_levels[]
+      +altitude_layers[]
+      +gravity_levels[]
+      +gravity_layers[]
+}
+
+class EarthLocation {
+      ....
+      +longitude
+      +latitude
+      +altitude
+}
+
+class SatelliteObserver {
+      ....
+      +viewing_zenith
+      +viewing_azimuth
+      +satellite_velocity
+      +satellite_position
+}
+
+class AtHeightObserver {
+      ....
+      +viewing_zenith
+      +viewing_azimuth
+      +observer_altitude
+      +observer_pressure
+      +observer_velocity
+}
+
+
+EarthAtmosphere::absorbers <-- AbstractAbsorber
+EarthAtmosphere::state_vector <-- AbstractStateVector
+
+EarthScene::solar_model <-- AbstractSolarModel
+EarthScene::atmosphere <-- EarthAtmosphere
+EarthScene::observer <-- AbstractObserver
+EarthScene::surface <-- AbstractSurface
+EarthScene::location <-- EarthLocation
+
+SpaceSunStaringScene::solar_model <-- AbstractSolarModel
+SpaceSunStaringScene::observer <-- SatelliteObserver
+
+
+'
+' RADIATIVE TRANSFER
+'
+
+abstract class AbstractOpticalProperties
+AbstractOpticalProperties --|> EarthAtmosphereOpticalProperties
+
+abstract class AbstractRetrievalWindow
+AbstractRetrievalWindow --|> RetrievalWindow
+
+abstract class AbstractRTMethod
+AbstractRTMethod --|> MonochromaticRTMethod
+AbstractRTMethod --|> BeerLambertRTMethod
+AbstractRTMethod --|> NoRTMethod
+
+
+class EarthAtmosphereOpticalProperties{
+      +retrieval_window
+      ....
+      +gas_optical_depth
+      +rayleigh_optical_depth
+      +aerosol_optical_depth
+      +total_optical_depth
+      +total_single_scatter_albedo
+}
+
+class RetrievalWindow {
+      ....
+      +window_name
+      +wavelength_min
+      +wavelength_max
+      +wavelength_spacing
+      +band_number
+}
+
+class MonochromaticRTMethod {
+      +scene
+      +optical_properties
+      +state_vector
+}
+
+class BeerLambertRTMethod {
+      +scene
+      +optical_properties
+      +state_vector
+}
+
+class NoRTMethod {
+      +scene
+      +state_vector
+}
+
+
+MonochromaticRTMethod::scene <-- AtmosphereScene
+MonochromaticRTMethod::optical_properties <-- AbstractOpticalProperties
+MonochromaticRTMethod::state_vector <-- AbstractStateVector
+
+BeerLambertRTMethod::scene <-- AtmosphereScene
+BeerLambertRTMethod::optical_properties <-- AbstractOpticalProperties
+BeerLambertRTMethod::state_vector <-- AbstractStateVector
+
+NoRTMethod::scene <-- NoAtmosphereScene
+NoRTMethod::state_vector <-- AbstractStateVector
+
+
+EarthAtmosphereOpticalProperties::retrieval_window <-- RetrievalWindow
+'EarthScene -[dotted]-> EarthAtmosphereOpticalProperties : create_optical_properties(<b>scene::EarthScene</b>)
+
+
+
+
+
+'
+' STATE VECTOR
+'
+
+abstract class AbstractStateVector
+AbstractStateVector --|> RetrievalStateVector
+AbstractStateVector --|> ForwardModelStateVector
+
+class RetrievalStateVector {
+      +state_vector_element[]
+      ....
+      +first_guess
+      +prior_value
+      +prior_covariance
+      +current_iteration
+      +iterations
+}
+
+class ForwardModelStateVector {
+      +state_vector_element[]
+      ....
+      +values
+}
+
+abstract class AbstractStateVectorElement
+
+RetrievalStateVector::state_vector_element <-- AbstractStateVectorElement
+ForwardModelStateVector::state_vector_element <-- AbstractStateVectorElement
+
+together {
+AbstractStateVectorElement --|> SurfaceAlbedoSVE
+AbstractStateVectorElement --|> SurfacePressureSVE
+'AbstractStateVectorElement --|> GasScalerSVE
+'AbstractStateVectorElement --|> GasProfileSVE
+'AbstractStateVectorElement --|> TemperatureSVE
+'AbstractStateVectorElement --|> DispersionSVE
+'AbstractStateVectorElement --|> ILSWidthScalingSVE
+'AbstractStateVectorElement --|> FluorescenceSVE
+'AbstractStateVectorElement --|> ZeroLevelOffsetSVE
+'AbstractStateVectorElement --|> SolarWLShiftSVE
+'AbstractStateVectorElement --|> SolarWLStretchSVE
+'AbstractStateVectorElement --|> EmpiricalWaveformSVE
+'AbstractStateVectorElement --|> AerosolOpticalDepthSVE
+'AbstractStateVectorElement --|> AerosolLayerHeightSVE
+}
+
+
+
+'
+' RADIANCES AND JACOBIANS
+'
+
+
+'
+' INSTRUMENTS ETC.
+'
+
+abstract class AbstractInstrument
+AbstractInstrument --|> OCOInstrument
+AbstractInstrument --|> GeoCarbInstrument
+
+class OCOInstrument {
+      ....
+      band_name_to_idx (Dict)
+}
+
+class GeoCarbInstrument {
+      ....
+      band_name_to_idx (Dict)
+}
+
+abstract class AbstractILS
+AbstractILS --|> TableILS
+
+class TableILS {
+      ....
+      +relative_response[]
+      +delta_wavelength[]
+}
+
+
+@enduml
