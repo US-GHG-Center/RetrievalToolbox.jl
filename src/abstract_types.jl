@@ -1,0 +1,32 @@
+abstract type AbstractSpectroscopy end
+abstract type ABSCOSpectroscopy <: AbstractSpectroscopy end
+
+abstract type AbstractAtmosphereElement end
+abstract type AbstractAerosolType <: AbstractAtmosphereElement end
+
+abstract type AbstractAerosolProperty end
+
+abstract type AbstractSolarModel end
+
+abstract type AbstractSurface end
+abstract type AbstractLocation end
+abstract type AbstractAtmosphere end
+
+abstract type AbstractScene end
+abstract type AtmosphereScene end
+abstract type NoAtmosphereScene end
+
+abstract type AbstractObserver end
+
+abstract type AbstractSpectralWindow end
+
+abstract type AbstractOpticalProperties end
+
+abstract type AbstractInstrument end
+
+abstract type AbstractISRF end
+
+abstract type AbstractRTMethod end
+
+abstract type AbstractStateVectorElement end
+abstract type AbstractStateVector end

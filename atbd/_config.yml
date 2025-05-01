@@ -1,0 +1,88 @@
+# Book settings
+# Learn more at https://jupyterbook.org/customize/config.html
+
+title: Goddard Greenhouse Gas Retrieval Toolkit
+author: Peter Somkuti
+#logo: logo.png
+
+# Force re-execution of notebooks on each build.
+# See https://jupyterbook.org/content/execute.html
+execute:
+  execute_notebooks: force
+  timeout: 300
+
+
+# Define the name of the latex output file for PDF builds
+latex:
+  latex_documents:
+    targetname: G3RT.tex
+
+# Add a bibtex file so that we can create citations
+bibtex_bibfiles:
+  - references.bib
+
+bibtex_reference_style: 
+  - label
+
+
+# Information about where the book exists on the web
+repository:
+  url: https://github.com/executablebooks/jupyter-book  # Online location of your book
+  path_to_book: docs  # Optional path to your book, relative to the repository root
+  branch: master  # Which branch of the repository should be used when creating links (optional)
+
+# Add GitHub buttons to your book
+# See https://jupyterbook.org/customize/config.html#add-a-link-to-your-repository
+html:
+  use_issues_button: false
+  use_repository_button: false
+
+parse:
+  myst_enable_extensions:  # default extensions to enable in the myst parser. See https://myst-parser.readthedocs.io/en/latest/using/syntax-optional.html
+    - amsmath
+    - colon_fence
+    - deflist
+    - dollarmath
+    - html_admonition
+    - html_image
+    - linkify
+    - replacements
+    - smartquotes
+    - substitution
+    - tasklist
+  myst_url_schemes: [mailto, http, https] # URI schemes that will be recognised as external URLs in Markdown links
+  myst_dmath_double_inline: true  # Allow display math ($$) within an inline context
+
+sphinx:
+  extra_extensions:
+    - sphinxcontrib.bibtex
+    - sphinxcontrib.mermaid
+    #- sphinxcontrib.wavedrom
+    - sphinxcontrib.plantuml
+    - sphinxcontrib.tikz
+    #- sphinxcontrib.texfigure
+    #- sphinxcontrib.blockdiag
+  
+  config:
+
+    tikz_tikzlibraries: positioning,arrows
+    tikz_latex_preamble: \usepackage{tikz-3dplot}
+
+    plantuml_latex_output_format: pdf
+
+    latex_elements: 
+      papersize: "a4paper"
+      pointsize: "10pt"  # Options: 10pt, 11pt, 12pt ONLY
+      preamble: |
+        \makeatletter % enable @-symbol for macros; don't forget to turn of with \makeatother
+
+        % Use 1.5x lìne spacing
+        \usepackage{setspace}
+        \onehalfspacing
+
+        % Reduce font ^size in ^code blocks
+        % Override the fontsize command defined and used by fancyvrb (which implements Verbatim environments).
+        % For size options see https://en.wikibooks.org/wiki/LaTeX/Fonts#Built-in_sizes
+        \renewcommand{\FV@FontSize}{\scriptsize}
+
+        \makeatother % disable @-symbol for macros

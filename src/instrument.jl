@@ -1,0 +1,153 @@
+"""
+
+$(TYPEDSIGNATURES)
+
+## Instrument Doppler shift
+
+"""
+function apply_isrf_to_spectrum!(
+    inst_buf::InstrumentBuffer,
+    ISRF::TableISRF,
+    disp::AbstractDispersion,
+    data::AbstractVector,
+    spectral_window::AbstractSpectralWindow;
+    doppler_factor=0.0
+    )
+
+    # In Julia, we must encapsulate certain calculations
+    # in functions for explicit/clear type inference. So
+    # all the heavy lifting of the "convolution" function
+    # is done inside this following call.
+
+    # This is also the place where we must account for units
+    success = _apply_isrf_to_spectrum_lowlevel!(
+        inst_buf.low_res_output,
+        ISRF.ww_delta_unit,
+        ISRF.ww_delta,
+        ISRF.relative_response,
+        spectral_window.ww_unit,
+        spectral_window.ww_grid,
+        data,
+        disp.ww_unit,
+        disp.ww,
+        disp.index,
+        doppler_factor,
+        inst_buf.tmp1,
+        inst_buf.tmp2,
+    )
+
+    return success
+
+end
+
+"""
+Low-level function to performantly apply an instrument ISRF
+to a high-resolution model spectrum, in order to obtain a
+spectrum comparable to that measured by an instrument.
+
+$(TYPEDSIGNATURES)
+
+"""
+function _apply_isrf_to_spectrum_lowlevel!(
+    lores_data, # Vector - Output!
+    ISRF_unit::Union{Unitful.LengthUnits, Unitful.WavenumberUnits}, # Length unit of the ISRF Δλ variable
+    ISRF_ww_delta, # Array [delta ww, L1B index]
+    ISRF_relative_response, # Array [delta w, L1B index],
+    hires_unit::Union{Unitful.LengthUnits, Unitful.WavenumberUnits},
+    hires_ww, # Vector, hi-res wavelength/wavenumber
+    hires_data, # Vector, hi-res spectrum
+    lores_unit::Union{Unitful.LengthUnits, Unitful.WavenumberUnits},
+    lores_ww, # Vector, Dispersion wavelength/wavenumber
+    lores_idx, # Vector, Dispersion index
+    doppler_factor,
+    tmp1,
+    tmp2,
+    )
+
+    # Depending on λ/ν, we use a different effective Doppler formula
+    if hires_unit isa Unitful.LengthUnits
+        doppler_term = 1.0 / (1.0 + doppler_factor)
+    elseif hires_unit isa Unitful.WavenumberUnits
+        doppler_term = 1.0 + doppler_factor
+    end
+
+
+    # Fill with NaN's, so it is immediately clear which
+    # indices have not been used.
+    @views lores_data[:] .= NaN
+
+    # We do not fill the buffer completely (usually),
+    # so let's keep track of how many wavelengths we must process.
+    N_low = length(lores_ww)
+
+    # In the next steps, we mix wavelengths from the dispersion object
+    # and the ISRF object, so let's make sure we get the units agreed
+
+    unit_fac = 1.0 * ISRF_unit / lores_unit
+
+    @views tmp1[:] .= 0.0
+    @views tmp1[1:N_low] = lores_ww[:] .+ unit_fac * ISRF_ww_delta[1, lores_idx]
+    idx_first_all = searchsortedfirst.(Ref(hires_ww), tmp1)
+
+    @views tmp1[:] .= 0.0
+    @views tmp1[1:N_low] = lores_ww[:] .+ unit_fac * ISRF_ww_delta[end, lores_idx]
+    idx_last_all = searchsortedfirst.(Ref(hires_ww), tmp1)
+
+    # Preallocate placeholder array for less in-loop allocations
+    all_sizes = @. idx_last_all - idx_first_all + 1
+
+    @views tmp2[:] .= 0.0
+    this_ww_delta = @view tmp2[1:size(ISRF_ww_delta, 1)]
+
+    idx_max = length(hires_ww)
+    idx_min = 1
+
+    for i in eachindex(lores_idx)
+
+        this_l1b_idx = lores_idx[i]
+        this_ww = lores_ww[i] / doppler_term
+
+        idx_first = idx_first_all[i]
+        idx_last = idx_last_all[i]
+
+        if (idx_first >= idx_max) || (idx_last >= idx_max)
+            @error "Sorry - idx_first larger than idx_max or last larger then max"
+            @debug "Sample $(i) at $(this_ww), idx_first: $(idx_first), idx_max: $(idx_max)"
+            @debug "Sample $(i) at $(this_ww), idx_last: $(idx_last), idx_max: $(idx_max)"
+            @error "Try increasing the buffer of the spectral window!"
+            return false
+        end
+
+        @views this_ww_delta[:] = unit_fac * ISRF_ww_delta[:, this_l1b_idx] .+ this_ww
+
+        # Create a view to the placeholder array in which we stick the
+        # interpolated ISRF.
+        this_ISRF = @view tmp1[1:all_sizes[i]]
+        @views this_ISRF[:] .= 0.0
+
+        this_relative_response = @view ISRF_relative_response[:, this_l1b_idx]
+        this_hires_ww = @view hires_ww[idx_first:idx_last]
+
+        # Interpolate and store result in `this_ISRF`
+        pwl_value_1d!(
+            this_ww_delta,
+            this_relative_response,
+            this_hires_ww,
+            this_ISRF
+        )
+
+        # Calculate the final pixel value by multiplying in-place
+        # and then do the integration via trapezoidal rule.
+
+        this_ISRF_sum = _trapz(this_hires_ww, this_ISRF)
+
+        # Multiply in the high-resolution spectrum
+        @views this_ISRF[:] .*= hires_data[idx_first:idx_last]
+        lores_data[lores_idx[i]] = _trapz(this_hires_ww, this_ISRF) / this_ISRF_sum
+
+    end
+
+    # Successful run!
+    return true
+
+end
