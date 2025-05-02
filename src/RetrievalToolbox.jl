@@ -17,11 +17,8 @@ using ProgressMeter
 using QuadGK
 using Statistics
 using StaticArrays
-using TimerOutputs
 using Unitful
 
-
-to = TimerOutput()
 
 #=
     Make the "photons" unit available outside of
