@@ -1,6 +1,5 @@
 """
-Returns the name of this ZeroLevelOffset state vector element
-as a string.
+Returns the name of this ZeroLevelOffset state vector element as a string.
 
 $(SIGNATURES)
 
@@ -51,6 +50,7 @@ end
 """
 function calculate_zlo!(
     output::AbstractVector,
+    radiance_unit,
     sve::ZeroLevelOffsetPolynomialSVE,
     dispersion::AbstractDispersion
 )
@@ -68,7 +68,7 @@ function calculate_zlo!(
     this_unit = get_unit(sve) * dispersion.ww_unit^sve.coefficient_order
     # Find out the conversion factor needed to bring (sve)*Δww^coefficient_order
     # to the same units as the radiance buffer
-    this_unit_conversion = ustrip(rt_buf.radiance_unit, 1.0 * this_unit)
+    this_unit_conversion = ustrip(radiance_unit, 1.0 * this_unit)
 
     # Δww is in units of the dispersion^coefficient_order now
     ww_delta = (

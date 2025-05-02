@@ -1,6 +1,5 @@
 """
-Returns the name of this dispersion state vector element
-as a string.
+Returns the name of this dispersion state vector element as a string.
 
 $(SIGNATURES)
 

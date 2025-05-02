@@ -1,16 +1,14 @@
 """
-Loads a complete ABSCO table into memory and creates an
-ABSCOSpectroscopy3D/4D object, depending on whether the
-ABSCO file contains H2O broadening information.
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Loads a complete ABSCO table into memory and creates an ABSCOSpectroscopy3D/4D object,
+depending on whether the ABSCO file contains H2O broadening information.
 
 # Details
 
-Wavenumber dimension and the corresponding axis for the
-coefficient array are flipped to give wavelengths in
-increasing order. User can supply a scale factor which
-is multiplied into the entire table.
+Wavenumber dimension and the corresponding axis for the coefficient array are flipped to
+give wavelengths in increasing order. User can supply a scale factor which is multiplied
+into the entire table.
 """
 function load_ABSCO_spectroscopy(
     fname::String;
@@ -139,46 +137,50 @@ end
 
 
 """
-Given two wavelength arrays wl1 and wl2, this function computes
-the indices that sort wl2 into wl1. Similar to a broadcast
-searchsorted (think: searchsorted.(Ref(wl1), wl2)), however
-faster if both wl1 and wl2 are sorted. This is used to e.g.
-find the indices of the spectral window wavelength relative
-to spectroscopy wavelengths.
-
 $(TYPEDSIGNATURES)
+
+Given two wavelength or wavenumber arrays ww1 and ww2, this function computes the indices
+that sort ww2 into ww1. This provides the same functionality to a broadcast searchsorted
+(think: searchsorted.(Ref(ww1), ww2)), however faster if both ww1 and ww2 are sorted. This
+is used to e.g. find the indices of the spectral window wavelength relative to
+spectroscopy wavelengths. For example, for inputs ww1 = [100., 110., 120., 140., 145.],
+ww2 = [105., 111., 142.], the function will return [1,2,4], signifying that ww2[1] can be
+inserted between ww1[1] and ww1[2].
+
+NOTE! This function does *not* check if ww1 and ww2 are sorted and will return meaningless
+results if either ww1 or ww2 are not sorted!
 """
-function find_wavelength_indices(wl1, wl2)
+function _find_ww_indices(ww1, ww2)
 
-    output_idx = -ones(Int, length(wl2))
+    output_idx = -ones(Int, length(ww2))
     first_idx = 1
-    last_wl_idx = 1
+    last_ww_idx = 1
 
-    @inbounds for i in eachindex(wl2)
-        if wl2[i] > wl1[1]
+    @inbounds for i in eachindex(ww2)
+        if ww2[i] > ww1[1]
             first_idx = i
             break
         end
     end
 
 
-    @inbounds for i in first_idx:length(wl2)
+    @inbounds for i in first_idx:length(ww2)
 
-        if wl2[i] < wl1[1]
+        if ww2[i] < ww1[1]
             output_idx[i] = -1
             continue
         end
 
-        if wl2[i] > wl1[end]
+        if ww2[i] > ww1[end]
             output_idx[i] = -1
             continue
         end
 
-        for j in last_wl_idx:(length(wl1) - 1)
-            if (wl2[i] >= wl1[j]) & (wl2[i] <= wl1[j + 1])
+        for j in last_ww_idx:(length(ww1) - 1)
+            if (ww2[i] >= ww1[j]) & (ww2[i] <= ww1[j + 1])
 
                 output_idx[i] = j
-                last_wl_idx = j
+                last_ww_idx = j
                 break
 
             end
@@ -192,19 +194,17 @@ end
 
 
 """
-A wrapper function which retrieves the absorption cross_section
-for a vector of wavelengths, and corresponding (scalar) values
-of temperature, pressure, H2O broadening VMR. It reads the
-needed data from a 4D ABSCO object.
-
 $(SIGNATURES)
+
+A wrapper function which retrieves the absorption cross_section for a vector of
+wavelengths, and corresponding (scalar) values of temperature, pressure, H2O broadening
+VMR. It reads the needed data from a 4D ABSCO object.
 
 # Details
 
-This calls the underlying, more explicit function where the
-spectroscopy arguments are split up. In Julia, making those
-arguments explicit provides a very large performance gain,
-since the compiler can infer the types.
+This calls the underlying, more explicit function where the spectroscopy arguments are
+split up. In Julia, making those arguments explicit provides a very large performance
+gain, since the compiler can infer the types.
 """
 function get_absorption_coefficient_value_at!(
     output::AbstractVector,
@@ -217,7 +217,7 @@ function get_absorption_coefficient_value_at!(
     H2O::Number
     )
 
-    _get_absorption_coefficient_value_at!(
+    _get_cross_section_value_at!(
         output,
         spec.ww,
         spec.pressures,
@@ -234,17 +234,28 @@ function get_absorption_coefficient_value_at!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
-function _get_absorption_coefficient_value_at!(
+This function is a high-performance, explicit interpolation routine that returns the
+absorption cross section values of an 4D ABSCO table for a given set of coordinates in
+spectral, pressure, temperature and water vapor space. The spectral coordinates must be
+a vector, since in most applications we want to obtain the cross sections for all relevant
+wavelengths (or wavenumbers) at once.
+
+This function differs from a simple 4D-interpolation due to the irregular grid of the
+ABSCO tables, whose temperature axis depends on the the pressure coordinate.
+"""
+function _get_cross_section_value_at!(
     output::AbstractVector,
     spec_ww::AbstractVector,
     spec_pressures::AbstractVector,
     spec_temperatures::AbstractArray,
     spec_H2O::AbstractVector,
     spec_cross_section::AbstractArray,
-    wl::AbstractVector,
-    absco_wl_idx_left::Vector{Int},
-    is_matched_wl::Bool,
+    ww::AbstractVector,
+    absco_ww_idx_left::Vector{Int},
+    is_matched_ww::Bool,
     p,
     T,
     H2O
@@ -343,43 +354,43 @@ function _get_absorption_coefficient_value_at!(
     one_minus_T_d_r = one(typeof(T_d_r)) - T_d_r
 
 
-    if !is_matched_wl
+    if !is_matched_ww
 
-        @turbo for wl_idx in eachindex(wl)
+        @turbo for ww_idx in eachindex(ww)
 
-            idx_l_wl = absco_wl_idx_left[wl_idx]
-            idx_r_wl = idx_l_wl + 1
-            wl_d = (wl[wl_idx] - spec_ww[idx_l_wl]) /
-                (spec_ww[idx_r_wl] -  spec_ww[idx_l_wl])
-            one_minus_wl_d = (1.0 - wl_d)
+            idx_l_ww = absco_ww_idx_left[ww_idx]
+            idx_r_ww = idx_l_ww + 1
+            ww_d = (ww[ww_idx] - spec_ww[idx_l_ww]) /
+                (spec_ww[idx_r_ww] -  spec_ww[idx_l_ww])
+            one_minus_ww_d = (1.0 - ww_d)
 
-            C3_111 = spec_cross_section[idx_l_wl, idx_l_H2O, idx_ll_T, idx_l_p]
-            C3_211 = spec_cross_section[idx_l_wl, idx_r_H2O, idx_ll_T, idx_l_p]
-            C3_121 = spec_cross_section[idx_l_wl, idx_l_H2O, idx_lr_T, idx_l_p]
-            C3_112 = spec_cross_section[idx_l_wl, idx_l_H2O, idx_rl_T, idx_r_p]
-            C3_221 = spec_cross_section[idx_l_wl, idx_r_H2O, idx_lr_T, idx_l_p]
-            C3_122 = spec_cross_section[idx_l_wl, idx_l_H2O, idx_rr_T, idx_r_p]
-            C3_212 = spec_cross_section[idx_l_wl, idx_r_H2O, idx_rl_T, idx_r_p]
-            C3_222 = spec_cross_section[idx_l_wl, idx_r_H2O, idx_rr_T, idx_r_p]
+            C3_111 = spec_cross_section[idx_l_ww, idx_l_H2O, idx_ll_T, idx_l_p]
+            C3_211 = spec_cross_section[idx_l_ww, idx_r_H2O, idx_ll_T, idx_l_p]
+            C3_121 = spec_cross_section[idx_l_ww, idx_l_H2O, idx_lr_T, idx_l_p]
+            C3_112 = spec_cross_section[idx_l_ww, idx_l_H2O, idx_rl_T, idx_r_p]
+            C3_221 = spec_cross_section[idx_l_ww, idx_r_H2O, idx_lr_T, idx_l_p]
+            C3_122 = spec_cross_section[idx_l_ww, idx_l_H2O, idx_rr_T, idx_r_p]
+            C3_212 = spec_cross_section[idx_l_ww, idx_r_H2O, idx_rl_T, idx_r_p]
+            C3_222 = spec_cross_section[idx_l_ww, idx_r_H2O, idx_rr_T, idx_r_p]
 
-            C3_111 *= one_minus_wl_d
-            C3_211 *= one_minus_wl_d
-            C3_121 *= one_minus_wl_d
-            C3_112 *= one_minus_wl_d
-            C3_221 *= one_minus_wl_d
-            C3_122 *= one_minus_wl_d
-            C3_212 *= one_minus_wl_d
-            C3_222 *= one_minus_wl_d
+            C3_111 *= one_minus_ww_d
+            C3_211 *= one_minus_ww_d
+            C3_121 *= one_minus_ww_d
+            C3_112 *= one_minus_ww_d
+            C3_221 *= one_minus_ww_d
+            C3_122 *= one_minus_ww_d
+            C3_212 *= one_minus_ww_d
+            C3_222 *= one_minus_ww_d
 
             # C3 = (h2o, temp, pressure)
-            C3_111 += spec_cross_section[idx_r_wl, idx_l_H2O, idx_ll_T, idx_l_p] * wl_d
-            C3_211 += spec_cross_section[idx_r_wl, idx_r_H2O, idx_ll_T, idx_l_p] * wl_d
-            C3_121 += spec_cross_section[idx_r_wl, idx_l_H2O, idx_lr_T, idx_l_p] * wl_d
-            C3_112 += spec_cross_section[idx_r_wl, idx_l_H2O, idx_rl_T, idx_r_p] * wl_d
-            C3_221 += spec_cross_section[idx_r_wl, idx_r_H2O, idx_lr_T, idx_l_p] * wl_d
-            C3_122 += spec_cross_section[idx_r_wl, idx_l_H2O, idx_rr_T, idx_r_p] * wl_d
-            C3_212 += spec_cross_section[idx_r_wl, idx_r_H2O, idx_rl_T, idx_r_p] * wl_d
-            C3_222 += spec_cross_section[idx_r_wl, idx_r_H2O, idx_rr_T, idx_r_p] * wl_d
+            C3_111 += spec_cross_section[idx_r_ww, idx_l_H2O, idx_ll_T, idx_l_p] * ww_d
+            C3_211 += spec_cross_section[idx_r_ww, idx_r_H2O, idx_ll_T, idx_l_p] * ww_d
+            C3_121 += spec_cross_section[idx_r_ww, idx_l_H2O, idx_lr_T, idx_l_p] * ww_d
+            C3_112 += spec_cross_section[idx_r_ww, idx_l_H2O, idx_rl_T, idx_r_p] * ww_d
+            C3_221 += spec_cross_section[idx_r_ww, idx_r_H2O, idx_lr_T, idx_l_p] * ww_d
+            C3_122 += spec_cross_section[idx_r_ww, idx_l_H2O, idx_rr_T, idx_r_p] * ww_d
+            C3_212 += spec_cross_section[idx_r_ww, idx_r_H2O, idx_rl_T, idx_r_p] * ww_d
+            C3_222 += spec_cross_section[idx_r_ww, idx_r_H2O, idx_rr_T, idx_r_p] * ww_d
 
             C2_11 = C3_111 * one_minus_H2O_d + C3_211 * H2O_d
             C2_12 = C3_112 * one_minus_H2O_d + C3_212 * H2O_d
@@ -389,7 +400,7 @@ function _get_absorption_coefficient_value_at!(
             C1_1 = C2_11 * one_minus_T_d_l + C2_21 * T_d_l
             C1_2 = C2_12 * one_minus_T_d_r + C2_22 * T_d_r
 
-            output[wl_idx] = one_minus_p_d * C1_1 + p_d * C1_2
+            output[ww_idx] = one_minus_p_d * C1_1 + p_d * C1_2
 
 
 
@@ -397,26 +408,26 @@ function _get_absorption_coefficient_value_at!(
 
         # Set all out-of-ABSCO-range points to zero, and over-write
         # whatever result was produced above.
-        @inbounds for wl_idx in eachindex(wl)
-            if absco_wl_idx_left[wl_idx] == -1
-                output[wl_idx] = 0
+        @inbounds for ww_idx in eachindex(ww)
+            if absco_ww_idx_left[ww_idx] == -1
+                output[ww_idx] = 0
             end
         end
 
     else
 
-        @turbo for wl_idx in eachindex(wl)
+        @turbo for ww_idx in eachindex(ww)
 
-            idx_l_wl = absco_wl_idx_left[wl_idx]
+            idx_l_ww = absco_ww_idx_left[ww_idx]
 
-            C3_111 = spec_cross_section[idx_l_wl, idx_l_H2O, idx_ll_T, idx_l_p]
-            C3_211 = spec_cross_section[idx_l_wl, idx_r_H2O, idx_ll_T, idx_l_p]
-            C3_121 = spec_cross_section[idx_l_wl, idx_l_H2O, idx_lr_T, idx_l_p]
-            C3_112 = spec_cross_section[idx_l_wl, idx_l_H2O, idx_rl_T, idx_r_p]
-            C3_221 = spec_cross_section[idx_l_wl, idx_r_H2O, idx_lr_T, idx_l_p]
-            C3_122 = spec_cross_section[idx_l_wl, idx_l_H2O, idx_rr_T, idx_r_p]
-            C3_212 = spec_cross_section[idx_l_wl, idx_r_H2O, idx_rl_T, idx_r_p]
-            C3_222 = spec_cross_section[idx_l_wl, idx_r_H2O, idx_rr_T, idx_r_p]
+            C3_111 = spec_cross_section[idx_l_ww, idx_l_H2O, idx_ll_T, idx_l_p]
+            C3_211 = spec_cross_section[idx_l_ww, idx_r_H2O, idx_ll_T, idx_l_p]
+            C3_121 = spec_cross_section[idx_l_ww, idx_l_H2O, idx_lr_T, idx_l_p]
+            C3_112 = spec_cross_section[idx_l_ww, idx_l_H2O, idx_rl_T, idx_r_p]
+            C3_221 = spec_cross_section[idx_l_ww, idx_r_H2O, idx_lr_T, idx_l_p]
+            C3_122 = spec_cross_section[idx_l_ww, idx_l_H2O, idx_rr_T, idx_r_p]
+            C3_212 = spec_cross_section[idx_l_ww, idx_r_H2O, idx_rl_T, idx_r_p]
+            C3_222 = spec_cross_section[idx_l_ww, idx_r_H2O, idx_rr_T, idx_r_p]
 
             C2_11 = C3_111 * one_minus_H2O_d + C3_211 * H2O_d
             C2_12 = C3_112 * one_minus_H2O_d + C3_212 * H2O_d
@@ -426,7 +437,7 @@ function _get_absorption_coefficient_value_at!(
             C1_1 = C2_11 * one_minus_T_d_l + C2_21 * T_d_l
             C1_2 = C2_12 * one_minus_T_d_r + C2_22 * T_d_r
 
-            output[wl_idx] = one_minus_p_d * C1_1 + p_d * C1_2
+            output[ww_idx] = one_minus_p_d * C1_1 + p_d * C1_2
 
 
         end
@@ -438,40 +449,38 @@ end
 
 
 """
-A wrapper function which retrieves the absorption cross_section
-for a vector of wavelengths, and corresponding (scalar) values
-of temperature, pressure, H2O broadening VMR. It reads the
-needed data from a 4D ABSCO object.
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+A wrapper function which retrieves the absorption cross_section for a vector of
+wavelengths, and corresponding (scalar) values of temperature, pressure, H2O broadening
+VMR. It reads the needed data from a 4D ABSCO object.
 
 # Details
 
-This calls the underlying, more explicit function where the
-spectroscopy arguments are split up. In Julia, making those
-arguments explicit provides a very large performance gain,
-since the compiler can infer the types.
+This calls the underlying, more explicit function where the spectroscopy arguments are
+split up. In Julia, making those arguments explicit provides a very large performance
+gain, since the compiler can infer the types.
 """
 function get_absorption_coefficient_value_at!(
     output::AbstractVector,
     spec::ABSCOSpectroscopy3D,
-    wl::AbstractVector,
-    absco_wl_idx_left::Vector{Int},
-    is_matched_wl::Bool,
+    ww::AbstractVector,
+    absco_ww_idx_left::Vector{Int},
+    is_matched_ww::Bool,
     p::Number,
     T::Number,
     H2O::Number,
     )
 
-    _get_absorption_coefficient_value_at!(
+    _get_cross_section_value_at!(
         output,
         spec.ww,
         spec.pressures,
         spec.temperatures,
         spec.cross_section,
-        wl,
-        absco_wl_idx_left,
-        is_matched_wl,
+        ww,
+        absco_ww_idx_left,
+        is_matched_ww,
         p,
         T
     )
@@ -479,19 +488,26 @@ function get_absorption_coefficient_value_at!(
 end
 
 """
-Low-level function that calculates absorption cross_section
-
 $(TYPEDSIGNATURES)
+
+This function is a high-performance, explicit interpolation routine that returns the
+absorption cross section values of an 3D ABSCO table for a given set of coordinates in
+spectral, pressure, temperature and water vapor space. The spectral coordinates must be
+a vector, since in most applications we want to obtain the cross sections for all relevant
+wavelengths (or wavenumbers) at once.
+
+This function differs from a simple 3D-interpolation due to the irregular grid of the
+ABSCO tables, whose temperature axis depends on the the pressure coordinate.
 """
-function _get_absorption_coefficient_value_at!(
+function _get_cross_section_value_at!(
     output::AbstractVector,
     spec_ww::AbstractVector,
     spec_pressures::AbstractVector,
     spec_temperatures::AbstractArray,
     spec_cross_section::AbstractArray,
-    wl::AbstractVector,
-    absco_wl_idx_left::Vector{Int},
-    is_matched_wl::Bool,
+    ww::AbstractVector,
+    absco_ww_idx_left::Vector{Int},
+    is_matched_ww::Bool,
     p,
     T
     )
@@ -564,64 +580,64 @@ function _get_absorption_coefficient_value_at!(
     one_minus_T_d_l = one(typeof(T_d_l)) - T_d_l
     one_minus_T_d_r = one(typeof(T_d_r)) - T_d_r
 
-    if !is_matched_wl
+    if !is_matched_ww
 
-        @turbo for wl_idx in eachindex(wl)
+        @turbo for ww_idx in eachindex(ww)
 
-            idx_l_wl = absco_wl_idx_left[wl_idx]
-            idx_r_wl = idx_l_wl + 1
+            idx_l_ww = absco_ww_idx_left[ww_idx]
+            idx_r_ww = idx_l_ww + 1
 
-            wl_d = (wl[wl_idx] - spec_ww[idx_l_wl]) /
-                (spec_ww[idx_r_wl] -  spec_ww[idx_l_wl])
-            one_minus_wl_d = (1.0 - wl_d)
+            ww_d = (ww[ww_idx] - spec_ww[idx_l_ww]) /
+                (spec_ww[idx_r_ww] -  spec_ww[idx_l_ww])
+            one_minus_ww_d = (1.0 - ww_d)
 
 
-            C2_11 = spec_cross_section[idx_l_wl, idx_ll_T, idx_l_p]
-            C2_21 = spec_cross_section[idx_l_wl, idx_lr_T, idx_l_p]
-            C2_12 = spec_cross_section[idx_l_wl, idx_rl_T, idx_r_p]
-            C2_22 = spec_cross_section[idx_l_wl, idx_rr_T, idx_r_p]
+            C2_11 = spec_cross_section[idx_l_ww, idx_ll_T, idx_l_p]
+            C2_21 = spec_cross_section[idx_l_ww, idx_lr_T, idx_l_p]
+            C2_12 = spec_cross_section[idx_l_ww, idx_rl_T, idx_r_p]
+            C2_22 = spec_cross_section[idx_l_ww, idx_rr_T, idx_r_p]
 
-            C2_11 *= one_minus_wl_d
-            C2_21 *= one_minus_wl_d
-            C2_12 *= one_minus_wl_d
-            C2_22 *= one_minus_wl_d
+            C2_11 *= one_minus_ww_d
+            C2_21 *= one_minus_ww_d
+            C2_12 *= one_minus_ww_d
+            C2_22 *= one_minus_ww_d
 
             # C3 = (h2o, temp, pressure)
-            C2_11 += spec_cross_section[idx_r_wl, idx_ll_T, idx_l_p] * wl_d
-            C2_21 += spec_cross_section[idx_r_wl, idx_lr_T, idx_l_p] * wl_d
-            C2_12 += spec_cross_section[idx_r_wl, idx_rl_T, idx_r_p] * wl_d
-            C2_22 += spec_cross_section[idx_r_wl, idx_rr_T, idx_r_p] * wl_d
+            C2_11 += spec_cross_section[idx_r_ww, idx_ll_T, idx_l_p] * ww_d
+            C2_21 += spec_cross_section[idx_r_ww, idx_lr_T, idx_l_p] * ww_d
+            C2_12 += spec_cross_section[idx_r_ww, idx_rl_T, idx_r_p] * ww_d
+            C2_22 += spec_cross_section[idx_r_ww, idx_rr_T, idx_r_p] * ww_d
 
             C1_1 = C2_11 * one_minus_T_d_l + C2_21 * T_d_l
             C1_2 = C2_12 * one_minus_T_d_r + C2_22 * T_d_r
 
-            output[wl_idx] = one_minus_p_d * C1_1 + p_d * C1_2
+            output[ww_idx] = one_minus_p_d * C1_1 + p_d * C1_2
 
         end
 
         # Set all out-of-ABSCO-range points to zero, and over-write
         # whatever result was produced above.
-        @inbounds for wl_idx in eachindex(wl)
-            if absco_wl_idx_left[wl_idx] == -1
-                output[wl_idx] = 0
+        @inbounds for ww_idx in eachindex(ww)
+            if absco_ww_idx_left[ww_idx] == -1
+                output[ww_idx] = 0
             end
         end
 
     else
 
-        @turbo for wl_idx in eachindex(wl)
+        @turbo for ww_idx in eachindex(ww)
 
-            idx_l_wl = absco_wl_idx_left[wl_idx]
+            idx_l_ww = absco_ww_idx_left[ww_idx]
 
-            C2_11 = spec_cross_section[idx_l_wl, idx_ll_T, idx_l_p]
-            C2_21 = spec_cross_section[idx_l_wl, idx_lr_T, idx_l_p]
-            C2_12 = spec_cross_section[idx_l_wl, idx_rl_T, idx_r_p]
-            C2_22 = spec_cross_section[idx_l_wl, idx_rr_T, idx_r_p]
+            C2_11 = spec_cross_section[idx_l_ww, idx_ll_T, idx_l_p]
+            C2_21 = spec_cross_section[idx_l_ww, idx_lr_T, idx_l_p]
+            C2_12 = spec_cross_section[idx_l_ww, idx_rl_T, idx_r_p]
+            C2_22 = spec_cross_section[idx_l_ww, idx_rr_T, idx_r_p]
 
             C1_1 = C2_11 * one_minus_T_d_l + C2_21 * T_d_l
             C1_2 = C2_12 * one_minus_T_d_r + C2_22 * T_d_r
 
-            output[wl_idx] = one_minus_p_d * C1_1 + p_d * C1_2
+            output[ww_idx] = one_minus_p_d * C1_1 + p_d * C1_2
 
 
         end

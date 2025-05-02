@@ -1,6 +1,5 @@
 """
-Returns the name of this aerosol OD state vector element
-as a string.
+Returns the name of this aerosol OD state vector element as a string.
 
 $(SIGNATURES)
 

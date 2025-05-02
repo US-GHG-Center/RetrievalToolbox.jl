@@ -41,7 +41,8 @@ function evaluate_surface_at_idx(
     surface::Union{
         LambertianPolynomialSurface,
         LambertianPolynomialKernel,
-        RPVPolynomialKernel},
+        RPVPolynomialKernel
+        },
     idx::Integer
 )
 

@@ -1,12 +1,11 @@
 """
-Returns the name of this solar scaler polynomial state vector element
-as a string.
+Returns the name of this solar scaler polynomial state vector element as a string.
 
 $(SIGNATURES)
 
 """
 function get_name(sve::SolarScalerPolynomialSVE)
-    return "SolarScalerPolynomialSVE ($(sve.coefficient_order))" * 
+    return "SolarScalerPolynomialSVE ($(sve.coefficient_order))" *
     "[$(sve.swin.window_name)]"
 end
 

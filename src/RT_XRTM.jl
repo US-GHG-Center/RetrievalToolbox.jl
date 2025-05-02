@@ -1,19 +1,17 @@
 """
 $(TYPEDSIGNATURES)
 
-Determines which weighting functions we must ask XRTM to calculate
-for us, based on the state vector. Results are stored in a dictionary which
-contains `String` keys that map to `Vector{Int}`. The vectors of integers will then
-correspond to the derivative indices used by XRTM. The dictionary used here is the
-`wfunctions_map` field of the `MonochromaticRTMethod` structure, and is emptied at the
-start of this function.
+Determines which weighting functions we must ask XRTM to calculate for us, based on the
+state vector. Results are stored in a dictionary which contains `String` keys that map to
+`Vector{Int}`. The vectors of integers will then correspond to the derivative indices used
+by XRTM. The dictionary used here is the `wfunctions_map` field of the
+`MonochromaticRTMethod` structure, and is emptied at the start of this function.
 
 # Details
 
-This function interrogates the state vector `sv`, and, depending on the
-state vector elements found, will create respective entries in a Dict.
-Generally, we ask XRTM for these basic types of weighting functions, which
-then are later transformed into Jacobians.
+This function interrogates the state vector `sv`, and, depending on the state vector
+elements found, will create respective entries in a Dict. Generally, we ask XRTM for these
+basic types of weighting functions, which then are later transformed into Jacobians.
 
 1) ∂I/∂τ for each layer
 2) ∂I/∂ω for each layer
@@ -24,9 +22,9 @@ position of the appropriate XRTM weighting functions for the various derivatives
 example, `d[dI_dTau] = [6,7,8,9]` would mean that the per-layer ∂I/∂τ (of a 4-layer
 atmosphere) are stored in the XRTM weighting function indices 6 through 9.
 
-Notable exceptions are aerosol-related Jacobians. Computing per-layer Jacobians for
-every aerosol mixture is computationally inefficient. Instead, we compute dedicated
-weighting functions for each and every aerosol-related state vector element.
+Notable exceptions are aerosol-related Jacobians. Computing per-layer Jacobians for every
+aerosol mixture is computationally inefficient. Instead, we compute dedicated weighting
+functions for each and every aerosol-related state vector element.
 
 """
 function _create_weighting_function_dictonary!(
@@ -341,7 +339,8 @@ function _calculate_radiances_and_wfs_XRTM!(
 
     if isnothing(xrtm_in)
         # Create a new XRTM instance, one per thread
-        xrtm_l = [create_XRTM(rt, observer, options_dict) for i in 1:Threads.nthreads()]
+        xrtm_l = [create_XRTM(rt, observer, options_dict)
+            for i in 1:Threads.nthreads()]
 
     else
         # Use the user-supplied XRTM instance instead
@@ -486,7 +485,6 @@ function _calculate_radiances_and_wfs_XRTM!(
     #=
         Perform XRTM calculations
     =#
-
 
     _run_XRTM!(
         xrtm_l,
@@ -683,6 +681,39 @@ function _run_XRTM!(
     spec_dep_wfuncs = [sve for sve in keys(rt.wfunctions_map)
         if sve isa AbstractStateVectorElement]
 
+    if length(spec_dep_wfuncs) > 0
+        #=
+            If we have to calculate aerosol-related Jacobians, we also need the linearized
+            inputs for XRTM for the phase function expansion coefficients. To minimize
+            allocations, we create empty arrays here and re-use them in the `set_XRTM_wf`
+            functions inside the hires spectral loop.
+
+            This will be a list of list of matrices.
+            l_coef[t][l] is a 2D matrix for thread `t` for layer `l`.
+
+            Remember, we have to have differently-sized l_coef for every layer due to the
+            fact that each layer might have a different number of effective phase function
+            coefficients.
+
+        =#
+        l_coef_threads = Vector{Matrix{Float64}}[]
+        for t in 1:Threads.nthreads()
+            l_coef_layers = Matrix{Float64}[]
+
+            for l in 1:rt.scene.atmosphere.N_layer
+
+                n_coef = XRTM.get_n_coef(xrtm_l[1], l-1)
+                l_coef = zeros(n_coef, n_elem)
+
+                push!(l_coef_layers, l_coef)
+
+            end
+
+            push!(l_coef_threads, l_coef_layers)
+        end
+
+    end
+
     #=
         We can direct the spectral loop to only evaluate certain points, which is very
         useful if we want to speed up the process using some interpolation method, such as
@@ -709,11 +740,14 @@ function _run_XRTM!(
     # threaded environment.
     # (some XRTM calls or computations only need to be done once!)
     first_XRTM_call = ones(Bool, Threads.nthreads())
+
     # Do we calculate weighting functions?
     have_jacobians = "calc_derivs" in options_dict["options"]
 
-    # Hires spectral loop
+    # We need some temporary arrays to do various calculations, unfortunately
     tmp_vec_list = [zeros(N_layer) for x in 1:Threads.nthreads()]
+    tmp_Nlay1 = [zeros(N_layer) for x in 1:Threads.nthreads()]
+    tmp_Nlay2 = [zeros(N_layer) for x in 1:Threads.nthreads()]
 
     desc_str = "(Nthread=$(Threads.nthreads())) XRTM loop $(swin) for solver(s): " *
         "$(join(options_dict["solvers"], ", "))"
@@ -731,6 +765,7 @@ function _run_XRTM!(
 
     looplock = Threads.SpinLock()
 
+    # Hires spectral loop
     Threads.@threads for i_spectral in spec_iterator
 
         #=
@@ -822,9 +857,13 @@ function _run_XRTM!(
                     i_spectral,
                     rt,
                     sve,
-                    first_XRTM_call[Threads.threadid()]
+                    first_XRTM_call[Threads.threadid()],
+                    tmp_Nlay1[Threads.threadid()],
+                    tmp_Nlay2[Threads.threadid()],
+                    l_coef_threads[Threads.threadid()]
                 )
                 unlock(looplock)
+
             end
 
         end
@@ -1023,12 +1062,7 @@ function _calculate_needed_n_coef(rt::MonochromaticRTMethod; threshold=0.05)
 
         # Calculate the total optical depth due to scattering
         # (for this layer `l`)
-        od_scatt = 0
-        od_scatt += opt.rayleigh_tau[i_spectral, l]
-
-        for (aer, aer_tau) in opt.aerosol_tau
-            od_scatt += aer_tau[i_spectral, l]
-        end
+        od_scatt = opt.total_tau[i_spectral, l] * opt.total_omega[i_spectral, l]
 
         # Now see how much of that is due to Rayleigh
         # (which is, for now, always 3 coefficients)

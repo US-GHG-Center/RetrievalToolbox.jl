@@ -1,6 +1,5 @@
 """
-Returns the name of this surface albedo state vector element
-as a string.
+Returns the name of this surface albedo state vector element as a string.
 
 $(SIGNATURES)
 
