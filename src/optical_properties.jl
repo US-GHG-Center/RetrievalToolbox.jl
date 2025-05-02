@@ -4,6 +4,7 @@ function calculate_earth_optical_properties!(
     N_sublayer = 10
     )
 
+
     for swin in keys(buf.optical_properties)
         calculate_earth_optical_properties!(
             buf.optical_properties[swin],
@@ -159,31 +160,33 @@ function calculate_earth_optical_properties!(
 
     # Add up total optical depth from contributions of each gas
     for (gas, gas_tau) in opt.gas_tau
-        @views opt.total_tau[:,:] += gas_tau[:,:]
+        @views opt.total_tau[:,:] .+= gas_tau[:,:]
     end
 
     # Add up aerosol contributions
     for (aer, aer_tau) in opt.aerosol_tau
-        @views opt.total_tau[:,:] += aer_tau[:,:]
+        @views opt.total_tau[:,:] .+= aer_tau[:,:]
     end
 
-    # Add Rayleigh contributions (this will be zero if no RayleighScattering is present..)
-    @views opt.total_tau[:,:] += opt.rayleigh_tau[:,:]
+    # Add Rayleigh contributions (this will be zero if no
+    # RayleighScattering is present..)
+    @views opt.total_tau[:,:] .+= opt.rayleigh_tau[:,:]
 
     #=
         Calculate total ω
     =#
 
-    @turbo opt.total_omega[:,:] .= 0.0
+    @views opt.total_omega[:,:] .= 0.0
 
     # Start with Rayleigh
-    @turbo opt.total_omega[:,:] += opt.rayleigh_tau[:,:]
+    @views opt.total_omega[:,:] .+= opt.rayleigh_tau[:,:]
     # Add each aerosol scattering optical depths
     for (aer, aer_tau) in opt.aerosol_tau
-        @turbo opt.total_omega[:,:] += opt.aerosol_omega[aer][:,:] .* aer_tau[:,:]
+        @views opt.total_omega[:,:] .+= opt.aerosol_omega[aer][:,:] .* aer_tau[:,:]
     end
     # Divide by total extinction tau
-    @turbo opt.total_omega[:,:] ./= opt.total_tau[:,:]
+    @views opt.total_omega[:,:] ./= opt.total_tau[:,:]
+
 
 
     # Calculate the total phase function expansion coefficients
@@ -195,6 +198,7 @@ function calculate_earth_optical_properties!(
 
     if findanytype(scene.atmosphere.atm_elements, AbstractRayleighScattering) |
         findanytype(scene.atmosphere.atm_elements, AbstractAerosolType)
+
         calculate_total_coef!(opt, scene.atmosphere)
     end
 
@@ -349,7 +353,7 @@ function calculate_gas_optical_depth_profiles!(
             @debug "Gas $(this_gas) is NOT matched with the wavelength grid!"
             @debug "Gas optical depth calculations will be slower."
             is_swin_matched_with_spec[this_gas] = false
-            spec_wl_idx_left[this_gas] = find_wavelength_indices(
+            spec_wl_idx_left[this_gas] = _find_ww_indices(
                 ustrip.(
                     Ref(swin.ww_unit),
                     this_spec.ww * this_spec.ww_unit
@@ -781,10 +785,10 @@ Calculates the derivative ∂τ/∂height for a GaussAerosol at layer `l`.
 
 $(TYPEDSIGNATURES)
 """
-function calculate_layer_dtau_dheight(
+function calculate_layer_dtau_dheight!(
+    result::AbstractArray,
     atm::EarthAtmosphere,
-    aer::GaussAerosol,
-    l::Integer
+    aer::GaussAerosol
 )
 
     #=
@@ -805,32 +809,54 @@ function calculate_layer_dtau_dheight(
         psurf = atm.pressure_levels[end]
         p0 = aer.pressure
         σ = aer.width
-        p = atm.pressure_layers[l] / psurf
         pprime_fac = 1.0 / psurf
 
     else
 
         p0 = ustrip(atm.pressure_unit, aer.pressure * aer.pressure_unit)
         σ = ustrip(atm.pressure_unit, aer.width * aer_pressure_unit)
-        p = atm.pressure_layers[l]
         pprime_fac = 1.0
+
     end
 
-    S = exp(-(p-p0)^2 / (2*σ^2))
+    _calculate_layer_dtau_dheight!(
+        result,
+        atm.pressure_layers,
+        p0,
+        σ,
+        pprime_fac
+    )
+
+    @views result[:] .*= aer.total_optical_depth
+
+end
+
+function _calculate_layer_dtau_dheight!(
+    result,
+    play,
+    p0,
+    σ,
+    pprime_fac
+)
+
     Ssum = 0
     Ssum2 = 0
 
-    @turbo for i in eachindex(atm.pressure_layers)
-        pp = pprime_fac * atm.pressure_layers[i]
+    for i in eachindex(play)
+        pp = pprime_fac * play[i]
         Ssum += exp(-(pp - p0)^2 / (2*σ^2))
         Ssum2 += (pp - p0) / σ^2 * exp(-(pp - p0)^2 / (2*σ^2))
     end
 
-    # This `pterm` is ∂/∂p0 [S(p) / ∑S(p')]
-    pterm = ((p - p0) / σ^2 * Ssum - Ssum2) * S
-    pterm /= Ssum^2
+    for i in eachindex(play)
 
-    return aer.total_optical_depth * pterm
+        p = pprime_fac * play[i]
+        S = exp(-(p-p0)^2 / (2*σ^2))
+
+        result[i] = ((p - p0) / σ^2 * Ssum - Ssum2) * S
+        result[i] /= Ssum^2
+
+    end
 
 end
 
@@ -875,21 +901,41 @@ function calculate_layer_dtau_dwidth(
         pprime_fac = 1.0
     end
 
-    S = exp(-(p-p0)^2 / (2*σ^2))
-    Ssum = 0 # This represents: ∑S(p')
-    Ssum2 = 0 # This represents: (∂/∂σ S(p)) * ∑S(p')
+    pterm = _calculate_layer_dtau_dwidth(
+        p,
+        atm.pressure_layers,
+        p0,
+        aer.width,
+        pprime_fac
+    )
 
-    @turbo for i in eachindex(atm.pressure_layers)
-        pp = pprime_fac * atm.pressure_layers[i]
+    return aer.total_optical_depth * pterm
+
+end
+
+function _calculate_layer_dtau_dwidth(
+    p,
+    play,
+    p0,
+    σ,
+    pprime_fac
+)
+
+    S = exp(-(p-p0)^2 / (2*σ^2))
+
+    Ssum = 0
+    Ssum2 = 0
+
+    @turbo for i in eachindex(play)
+        pp = pprime_fac * play[i]
         Ssum += exp(-(pp - p0)^2 / (2*σ^2))
         Ssum2 += (pp - p0)^2 / σ^3 * exp(-(pp - p0)^2 / (2*σ^2))
     end
 
-    # This `pterm` is ∂/∂σ [S(p) / ∑S(p')]
-    pterm = ((p - p0)^2 / σ^3 * Ssum - Ssum2) * S
+    pterm = ((p - p0) / σ^2 * Ssum - Ssum2) * S
     pterm /= Ssum^2
 
-    return aer.total_optical_depth * pterm
+    return pterm
 
 end
 
@@ -947,6 +993,7 @@ function calculate_aerosol_optical_depth_profile!(
         ref_tau_ext[l] = exp(-(p[l] - p0)^2 / (2*w0*w0))
 
     end
+
     @views ref_tau_ext[:] ./= sum(ref_tau_ext)
     @views ref_tau_ext[:] .*= aer.total_optical_depth
 
@@ -1093,7 +1140,7 @@ function calculate_total_coef!(
     end
 
     # Step 4, divide coef / denom
-    @turbo opt.total_coef ./= coef_denom
+    @views opt.total_coef[:,:,:] ./= coef_denom[:,:,:]
 
 
     # Sometimes rounding errors will cause the first element to be slightly different

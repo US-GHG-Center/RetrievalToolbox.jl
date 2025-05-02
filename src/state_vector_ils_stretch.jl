@@ -1,12 +1,11 @@
 """
-Returns the name of this ILS stretch state vector element
-as a string.
+Returns the name of this ILS stretch state vector element as a string.
 
 $(SIGNATURES)
 
 """
 function get_name(sve::ILSStretchPolynomialSVE)
-    return "ILSStretchPolynomialSVE ($(sve.coefficient_order)) " * 
+    return "ILSStretchPolynomialSVE ($(sve.coefficient_order)) " *
     "[$(sve.swin.window_name)]"
 end
 

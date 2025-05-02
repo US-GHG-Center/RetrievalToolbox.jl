@@ -1,6 +1,5 @@
 """
-Returns the name of this dispersion state vector element
-as a string.
+Returns the name of this dispersion state vector element as a string.
 
 $(SIGNATURES)
 
@@ -73,7 +72,7 @@ end
 
 """
 Returns the positional indices of state vector elements that are a `GasVMRProfileSVE` and
-belong to a `GasAbsorber` `gas`. This allows easy retrieval of the VMR profile SVEs for 
+belong to a `GasAbsorber` `gas`. This allows easy retrieval of the VMR profile SVEs for
 some gas
 """
 function idx_for_profile_sve(

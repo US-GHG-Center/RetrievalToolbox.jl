@@ -333,6 +333,8 @@ function calculate_solar_doppler_shift(
     loc::EarthLocation,
     time::DateTime,
     )
-    #@error "This is not yet implemented."
+
+    @warn "This is not yet implemented."
     return 0.0
+
 end

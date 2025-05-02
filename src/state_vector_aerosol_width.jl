@@ -1,6 +1,5 @@
 """
-Returns the name of this aerosol width state vector element
-as a string.
+Returns the name of this aerosol width state vector element as a string.
 
 $(SIGNATURES)
 

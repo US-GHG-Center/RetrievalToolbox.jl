@@ -1,12 +1,11 @@
 """
-Returns the name of this surface albedo state vector element
-as a string.
+Returns the name of this surface albedo state vector element as a string.
 
 $(SIGNATURES)
 
 """
 function get_name(sve::SurfaceAlbedoPolynomialSVE)
-    return "SurfaceAlbedoPolynomialSVE ($(sve.coefficient_order)) " * 
+    return "SurfaceAlbedoPolynomialSVE ($(sve.coefficient_order)) " *
         "[$(sve.swin.window_name)]"
 
 end

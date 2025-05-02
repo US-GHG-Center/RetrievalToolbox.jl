@@ -6,7 +6,8 @@ using Test
     @testset "Utils tests" begin
         include("utils_tests.jl")
     end
-
-
+    @testset "Spectroscopy tests" begin
+        include("spectroscopy_tests.jl")
+    end
 
 end

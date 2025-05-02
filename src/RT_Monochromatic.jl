@@ -102,13 +102,13 @@ function calculate_rt_jacobian!(
     idx = rt.wfunctions_map["dI_dSurface"][1]
 
     # Zero out Jacobian radiance object
-    @turbo jac[:] .= 0
+    @views jac[:] .= 0
 
     ∂I_∂s = rt.hires_wfunctions[idx]
     o = sve.coefficient_order
 
     if o == 0
-        @turbo jac.S[:] .= ∂I_∂s.S[:]
+        @views jac.S[:] .= ∂I_∂s.S[:]
     else
         @turbo for i in axes(jac, 1)
             for s in axes(jac, 2)
@@ -243,7 +243,7 @@ function calculate_rt_jacobian!(
     end
 
     # Make sure to apply the unit factor to all
-    @turbo jac[:] ./= unit_fac
+    jac[:] ./= unit_fac
 
 end
 
@@ -477,7 +477,7 @@ function calculate_rt_jacobian!(
     # Simply copy over, both `jac` and `this_wf` are the same type of
     # either ScalarRadiance or VectorRadiance, so we can simply do a
     # copy operation that broadcasts over all Stokes components.
-    @turbo jac[:] .= this_wf[:]
+    @views jac[:] .= this_wf[:]
     # This is now ∂I/∂AOD
 
     #=
@@ -491,7 +491,7 @@ function calculate_rt_jacobian!(
     if sve.log
 
         this_aod = get_current_value_with_unit(sve) |> NoUnits
-        @turbo jac[:,:] .*= exp(this_aod)
+        @views jac[:,:] .*= exp(this_aod)
 
     end
 
@@ -516,7 +516,7 @@ function calculate_rt_jacobian!(
     # Simply copy over, both `jac` and `this_wf` are the same type of
     # either ScalarRadiance or VectorRadiance, so we can simply do a
     # copy operation that broadcasts over all Stokes components.
-    @turbo jac[:] .= this_wf[:]
+    @views jac[:] .= this_wf[:]
     # This is now ∂I/∂Height
 
     #=
@@ -530,7 +530,7 @@ function calculate_rt_jacobian!(
     if sve.log
 
         this_height = get_current_value_with_unit(sve) |> NoUnits
-        @turbo jac[:] .*= exp(this_height)
+        @views jac[:] .*= exp(this_height)
 
     end
 
@@ -556,7 +556,7 @@ function calculate_rt_jacobian!(
     # Simply copy over, both `jac` and `this_wf` are the same type of
     # either ScalarRadiance or VectorRadiance, so we can simply do a
     # copy operation that broadcasts over all Stokes components.
-    @turbo jac[:] .= this_wf[:]
+    @views jac[:] .= this_wf[:]
     # This is now ∂I/∂Width
 
     #=
@@ -570,7 +570,7 @@ function calculate_rt_jacobian!(
     if sve.log
 
         this_width = get_current_value_with_unit(sve) |> NoUnits
-        @turbo jac[:] .*= exp(this_width)
+        @views jac[:] .*= exp(this_width)
 
     end
 

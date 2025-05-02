@@ -114,8 +114,8 @@ function read_mie_mom_file(
 
     # Reverse sign for γ and ε to match the Siewert convention for XRTM
     # THIS IS IMPORTANT!
-    @turbo coefficients[:,5,:] *= -1
-    @turbo coefficients[:,6,:] *= -1
+    coefficients[:,5,:] .*= -1
+    coefficients[:,6,:] .*= -1
 
     return MieMomAerosolProperty(
         ww,
@@ -288,11 +288,15 @@ function set_XRTM_wf!(
     spectral_idx::Integer,
     rt::AbstractRTMethod,
     sve::AerosolOpticalDepthSVE,
-    first_XRTM_call::Bool
+    first_XRTM_call::Bool,
+    tmp_Nlay1::AbstractArray,
+    tmp_Nlay2::AbstractArray,
+    l_coef_layer::Vector{<:AbstractArray}
 )
 
     # Cast the current AOD value to a unitless quantity
     # (this can be either AOD or log(AOD))
+
     this_aod = get_current_value_with_unit(sve) |> NoUnits
     if sve.log
         this_aod = exp(this_aod)
@@ -302,36 +306,10 @@ function set_XRTM_wf!(
     opt = rt.optical_properties
     this_aer_tau = opt.aerosol_tau[sve.aerosol]
     this_aer_ssa = opt.aerosol_omega[sve.aerosol]
-    this_ray_tau = opt.rayleigh_tau
-
-    tmp_Nlay1 = opt.tmp_Nlay1
-    tmp_Nlay2 = opt.tmp_Nlay2
-
-    if Threads.nthreads() > 1
-
-        # Use a thread-safe variant if there are multiple threads calling this..
-
-        tmp_Nlay1 = similar(opt.tmp_Nlay1)
-        tmp_Nlay2 = similar(opt.tmp_Nlay2)
-
-    end
-
 
 
     # Make this calculation only once!
     if first_XRTM_call
-        #=
-            The number of coefficient elements going into XRTM will depend on whether XRTM
-            was initilized in vector mode, or not. We can ask XRTM itself for that
-            information. If the number of stokes inside XRTM == 1, use 1, otherwise 6.
-            Note that we create a new array here with a different amount of coefficient
-            elements, since we want to retain the possibility to have set up the retrieval
-            in "Vector" mode, but do some RT calculates for scalar only.
-        =#
-        lcoef = zeros(
-            size(rt.optical_properties.total_coef, 1),
-            XRTM.get_n_stokes(xrtm) == 1 ? 1 : 6
-        )
 
         # Placeholder for interpolated aerosol coefficients (need only 2 dimensions)
         this_aer_coef = @view rt.optical_properties.tmp_coef[:,:,1]
@@ -342,8 +320,7 @@ function set_XRTM_wf!(
             # Use a thread-safe variant if there are multiple threads calling this..
             this_aer_coef = zeros(
                 size(rt.optical_properties.tmp_coef, 1),
-                size(rt.optical_properties.tmp_coef, 2),
-                1
+                size(rt.optical_properties.tmp_coef, 2)
             )
 
         end
@@ -354,7 +331,12 @@ function set_XRTM_wf!(
         swin = rt.optical_properties.spectral_window
         idx_aer = get_scattering_index(swin)
         # Interpolate coefficients for this aerosol for spectral point `swin.ww_grid[idx_aer]`
-        interpolate_aer_coef!(this_aer_coef, sve.aerosol, swin.ww_grid[idx_aer], swin.ww_unit)
+        interpolate_aer_coef!(
+            this_aer_coef,
+            sve.aerosol,
+            swin.ww_grid[idx_aer],
+            swin.ww_unit
+        )
 
     end
 
@@ -373,7 +355,7 @@ function set_XRTM_wf!(
     # Short-cut to pre-allocated vector with N_layer length
     ∂τ_∂AOD = tmp_Nlay1
     ∂τ_∂AOD[:] .= 0
-    @turbo for l in axes(∂τ_∂AOD, 1)
+    for l in axes(∂τ_∂AOD, 1)
         τ_aer = this_aer_tau[spectral_idx, l]
         ∂τ_∂AOD[l] = τ_aer / this_aod
     end
@@ -393,7 +375,7 @@ function set_XRTM_wf!(
     # Short-cut to pre-allocated vector with N_layer length
     ∂ω_∂AOD = tmp_Nlay2
     ∂ω_∂AOD[:] .= 0
-    @turbo for l in axes(∂ω_∂AOD, 1)
+    for l in axes(∂ω_∂AOD, 1)
         τ = opt.total_tau[spectral_idx,l]
         ω_aer = this_aer_ssa[spectral_idx, l]
         ω = opt.total_omega[spectral_idx,l]
@@ -407,56 +389,56 @@ function set_XRTM_wf!(
         ∂ω_∂AOD
     )
 
+
+
     if first_XRTM_call # Set this only once for bin center values
+
 
         for l in 1:rt.scene.atmosphere.N_layer
 
-            @views lcoef[:,:] .= 0
-            denom = 0.0
-            denom += this_ray_tau[idx_aer, l]
+            lcoef = l_coef_layer[l]
+            lcoef[:,:] .= 0
 
-            # This must be the sum over all aerosol optical thicknesses multiplied by the
-            # aerosol ω, not just the one whose Jacobian we want! The aerosol single-
-            # scatter albedo `ssa` must also be the correct one, not the one tied to this
-            # state vector element.
-            for (aer_key, aer_tau) in opt.aerosol_tau # Loops through all aerosols
-                ssa = opt.aerosol_omega[aer_key] # Grabs the SSA from this aerosol
-                denom += ssa[idx_aer, l] * aer_tau[idx_aer, l] # Adds SSA * τ_aer
-            end
+            τ_sca = opt.total_tau[idx_aer, l] * opt.total_omega[idx_aer, l]
 
             # (1): ∂τ/∂AOD * ω_aerosol * (- β_total) / (τ_ray + Σ ω_aerosol * τ_aerosol)
-            @turbo for c in axes(lcoef, 1) # Loops through pfmoms
-                for q in axes(lcoef, 2) # Loops through elements (1 or 6)
-
-                    lcoef[c,q] -= ∂τ_∂AOD[l] * this_aer_ssa[idx_aer, l] * (
-                        rt.optical_properties.total_coef[c,q,l]) / denom
-
-                end
-            end
-
             # (2): ∂τ/∂AOD * ω_aerosol * (β_aerosol) / (τ_ray + Σ ω_aerosol * τ_aerosol)
-            @turbo for c in axes(this_aer_coef, 1) # Loops through pfmoms
-                for q in axes(lcoef, 2) # Loops through elements (1 or 6)
 
-                    lcoef[c,q] += ∂τ_∂AOD[l] * this_aer_ssa[idx_aer, l] * (
-                        this_aer_coef[c,q]) / denom
-
-                end
-            end
-
-            # Reminder: linearized coefficient inputs for XRTM *must match* the number
-            # of coefficients *used* (not necessarily supplied).
-            # You cannot have N used coefficients, but then only vary M != N.
-            ncoef = XRTM.get_n_coef(xrtm, l-1)
+            _coef_dummy!(
+                lcoef,
+                this_aer_coef,
+                rt.optical_properties.total_coef,
+                l,
+                ∂τ_∂AOD[l] * this_aer_ssa[idx_aer, l] / τ_sca,
+            )
 
             XRTM.set_coef_l_11(
                 xrtm,
                 l-1,
                 wf_idx-1,
-                lcoef[1:ncoef,:]
+                lcoef
             )
 
         end
+
+    end
+
+end
+
+function _coef_dummy!(
+    lcoef,
+    this_aer_coef,
+    coef,
+    l,
+    fac
+)
+
+    @turbo for c in axes(lcoef, 1), q in axes(lcoef, 2)
+
+        lcoef[c,q] = fac * (
+            this_aer_coef[c,q] - coef[c,q,l]
+            )
+
     end
 
 end
@@ -476,27 +458,16 @@ function set_XRTM_wf!(
     spectral_idx::Integer,
     rt::AbstractRTMethod,
     sve::AerosolHeightSVE,
-    first_XRTM_call::Bool
+    first_XRTM_call::Bool,
+    tmp_Nlay1,
+    tmp_Nlay2,
+    l_coef_layer::Vector{<:AbstractArray}
 )
 
 
     # Useful short-cuts
     opt = rt.optical_properties
-    this_aer_tau = opt.aerosol_tau[sve.aerosol]
     this_aer_ssa = opt.aerosol_omega[sve.aerosol]
-    this_ray_tau = opt.rayleigh_tau
-
-    tmp_Nlay1 = opt.tmp_Nlay1
-    tmp_Nlay2 = opt.tmp_Nlay2
-
-    if Threads.nthreads() > 1
-
-        # Use a thread-safe variant if there are multiple threads calling this..
-
-        tmp_Nlay1 = similar(opt.tmp_Nlay1)
-        tmp_Nlay2 = similar(opt.tmp_Nlay2)
-
-    end
 
     # Cast the current height value to a unitless quantity
     # (this can be either height or log(height))
@@ -506,14 +477,7 @@ function set_XRTM_wf!(
     end
 
     if first_XRTM_call
-        # The number of coefficient elements going into XRTM will depend on whether XRTM
-        # was initilized in vector mode, or not. We can ask XRTM itself for that information.
-        # If the number of stokes inside XRTM == 1, use 1, otherwise 6.
-        n_stokes = XRTM.get_n_stokes(xrtm) == 1 ? 1 : 6
-        lcoef = zeros(
-            size(rt.optical_properties.total_coef, 1),
-            n_stokes
-        )
+
 
         # Placeholder for interpolated aerosol coefficients
         this_aer_coef = @view rt.optical_properties.tmp_coef[:,:,1]
@@ -525,8 +489,7 @@ function set_XRTM_wf!(
             # Use a thread-safe variant if there are multiple threads calling this..
             this_aer_coef = zeros(
                 size(rt.optical_properties.tmp_coef, 1),
-                size(rt.optical_properties.tmp_coef, 2),
-                1
+                size(rt.optical_properties.tmp_coef, 2)
             )
 
         end
@@ -536,8 +499,14 @@ function set_XRTM_wf!(
         # (this interpolation call takes <0.1 ms generally)
         swin = rt.optical_properties.spectral_window
         idx_aer = get_scattering_index(swin)
-        interpolate_aer_coef!(this_aer_coef, sve.aerosol, swin.ww_grid[idx_aer], swin.ww_unit)
+        interpolate_aer_coef!(
+            this_aer_coef,
+            sve.aerosol,
+            swin.ww_grid[idx_aer],
+            swin.ww_unit
+        )
     end
+
 
 
     #=
@@ -552,13 +521,13 @@ function set_XRTM_wf!(
     # Short-cut to pre-allocated vector with N_layer length
     ∂τ_∂height = tmp_Nlay1
     # Dispatch to aerosol-type specific function!
-    for l in axes(∂τ_∂height, 1)
-        ∂τ_∂height[l] = calculate_layer_dtau_dheight(
-            rt.scene.atmosphere,
-            sve.aerosol,
-            l
-        )
-    end
+
+    calculate_layer_dtau_dheight!(
+        ∂τ_∂height,
+        rt.scene.atmosphere,
+        sve.aerosol
+    )
+
 
     # Set ∂τ/∂height linearized input for all layers
     XRTM.set_ltau_l_n1(
@@ -594,52 +563,24 @@ function set_XRTM_wf!(
     if first_XRTM_call # Set this only once for bin center values
         for l in 1:rt.scene.atmosphere.N_layer
 
-            @views lcoef[:,:] .= 0
+            lcoef = l_coef_layer[l]
+            lcoef[:,:] .= 0
 
-            denom = 0.0
-            denom += this_ray_tau[idx_aer, l]
+            τ_sca = opt.total_tau[idx_aer, l] * opt.total_omega[idx_aer, l]
 
-            # This must be the sum over all aerosol optical thicknesses multiplied by the
-            # aerosol ω, not just the one whose Jacobian we want! The aerosol single-
-            # scatter albedo `ssa` must also be the correct one, not the one tied to this
-            # state vector element.
-            for (aer_key, aer_tau) in opt.aerosol_tau
-                ssa = opt.aerosol_omega[aer_key]
-                denom += ssa[idx_aer, l] * aer_tau[idx_aer, l]
-            end
-
-            # (1): ∂τ/∂height * ω_aerosol * (- β_total) /
-            #                                (τ_ray + Σ ω_aerosol * τ_aerosol)
-            @turbo for c in axes(lcoef, 1)
-                for q in axes(lcoef, 2)
-
-                    lcoef[c,q] -= ∂τ_∂height[l] * this_aer_ssa[idx_aer, l] * (
-                        opt.total_coef[c,q,l]) / denom
-
-                end
-            end
-
-            # (2): ∂τ/∂height * ω_aerosol * (β_aerosol) /
-            #                               (τ_ray + Σ ω_aerosol * τ_aerosol)
-            @turbo for c in axes(this_aer_coef, 1)
-                for q in axes(lcoef, 2)
-
-                    lcoef[c,q] += ∂τ_∂height[l] * this_aer_ssa[idx_aer, l] * (
-                        this_aer_coef[c,q]) / denom
-
-                end
-            end
-
-            # Reminder: linearized coefficient inputs for XRTM *must match* the number
-            # of coefficients *used* (not necessarily supplied).
-            # You cannot have N used coefficients, but then only vary M < N.
-            ncoef = XRTM.get_n_coef(xrtm, l-1)
+            _coef_dummy!(
+                    lcoef,
+                    this_aer_coef,
+                    rt.optical_properties.total_coef,
+                    l,
+                    ∂τ_∂height[l] * this_aer_ssa[idx_aer, l] / τ_sca,
+                )
 
             XRTM.set_coef_l_11(
                 xrtm,
                 l-1,
                 wf_idx-1,
-                lcoef[1:ncoef,:]
+                lcoef
             )
 
         end
@@ -664,27 +605,16 @@ function set_XRTM_wf!(
     spectral_idx::Integer,
     rt::AbstractRTMethod,
     sve::AerosolWidthSVE,
-    first_XRTM_call::Bool
+    first_XRTM_call::Bool,
+    tmp_Nlay1,
+    tmp_Nlay2,
+    l_coef_layer::Vector{<:AbstractArray}
 )
 
 
     # Useful short-cuts
     opt = rt.optical_properties
-    this_aer_tau = opt.aerosol_tau[sve.aerosol]
     this_aer_ssa = opt.aerosol_omega[sve.aerosol]
-    this_ray_tau = opt.rayleigh_tau
-
-    tmp_Nlay1 = opt.tmp_Nlay1
-    tmp_Nlay2 = opt.tmp_Nlay2
-
-    if Threads.nthreads() > 1
-
-        # Use a thread-safe variant if there are multiple threads calling this..
-
-        tmp_Nlay1 = similar(opt.tmp_Nlay1)
-        tmp_Nlay2 = similar(opt.tmp_Nlay2)
-
-    end
 
     # Cast the current width value to a unitless quantity
     # (this can be either width or log(width))
@@ -694,14 +624,7 @@ function set_XRTM_wf!(
     end
 
     if first_XRTM_call
-        # The number of coefficient elements going into XRTM will depend on whether XRTM
-        # was initilized in vector mode, or not. We can ask XRTM itself for that information.
-        # If the number of stokes inside XRTM == 1, use 1, otherwise 6.
-        n_stokes = XRTM.get_n_stokes(xrtm) == 1 ? 1 : 6
-        lcoef = zeros(
-            size(rt.optical_properties.total_coef, 1),
-            n_stokes
-        )
+
 
         # Placeholder for interpolated aerosol coefficients
         this_aer_coef = @view rt.optical_properties.tmp_coef[:,:,1]
@@ -713,8 +636,7 @@ function set_XRTM_wf!(
             # Use a thread-safe variant if there are multiple threads calling this..
             this_aer_coef = zeros(
                 size(rt.optical_properties.tmp_coef, 1),
-                size(rt.optical_properties.tmp_coef, 2),
-                1
+                size(rt.optical_properties.tmp_coef, 2)
             )
 
         end
@@ -724,7 +646,13 @@ function set_XRTM_wf!(
         # (this interpolation call takes <0.1 ms generally)
         swin = rt.optical_properties.spectral_window
         idx_aer = get_scattering_index(swin)
-        interpolate_aer_coef!(this_aer_coef, sve.aerosol, swin.ww_grid[idx_aer], swin.ww_unit)
+        interpolate_aer_coef!(
+            this_aer_coef,
+            sve.aerosol,
+            swin.ww_grid[idx_aer],
+            swin.ww_unit
+        )
+
     end
 
 
@@ -739,6 +667,7 @@ function set_XRTM_wf!(
 
     # Short-cut to pre-allocated vector with N_layer length
     ∂τ_∂width = tmp_Nlay1
+
     # Dispatch to aerosol-type specific function!
     for l in axes(∂τ_∂width, 1)
         ∂τ_∂width[l] = calculate_layer_dtau_dwidth(
@@ -782,57 +711,51 @@ function set_XRTM_wf!(
     if first_XRTM_call # Set this only once for band center values
         for l in 1:rt.scene.atmosphere.N_layer
 
-            @views lcoef[:,:] .= 0
+            lcoef = l_coef_layer[l]
+            lcoef[:,:] .= 0
 
-            denom = 0.0
-            denom += this_ray_tau[idx_aer, l]
-
-            # This must be the sum over all aerosol optical thicknesses multiplied by the
-            # aerosol ω, not just the one whose Jacobian we want! The aerosol single-
-            # scatter albedo `ssa` must also be the correct one, not the one tied to this
-            # state vector element.
-            for (aer_key, aer_tau) in opt.aerosol_tau
-                ssa = opt.aerosol_omega[aer_key]
-                denom += ssa[idx_aer, l] * aer_tau[idx_aer, l]
-            end
-
+            τ_sca = opt.total_tau[idx_aer, l] * opt.total_omega[idx_aer, l]
+            #=
             # (1): ∂τ/∂width * ω_aerosol * (- β_total) /
             #                                (τ_ray + Σ ω_aerosol * τ_aerosol)
             @turbo for c in axes(lcoef, 1)
                 for q in axes(lcoef, 2)
 
                     lcoef[c,q] -= ∂τ_∂width[l] * this_aer_ssa[idx_aer, l] * (
-                        opt.total_coef[c,q,l]) / denom
+                        opt.total_coef[c,q,l]) / τ_sca
 
                 end
             end
 
             # (2): ∂τ/∂width * ω_aerosol * (β_aerosol) /
             #                               (τ_ray + Σ ω_aerosol * τ_aerosol)
-            @turbo for c in axes(this_aer_coef, 1)
+            @turbo for c in axes(lcoef, 1)
                 for q in axes(lcoef, 2)
 
                     lcoef[c,q] += ∂τ_∂width[l] * this_aer_ssa[idx_aer, l] * (
-                        this_aer_coef[c,q]) / denom
+                        this_aer_coef[c,q]) / τ_sca
 
                 end
             end
+            =#
 
-            # Reminder: linearized coefficient inputs for XRTM *must match* the number
-            # of coefficients *used* (not necessarily supplied).
-            # You cannot have N used coefficients, but then only vary M < N.
-            ncoef = XRTM.get_n_coef(xrtm, l-1)
+            _coef_dummy!(
+                lcoef,
+                this_aer_coef,
+                rt.optical_properties.total_coef,
+                l,
+                ∂τ_∂width[l] * this_aer_ssa[idx_aer, l] / τ_sca,
+            )
 
             XRTM.set_coef_l_11(
                 xrtm,
                 l-1,
                 wf_idx-1,
-                lcoef[1:ncoef,:]
+                lcoef
             )
 
         end
     end
-
 end
 
 

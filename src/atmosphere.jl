@@ -141,18 +141,15 @@ function create_ACOS_pressure_grid(
 end
 
 """
-Calculates local gravity given some latitude and altitude
-
 $(SIGNATURES)
+
+Calculates local gravity given some latitude and altitude
 
 # Details
 
 This code was taken from MS3 / the CSU simulator suite, with heritage related to the OCO-1
-retrieval algorithm written at JPL. See https://github.com/nasa/RtRetrievalFramework
-
-at
-
-./lib/implementation/altitude_hydrostatic.cc
+retrieval algorithm written at JPL. See https://github.com/nasa/RtRetrievalFramework at
+`./lib/implementation/altitude_hydrostatic.cc`.
 
 """
 function JPL_gravity(
@@ -602,12 +599,6 @@ function create_pressure_weights(
 
     end
 
-    #= old way
-    c = @. (1.0 - q_int(atm.pressure_)*atm.specific_humidity_unit) / (
-        g_int(atm.pressure_layers)*atm.gravity_unit * MM_DRY_AIR
-    )
-    =#
-
     # h' is on layers
     csum = sum(c .* diff(atm.pressure_levels) * atm.pressure_unit)
     hprime = c .* diff(atm.pressure_levels) * atm.pressure_unit / csum
@@ -643,10 +634,9 @@ end
 $(TYPEDSIGNATURES)
 Calculates the XGAS from an `AbstractAtmosphere` **atm**.
 
-The column-averaged dry-air mole fraction is calculated according to
-O'Dell et al., 10.5194/amt-5-99-2012. Note that the returned quantity
-comes with the same unit as defined in the `GasAbsorber` object, which
-defines the VMR levels of that particular gas.
+The column-averaged dry-air mole fraction is calculated according to O'Dell et al.,
+10.5194/amt-5-99-2012. Note that the returned quantity comes with the same unit as defined
+in the `GasAbsorber` object, which defines the VMR levels of that particular gas.
 """
 function calculate_xgas(atm::AbstractAtmosphere; gas_name=nothing)
 
@@ -665,20 +655,18 @@ function calculate_xgas(atm::AbstractAtmosphere; gas_name=nothing)
     # Otherwise, just find whichever gas the user wants
     else
 
-        for x in atm.atm_elements
-            if x isa GasAbsorber
-                if x.gas_name == gas_name
-                    return sum(h .* x.vmr_levels * x.vmr_unit)
-                end
-            end
-        end
+        gas = get_gas_from_name(atm, gas_name)
+        return sum(h .* gas.vmr_levels * gas.vmr_unit)
 
     end
 end
 
 
 """
-Creates a level-based profile from one defined on middle-of-the-layer.
+$(TYPEDSIGNATURES)
+
+Creates a level-based profile from one defined on middle-of-the-layer. Assumes that the
+mid-layer value is well-approximated by half the value of the layer-boundary values.
 """
 function create_level_from_midlayer(q)
 
