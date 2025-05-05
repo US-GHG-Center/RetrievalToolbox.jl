@@ -763,6 +763,7 @@ function _run_XRTM!(
         enabled=XRTM_PROGRESS
     )
 
+    thread_error_flags = zeros(Bool, Threads.nthreads())
     looplock = Threads.SpinLock()
 
     # Hires spectral loop
@@ -776,7 +777,21 @@ function _run_XRTM!(
             holds for "tmp_vec", which we generate ahead of this loop and then simply grab
             the one we want (corresponding to the thread ID).
 
+            A threaded loop via Threads.@threads cannot be stopped or broken out of. So
+            if one thread encounters some error due to bad inputs into XRTM (e.g., the
+            surface kernel amplitude is negative), we cannot simply `break` out of it.
+            In that case, we flag this thread as having 'errored', and let it continue
+            without further evaluating the loop body. Then, after the loop is processed,
+            we check for the flags for all threads and proceed as appropriate.
+
         =#
+
+
+        if thread_error_flags[Threads.threadid()]
+            # An error has been noticed for this thread -> skip evaluating the loop body.
+            continue
+        end
+
 
         # Pick the XRTM instance for this thread!
         if Threads.nthreads() == length(xrtm_l)
@@ -826,9 +841,20 @@ function _run_XRTM!(
         # such that the k'th BRDF kernel belongs to the XRTM kernel `k-1`
         # (due to XRTM's 0-based indexing.)
         for (k, kernel) in enumerate(surface.kernels)
-            XRTM.set_kernel_ampfac(xrtm, k-1,
-                evaluate_surface_at_idx(kernel, i_spectral)
-            )
+
+            ampfac = evaluate_surface_at_idx(kernel, i_spectral)
+
+            if (ampfac <= 0) | (ampfac >= 1.0)
+                @error "[XRTM] Surface kernel amplitude factor not in (0,1)."
+                thread_error_flags[Threads.threadid()] = true
+                break
+            end
+
+            XRTM.set_kernel_ampfac(xrtm, k-1, ampfac)
+        end
+
+        if thread_error_flags[Threads.threadid()]
+            continue
         end
 
         #=
@@ -952,6 +978,16 @@ function _run_XRTM!(
         next!(prog)
 
     end # Spectral loop end
+
+    # For now, set all radiances and jacobians to NaNs if errors were encountered
+    if any(thread_error_flags)
+        @warn "Errors were encountered in this XRTM run. Setting all to NaN!"
+        rt.hires_radiance[:] .= NaN
+        for jac in rt.hires_wfunctions
+            jac[:] .= NaN
+        end
+    end
+
 
 end
 
