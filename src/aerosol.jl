@@ -693,7 +693,7 @@ function set_XRTM_wf!(
     # Short-cut to pre-allocated vector with N_layer length
     ∂ω_∂width = tmp_Nlay2
 
-    @turbo for l in axes(∂ω_∂width, 1)
+    for l in axes(∂ω_∂width, 1)
         τ = rt.optical_properties.total_tau[spectral_idx,l]
         ω_aer = this_aer_ssa[spectral_idx, l]
         ω = rt.optical_properties.total_omega[spectral_idx,l]
@@ -715,29 +715,6 @@ function set_XRTM_wf!(
             lcoef[:,:] .= 0
 
             τ_sca = opt.total_tau[idx_aer, l] * opt.total_omega[idx_aer, l]
-            #=
-            # (1): ∂τ/∂width * ω_aerosol * (- β_total) /
-            #                                (τ_ray + Σ ω_aerosol * τ_aerosol)
-            @turbo for c in axes(lcoef, 1)
-                for q in axes(lcoef, 2)
-
-                    lcoef[c,q] -= ∂τ_∂width[l] * this_aer_ssa[idx_aer, l] * (
-                        opt.total_coef[c,q,l]) / τ_sca
-
-                end
-            end
-
-            # (2): ∂τ/∂width * ω_aerosol * (β_aerosol) /
-            #                               (τ_ray + Σ ω_aerosol * τ_aerosol)
-            @turbo for c in axes(lcoef, 1)
-                for q in axes(lcoef, 2)
-
-                    lcoef[c,q] += ∂τ_∂width[l] * this_aer_ssa[idx_aer, l] * (
-                        this_aer_coef[c,q]) / τ_sca
-
-                end
-            end
-            =#
 
             _coef_dummy!(
                 lcoef,

@@ -877,7 +877,7 @@ function calculate_layer_dtau_dwidth(
         and thus τ_aer = AOD * S(p) / ∑S(p'), note the normalization factor by which
         we must divide. Also note that ∂/∂σ S(p) = (p-p0)^2/σ^3 * S(p)
 
-        ∂τ_aer(p)/∂p0 = AOD * ∂/∂σ [S(p) / ∑S(p')] = ... (some algebra) =
+        ∂τ_aer(p)/∂σ = AOD * ∂/∂σ [S(p) / ∑S(p')] = ... (some algebra) =
         =
 
     =#
@@ -932,7 +932,7 @@ function _calculate_layer_dtau_dwidth(
         Ssum2 += (pp - p0)^2 / σ^3 * exp(-(pp - p0)^2 / (2*σ^2))
     end
 
-    pterm = ((p - p0) / σ^2 * Ssum - Ssum2) * S
+    pterm = ((p - p0)^2 / σ^3 * Ssum - Ssum2) * S
     pterm /= Ssum^2
 
     return pterm
