@@ -1,5 +1,5 @@
 
-`RetrievalToolbox` is a library for building trace gas retrieval algorithms and related applications written in pure [Julia](https://julialang.org).
+RetrievalToolbox is a library for building trace gas retrieval algorithms and related applications written in pure [Julia](https://julialang.org).
 
 # Installation
 
@@ -19,7 +19,7 @@ This will install the RetrievalToolbox including all needed dependencies.
 
 RetrievalToolbox makes use of the XRTM library to perform the various radiative transfer calculations which require scattering from, e.g. molecular Rayleigh scattering or aerosols. While it is possible to use RetrievalToolbox with a built-in Beer-Lambert-Bouguer method, many retrieval applications will need to account for scattering and thus require the XRTM library. XRTM is published at (https://github.com/gmcgarragh/xrtm/), and we also maintain a fork at (https://github.com/PeterSomkuti/xrtm). Depending on your needs and the way how you create your own algorithm, you might prefer one vs. the other option.
 
-To build `XRTM`, you need somewhat recent versions of GCC, gfortran and make. First, clone the repository into some location on your computing environment:
+To build XRTM, you need somewhat recent versions of GCC, gfortran and make. First, clone the repository into some location on your computing environment:
 
 `git clone https://github.com/gmcgarragh/xrtm`
 
@@ -61,7 +61,7 @@ We will be working in the future to submit an entry to the Journal of Open Sourc
 
 ## Alternatives
 
-RetrievalToolbox was heavily influenced by the hard work of numerous scientists in different labs and institutions in various countries. Prominent and publicly available alternatives are
+RetrievalToolbox was heavily influenced by the hard work of numerous scientists in different labs and institutions in various countries. Some of those algorithms have been under development for over a decade and a proven track record of reliability. Prominent and publicly available alternatives are
 
-NASA's RtRetrievalFramework (https://github.com/NASA/RtRetrievalFramework)
-SRON's RemoteC (https://bitbucket.org/sron_earth/remotec_general/src/main/)
+- NASA's RtRetrievalFramework (https://github.com/NASA/RtRetrievalFramework)
+- SRON's RemoteC (https://bitbucket.org/sron_earth/remotec_general/src/main/)
