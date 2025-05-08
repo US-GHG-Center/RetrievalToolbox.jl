@@ -46,8 +46,8 @@ RetrievalToolbox looks in a particular place to find the XRTM Julia interface fi
 
 Alternatively, if that variable is exported beforehand, the variable will be also correctly set in Julia. Environment variables in Julia are accessible in the `ENV` dictionary, which is also writable from within a Julia session. So if `XRTM_PATH` is not set before the Julia session started, you can simply change it before loading the RetrievalToolbox module:
 
-``` julia
-ENV["XRTM_PATH] = "/path/to/xrtm"
+```julia
+ENV["XRTM_PATH"] = "/path/to/xrtm"
 using RetrievalToolbox
 ```
 
