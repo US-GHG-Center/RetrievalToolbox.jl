@@ -38,7 +38,7 @@ Now you have to edit `make.inc` to work seamlessly with your environment. Usuall
 3. `F77= ` and `F90= ` set your (GNU) Fortran77 and Fortran90 compilers. `F77=gfortran` and `F90=gfortran` should work.
 4. Set your LAPACK library location. On MacOS, this likely needs to be set to `-framework Accelerate`, and on Linux machines, you will likely have many options, including various OpenBLAS options, or Intel's MKL.
 
-Once those are set, simply type `make` to build the XRTM library. Note that you will have to make more substantial changes if you want to compile with e.g. Intel's compiler suite.
+Once those are set, simply type `make` to build the XRTM library. Note that you will have to make more substantial changes if you want to compile with e.g. Intel's compiler suite. If you do not have a LaTeX distribution on the computer, the build process will exit with an error message, but that only concerns the compilation of the documentation which is part of the makefile.
 
 RetrievalToolbox looks in a particular place to find the XRTM Julia interface file, and it is determined by the environment variable `XRTM_PATH`, which should point to the main source tree that you just cloned. So in an interactive environment, you should, for example, start a Julia session with
 
@@ -50,6 +50,12 @@ Alternatively, if that variable is exported beforehand, the variable will be als
 ENV["XRTM_PATH] = "/path/to/xrtm"
 using RetrievalToolbox
 ```
+
+**Important!** The second repository (https://github.com/PeterSomkuti/xrtm) contains a small, but very impactful code modification. In `xrtm/src/xrtm.h` the pre-processor directive was changed to say
+``` c
+#define DO_NOT_ADD_SFI_SS 1
+```
+(instead of `#define DO_NOT_ADD_SFI_SS 0`). This has the effect that for certain RT solvers, such as the `eig_bvp` or `two_stream` ones, the contributions from single-scattering **are not automatically computed and added** to the total radiance fields and their derivatives. This is the wanted behavior for some applications, such as retrievals from NASA's OCO instruments, where you may want to compute the single-scatter contributions with a vector RT call, but the diffuse (MS) contributions with a scalar RT call. **Be aware that this is a compile-time choice** at the moment, so switching between `#define DO_NOT_ADD_SFI_SS 0` and `#define DO_NOT_ADD_SFI_SS 1` requires re-compiling. Alternatively, you can keep two copies of the code with the two different variants for this variable, and point RetrievalToolbox to a different path when you run it via changing `XRTM_PATH`.
 
 ## Learning
 
