@@ -74,13 +74,13 @@ function calculate_ξ_sqrt(
     τ_sca_running = opt.tmp_Nlay2
     @views τ_sca_running[:] .= 0
 
-    @turbo for l in 1:N_layer
+    for l in 1:N_layer
         τ_sca += opt.rayleigh_tau[i,l]
         τ_sca_running[l] += opt.rayleigh_tau[i,l]
     end
 
     for aer_tau in values(opt.aerosol_tau)
-        @turbo for l in 1:N_layer
+        for l in 1:N_layer
             τ_sca += aer_tau[i,l]
             τ_sca_running[l] += aer_tau[i,l]
         end
