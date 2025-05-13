@@ -74,13 +74,13 @@ function calculate_ξ_sqrt(
     τ_sca_running = opt.tmp_Nlay2
     @views τ_sca_running[:] .= 0
 
-    @turbo for l in 1:N_layer
+    for l in 1:N_layer
         τ_sca += opt.rayleigh_tau[i,l]
         τ_sca_running[l] += opt.rayleigh_tau[i,l]
     end
 
     for aer_tau in values(opt.aerosol_tau)
-        @turbo for l in 1:N_layer
+        for l in 1:N_layer
             τ_sca += aer_tau[i,l]
             τ_sca_running[l] += aer_tau[i,l]
         end
@@ -211,55 +211,18 @@ function LSIRTMethod(
     end
 
     #=
-        Create new RT Method objects to perform the binned calculations;
-        note that each bin has a single profile.
-
-        Note that we do not want to perform full deep-copies of the RT
-        method objects, since they go all the way down to spectroscopy data,
-        and as such we would create copies of very large objects. We can have
-        all e.g. scenes etc. refer to the same object, the only objects we need
-        to create new are the arrays of the `rt.optical_properties` type, e.g.
-        the `gas_tau` arrays, since those will contain the bin-averages.
-
-        We will remove ξ bins == 0 at this stage, since those spectral points
-        are ignored for the purpose of bin calculations.
+        Create new RT Method objects to perform the binned calculations
     =#
 
-    low_RT = Dict{Any, MonochromaticRTMethod}()
-    high_RT = Dict{Any, MonochromaticRTMethod}()
-    low_RT_edge = Dict{Any, MonochromaticRTMethod}()
-    high_RT_edge = Dict{Any, MonochromaticRTMethod}()
-
-    idx_center = Int(round(rt.optical_properties.spectral_window.N_hires // 2))
+    idx_center = get_scattering_index(rt.optical_properties.spectral_window)
     idx_edge = 1
+    #=
+    RT_bin = create_rt_copy_for_bins(rt, idx_center)
+    RT_bin_edge = create_rt_copy_for_bins(rt, idx_edge)
 
-    for i_bin in tau_bins
-
-        τ_idx = tau_bin_assignment .== i_bin
-        @debug "Bin $(i_bin) has $(sum(τ_idx)) points."
-
-        # Which √ξ-bins do we have for this τ bin?
-        un_ξ_bins = unique(ξ_sqrt_bin_assignment[τ_idx])
-        for ξ_bin in un_ξ_bins
-
-            ξ_bin == 0 && continue
-
-            # low_RT will automatically inherit the model options from `rt`
-            low_RT[(i_bin, ξ_bin)] = create_rt_copy_for_bins(
-                rt, idx_center)
-            # high_RT model options are set by the user!
-            high_RT[(i_bin, ξ_bin)] = create_rt_copy_for_bins(
-                rt, idx_center, options=high_options)
-        end
-    end
-
-    # We now add additional "bins", that will correspond to the bin
-    # used to perform the "slope-correction" that should take care of
-    # across-window variation of surface and scattering properties.
-    low_RT_edge[(minimum(tau_bins),1)] =
-        create_rt_copy_for_bins(rt, idx_edge)
-    high_RT_edge[(minimum(tau_bins),1)] =
-        create_rt_copy_for_bins(rt, idx_edge, options=high_options)
+    #=
+        Create the LSI RT method object
+    =#
 
     return LSIRTMethod(
         bin_boundaries,
@@ -268,12 +231,10 @@ function LSIRTMethod(
         tau_bin_assignment,
         ξ_sqrt_bin_assignment,
         rt,
-        low_RT,
-        high_RT,
-        low_RT_edge,
-        high_RT_edge
+        RT_bin,
+        RT_bin_edge
     )
-
+    =#
 end
 
 """
