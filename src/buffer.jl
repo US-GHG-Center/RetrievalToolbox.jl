@@ -152,6 +152,8 @@ function EarthAtmosphereBuffer(
 
         # Rayleigh extinction optical depth
         rayleigh_tau = zeros(T, swin.N_hires, N_layer)
+        # Rayleigh extinction derivative
+        rayleigh_deriv = zeros(T, swin.N_hires, N_layer)
         # Total optical depth and single-scatter albedo
         total_tau = zeros(T, swin.N_hires, N_layer)
         total_omega = zeros(T, swin.N_hires, N_layer)
@@ -271,6 +273,7 @@ function EarthAtmosphereBuffer(
             aerosol_tau,
             aerosol_omega,
             rayleigh_tau,
+            rayleigh_deriv,
             total_tau,
             total_omega,
             total_coef,

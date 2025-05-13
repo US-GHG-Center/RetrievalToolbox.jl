@@ -228,6 +228,7 @@ function create_rt_copy_for_bins(
     end
 
     rayleigh_tau = zeros(T, 1, N_layer)
+    rayleigh_derivatives = zeros(T, 1, N_layer)
     total_tau = zeros(T, 1, N_layer)
     total_omega = zeros(T, 1, N_layer)
 
@@ -256,6 +257,7 @@ function create_rt_copy_for_bins(
         aerosol_tau,
         aerosol_omega,
         rayleigh_tau,
+        rayleigh_derivatives,
         total_tau,
         total_omega,
         total_coef,

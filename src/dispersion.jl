@@ -236,7 +236,7 @@ function calculate_dispersion_polynomial_jacobian!(
 
         # Not sure why the minus here is needed (it is!), maybe check the math
         # again at some point.
-        output[this_l1b_idx + 1] = -avx_dot(
+        output[this_l1b_idx] = -avx_dot(
             dISRF_dwavelength,
             this_data
         ) * tmp1 / sum(this_ISRF)
