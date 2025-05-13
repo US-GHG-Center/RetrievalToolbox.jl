@@ -88,11 +88,9 @@ struct LSIRTMethod <: AbstractRTMethod
     ξ_sqrt_bin_assignment::Vector{Integer}
     "`MonochromaticRTMethod` object to contain the full low-streams results"
     monochromatic_RT::MonochromaticRTMethod
-    "Dict of `MonochromaticRTMethod` objects to contain the binned low-streams results"
-    low_RT::Dict{Any, MonochromaticRTMethod}
-    "Dict of `MonochromaticRTMethod` objects to contain the binned high-streams results"
-    high_RT::Dict{Any, MonochromaticRTMethod}
-    low_RT_edge::Dict{Any, MonochromaticRTMethod}
-    "Dict of `MonochromaticRTMethod` objects to contain the binned high-streams results"
-    high_RT_edge::Dict{Any, MonochromaticRTMethod}
+    "`MonochromaticRTMethod` objects to use for binned calculations at window center"
+    RT_bin::MonochromaticRTMethod
+    "`MonochromaticRTMethod` objects to use for binned calculations at window edge"
+    RT_bin_edge::MonochromaticRTMethod
+
 end
