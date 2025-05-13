@@ -1,5 +1,5 @@
 
-RetrievalToolbox is a library for building trace gas retrieval algorithms and related applications written in pure [Julia](https://julialang.org).
+RetrievalToolbox is a library for building trace gas retrieval algorithms and related applications written in pure [Julia](https://julialang.org). The library is currently in an early release stage, and feature-breaking updates might happen - although we attempt to keep those to a minimum. For the time being, we recommend to fork this repository into your own GitHub organization and integrate updates from here as to now break your own application.
 
 # Installation
 
@@ -15,6 +15,9 @@ or (via ssh)
 
 This will install the RetrievalToolbox including all needed dependencies.
 
+If you forked this repository, you must amend the above commands to pull the package from your new repository location.
+
+
 ## Building XRTM and making RetrievalToolbox aware of its location
 
 RetrievalToolbox makes use of the XRTM library to perform the various radiative transfer calculations which require scattering from, e.g. molecular Rayleigh scattering or aerosols. While it is possible to use RetrievalToolbox with a built-in Beer-Lambert-Bouguer method, many retrieval applications will need to account for scattering and thus require the XRTM library. XRTM is published at (https://github.com/gmcgarragh/xrtm/), and we also maintain a fork at (https://github.com/PeterSomkuti/xrtm). Depending on your needs and the way how you create your own algorithm, you might prefer one vs. the other option.
@@ -27,7 +30,7 @@ or
 
 `git clone https://github.com/PeterSomkuti/xrtm`
 
-Note that as of May 2025, the first repository does not compile on MacOS without modifications to the makefile, the second repository, however, should compile successfully. In either case, you must take a copy of the example makefile and save it as `make.inc`. So switch to the XRTM directory (`cd xrtm`) and
+Note that as of May 2025, the first repository does not compile on MacOS without modifications to the makefile. The second repository, however, should compile successfully. In either case, you must take a copy of the example makefile and save it as `make.inc`. So switch to the XRTM directory (`cd xrtm`) and
 
 `cp make.inc.example make.inc`
 
@@ -38,11 +41,15 @@ Now you have to edit `make.inc` to work seamlessly with your environment. Usuall
 3. `F77= ` and `F90= ` set your (GNU) Fortran77 and Fortran90 compilers. `F77=gfortran` and `F90=gfortran` should work.
 4. Set your LAPACK library location. On MacOS, this likely needs to be set to `-framework Accelerate`, and on Linux machines, you will likely have many options, including various OpenBLAS options, or Intel's MKL.
 
-Once those are set, simply type `make` to build the XRTM library. Note that you will have to make more substantial changes if you want to compile with e.g. Intel's compiler suite. If you do not have a LaTeX distribution on the computer, the build process will exit with an error message, but that only concerns the compilation of the documentation which is part of the makefile.
+Once those are set, simply type `make` to build the XRTM library. Note that you will have to make more substantial changes if you want to compile with e.g. Intel's compiler suite. If you do not have a LaTeX distribution with `pdflatex` on the computer, the build process will exit with an error message, but that only concerns the compilation of the documentation which is part of the makefile; by that point the library will have been built successfully and is ready to use.
 
-RetrievalToolbox looks in a particular place to find the XRTM Julia interface file, and it is determined by the environment variable `XRTM_PATH`, which should point to the main source tree that you just cloned. So in an interactive environment, you should, for example, start a Julia session with
+RetrievalToolbox looks in a particular place to find the XRTM Julia interface file (which is part of XRTM), and it is determined by the environment variable `XRTM_PATH`, which should point to the main source tree that you just cloned. So in an interactive environment, you should, for example, start a Julia session with
 
 `XRTM_PATH=/path/to/xrtm julia`
+
+Or if you use RetrievalToolbox in a jupyter environment, start it up appropriately with e.g.
+
+`XRTM_PATH=/path/to/xrtm jupyter-lab`
 
 Alternatively, if that variable is exported beforehand, the variable will be also correctly set in Julia. Environment variables in Julia are accessible in the `ENV` dictionary, which is also writable from within a Julia session. So if `XRTM_PATH` is not set before the Julia session started, you can simply change it before loading the RetrievalToolbox module:
 

@@ -355,13 +355,12 @@ function calculate_rt_jacobian!(
 
         ∂τ_∂psurf = rt.optical_properties.gas_derivatives[gas]["dTau_dpsurf"]
 
-
         # Dispatch to specialized function that calculates ∂I/∂psurf
         # (needed for performance as objects in this function scope are not type stable)
 
         # Note that this is adding contributions to `jac`
 
-        _calculate_rt_jacobian_psurf!(
+        _calculate_rt_jacobian_psurf_gases!(
             jac,
             ∂I_∂τ,
             ∂τ_∂psurf,
@@ -372,9 +371,28 @@ function calculate_rt_jacobian!(
         )
 
     end
+
+    # If there is Rayleigh scattering in the atmopshere, we must add the contributions
+    # here.
+
+    if findanytype(rt.scene.atmosphere.atm_elements, AbstractRayleighScattering)
+        # We have some RayleighScattering in here
+
+        _calculate_rt_jacobian_psurf_Rayleigh!(
+            jac,
+            ∂I_∂τ,
+            rt.optical_properties.rayleigh_derivatives,
+            ∂I_∂ω,
+            ω,
+            τ,
+            unit_factor
+        )
+
+    end
+
 end
 
-function _calculate_rt_jacobian_psurf!(
+function _calculate_rt_jacobian_psurf_gases!(
     jac::Radiance,
     ∂I_∂τ::Radiance,
     ∂τ_∂psurf::Vector,
@@ -399,6 +417,35 @@ function _calculate_rt_jacobian_psurf!(
     end
 
 end
+
+function _calculate_rt_jacobian_psurf_Rayleigh!(
+    jac::Radiance,
+    ∂I_∂τ::Radiance,
+    ∂τray_∂psurf::AbstractArray,
+    ∂I_∂ω, # Partial deriv. w.r.t. ω [wavelength, stokes]
+    ω, # Single scatter albedo for surface layer [wavelength]
+    τ, # Total optical depth for surface layer [wavelength]
+    unit_factor
+)
+
+    Nlay = size(∂τray_∂psurf, 2)
+    @turbo for i in axes(jac, 1)
+        for s in axes(jac, 2)
+            jac.S[i,s] += ∂I_∂τ.S[i,s] * ∂τray_∂psurf[i,Nlay] * unit_factor
+        end
+    end
+    # ∂ω/∂τray = (1-ω/τ) and ∂τray/∂psurf is provded as ∂τray_∂psurf
+    if !isnothing(ω)
+        @turbo for i in axes(jac, 1)
+            for s in axes(jac, 2)
+                jac.S[i,s] += ∂I_∂ω.S[i,s] * (1 - ω[i]) / τ[i] *
+                    ∂τray_∂psurf[i,Nlay] * unit_factor
+            end
+        end
+    end
+
+end
+
 
 function calculate_rt_jacobian!(
     jac::Radiance,

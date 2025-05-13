@@ -36,7 +36,7 @@ function calculate_earth_optical_properties!(
     scene::EarthScene,
     state_vector::AbstractStateVector;
     N_sublayer = 10,
-    psurf_perturb = 10.0u"Pa"
+    psurf_perturb = 1.0u"Pa"
     )
 
     # Create some convenient short-hand variables
@@ -99,11 +99,24 @@ function calculate_earth_optical_properties!(
             do_only_last_layer=true,
         )
 
+        if findanytype(atm.atm_elements, AbstractRayleighScattering)
+            # Check if we have Rayleigh scattering as
+            # an atmospheric element..
+
+            # Calculate OD profiles with perturbed surface pressure
+            calculate_rayleigh_optical_depth_profiles!(opt, scene)
+        end
+
+
         # We store τ(psurf + Δp) for the bottom layer
         for this_gas in keys(opt.gas_derivatives)
             @. @views opt.gas_derivatives[this_gas]["dTau_dpsurf"][:] =
                 opt.gas_tau[this_gas][:,atm.N_layer]
         end
+
+
+
+        @. @views opt.rayleigh_derivatives[:,:] = opt.rayleigh_tau[:,:]
 
         # Restore the surface pressure
         atm.pressure_levels[atm.N_level] -= Δp
@@ -120,6 +133,16 @@ function calculate_earth_optical_properties!(
         return_dVMR=return_dVMR
     )
 
+    if findanytype(atm.atm_elements, AbstractRayleighScattering)
+        # Check if we have Rayleigh scattering as
+        # an atmospheric element..
+
+        # Calculate OD profiles
+        calculate_rayleigh_optical_depth_profiles!(opt, scene)
+    end
+
+
+
     if return_dpsurf
         for this_gas in keys(opt.gas_derivatives)
 
@@ -131,17 +154,10 @@ function calculate_earth_optical_properties!(
             # ≈ ∂τ/∂psurf
             @views @. opt.gas_derivatives[this_gas]["dTau_dpsurf"][:] /= Δp
         end
-    end
 
-    # Calculate optical depth profiles due to
-    # Rayleigh scattering
-
-    if findanytype(atm.atm_elements, AbstractRayleighScattering)
-        # Check if we have Rayleigh scattering as
-        # an atmospheric element..
-
-        # Calculate OD profiles
-        calculate_rayleigh_optical_depth_profiles!(opt, scene)
+        # Same for change of Rayleigh scattering due to pressure level shift
+        @. @views opt.rayleigh_derivatives[:,:] -= opt.rayleigh_tau[:,:]
+        @. @views opt.rayleigh_derivatives[:,:] ./ Δp
     end
 
     #=
@@ -149,7 +165,6 @@ function calculate_earth_optical_properties!(
     =#
 
     calculate_aerosol_optical_properties!(opt, scene)
-
 
 
     #=

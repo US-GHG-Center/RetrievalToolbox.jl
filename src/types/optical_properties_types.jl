@@ -15,11 +15,13 @@ struct EarthAtmosphereOpticalProperties{T} <: AbstractOpticalProperties where T
     aerosol_omega::Dict{<:AbstractAerosolType, Array{T, 2}}
     "Rayleigh optical extinction array (wavelength, layer)"
     rayleigh_tau::Array{T, 2}
+    "Rayleigh optical extinction derivatives ∂τray/∂psurf (wavelength, layer)"
+    rayleigh_derivatives::Array{T, 2}
     "Total extinction array (wavelength, layer)"
     total_tau::Array{T, 2}
     "Total single scatter albedo (wavelength, layer)"
     total_omega::Array{T, 2}
-    "Total phase function (matrix) expansion coefficient array 
+    "Total phase function (matrix) expansion coefficient array
      (moment, element(s) - 1 for scalar, 6 for polarized, layer)"
     total_coef::Union{Array{T, 3}, Nothing}
     "Number of dry air molecules"
