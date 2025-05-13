@@ -18,7 +18,7 @@ end
     Base.getindex, Base.setindex!, Base.axes,
     Base.copy, Base.copyto!, Base.broadcast,
     Base.broadcast!, Base.dotview, Base.materialize!,
-    Base.broadcasted
+    Base.broadcasted, Base.zero
     )
 
 struct ScalarRadiance{T, U <: AbstractVector{T}} <: AbstractVector{T}
@@ -36,7 +36,7 @@ end
     Base.getindex, Base.setindex!, Base.axes,
     Base.copy, Base.copyto!, Base.broadcast,
     Base.broadcast!, Base.dotview, Base.materialize!,
-    Base.broadcasted
+    Base.broadcasted, Base.zero
     )
 
 Radiance = Union{ScalarRadiance, VectorRadiance}

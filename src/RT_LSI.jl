@@ -58,7 +58,7 @@ function calculate_ξ_sqrt(
 
     # Total gas absorption optical depth, per layer
     τ_gas_layer = opt.tmp_Nlay1
-    @views τ_gas_layer[:] .= 0
+    @views τ_gas_layer[:] .= 0.0
 
     τ_gas = 0.0
     for gas_tau in values(opt.gas_tau)
@@ -69,21 +69,13 @@ function calculate_ξ_sqrt(
     end
 
     # Total column scattering optical depth
-    τ_sca = 0
+    τ_sca = 0.0
     # Cumulative sum starting from TOA
     τ_sca_running = opt.tmp_Nlay2
     @views τ_sca_running[:] .= 0
 
     for l in 1:N_layer
-        τ_sca += opt.rayleigh_tau[i,l]
-        τ_sca_running[l] += opt.rayleigh_tau[i,l]
-    end
-
-    for aer_tau in values(opt.aerosol_tau)
-        for l in 1:N_layer
-            τ_sca += aer_tau[i,l]
-            τ_sca_running[l] += aer_tau[i,l]
-        end
+        τ_sca_running[l] += opt.total_tau[i,l] * opt.total_omega[i,l]
     end
 
     # Calculate cumulative sum, so from here on τ_sca_running[l] is the sum
@@ -95,13 +87,13 @@ function calculate_ξ_sqrt(
 
     # Set critical value, down to which we integrate the gas optical depth
     # to get τ_g'
-    if τ_sca <= 2
-        critical_value = τ_sca / 2
+    if τ_sca <= 2.0
+        critical_value = τ_sca / 2.0
     else
         critical_value = 1.0
     end
 
-    τ_gas_prime = 0
+    τ_gas_prime = 0.0
     # Let this loop not go all the way down to the bottom layer.
     for l in 1:N_layer-1
 
@@ -159,22 +151,26 @@ function LSIRTMethod(
         Computation of ξ = √(τ_g' / τ_g).
     =#
 
-    for i in 1:N_hires
-        ξ_sqrt[i] = calculate_ξ_sqrt(rt.optical_properties, i)
-    end
+    ξ_sqrt[:] .= calculate_ξ_sqrt.(Ref(rt.optical_properties), 1:N_hires)
+
 
     # In case the bin boundaries are not sorted, let's sort them here
     sort!(bin_boundaries)
-    tau_bin_assignment = searchsortedfirst.(Ref(bin_boundaries), τ_gas)
+    tau_bin_assignment = searchsortedfirst.(Ref(bin_boundaries), τ_gas) .- 1
 
     ξ_sqrt_bin_assignment = similar(tau_bin_assignment)
     ξ_sqrt_bin_assignment[:] .= 0
+
+    N_tau_bins = length(bin_boundaries) - 1
+    N_ξ_bins = 2
+
+    used_bin = zeros(Bool, N_tau_bins, N_ξ_bins)
 
     tau_bins = unique(tau_bin_assignment)
     sort!(tau_bins)
 
     # For every gas-tau bin, we now make a decision about the √ξ bin
-    for i_bin in tau_bins
+    for i_bin in 1:N_tau_bins
 
         # Collect all points for this τ_gas bin
         idx = tau_bin_assignment .== i_bin
@@ -196,7 +192,13 @@ function LSIRTMethod(
             continue
 
         end
-       =#
+        =#
+
+        if sum(idx) < 1
+            continue
+        end
+
+
         # Get the 25% and 75% percentiles of √ξ of the subsets
         ξ_25, ξ_75 = quantile.(Ref(ξ_sqrt[idx]), [0.25, 0.75])
 
@@ -208,141 +210,176 @@ function LSIRTMethod(
         ξ_sqrt_bin_assignment[idx_25] .= 1
         ξ_sqrt_bin_assignment[idx_75] .= 2
 
+        used_bin[i_bin, :] .= true
+
     end
 
     #=
         Create new RT Method objects to perform the binned calculations
     =#
-
     idx_center = get_scattering_index(rt.optical_properties.spectral_window)
     idx_edge = 1
-    #=
+
     RT_bin = create_rt_copy_for_bins(rt, idx_center)
     RT_bin_edge = create_rt_copy_for_bins(rt, idx_edge)
+
+    #=
+        Create result arrays
+    =#
+
+
+
+    bin_res_lo = Array{typeof(rt.hires_radiance)}(undef, N_tau_bins, N_ξ_bins)
+    bin_res_hi = Array{typeof(rt.hires_radiance)}(undef, N_tau_bins, N_ξ_bins)
+    bin_edge_res_lo = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
+    bin_edge_res_hi = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
+
+    # Element type of radiance array (e.g. Float64)
+    Trad = eltype(rt.hires_radiance)
+    # Short-cut to the type of the radiance, allows us to construct new ones
+    RadType = typeof(rt.hires_radiance).name.wrapper
+
+    # Fill with NaNs
+    for ar in [bin_res_lo, bin_res_hi, bin_edge_res_lo, bin_edge_res_hi]
+        for i in eachindex(ar)
+            _v = RadType(Trad, 1)
+            ar[i] = _v
+        end
+    end
 
     #=
         Create the LSI RT method object
     =#
 
     return LSIRTMethod(
+        high_options,
         bin_boundaries,
         τ_gas,
         ξ_sqrt,
         tau_bin_assignment,
         ξ_sqrt_bin_assignment,
+        used_bin,
         rt,
         RT_bin,
-        RT_bin_edge
+        RT_bin_edge,
+        bin_res_lo,
+        bin_res_hi,
+        bin_edge_res_lo,
+        bin_edge_res_hi
     )
-    =#
+
 end
 
 """
-    Calculates the binned optical properties needed to perform the LSI correction
-"""
-function calculate_binned_properties!(lsi::LSIRTMethod)
+$(TYPEDSIGNATURES)
 
-    # Shortcut
+Calculates the binned optical properties needed to perform the LSI correction.
+"""
+function calculate_binned_properties!(
+    lsi::LSIRTMethod,
+    tau_gas_bin::Integer,
+    ξ_bin::Integer,
+    do_edge::Bool
+    )
+
+    @debug "Calculating binned optical properties for $(tau_gas_bin) / $(ξ_bin)"
+
+    # Create some shortcuts
     old_rt = lsi.monochromatic_RT
 
-    for this_rt_dict in [lsi.low_RT, lsi.high_RT, lsi.low_RT_edge, lsi.high_RT_edge]
+    if do_edge
+        rt = lsi.RT_bin_edge
+    else
+        rt = lsi.RT_bin
+    end
 
-        for (i_bin, ξ_bin) in keys(this_rt_dict)
-            @debug "Calculating binned optical properties for $(i_bin) / $(ξ_bin)"
+    this_swin = rt.optical_properties.spectral_window
 
-            # Create some shortcuts
+    @assert this_swin isa BinnedSpectralWindow "Must be a BinnedSpectralWindow!"
 
-            this_rt = this_rt_dict[(i_bin, ξ_bin)]
-            this_swin = this_rt.optical_properties.spectral_window
+    # Note this only works if this_swin is a BinnedSpectralWindow,
+    # which should always be the case. The spectral_idx field of a
+    # BinnedSpectralWindow always refers to the e.g. band-center of the original
+    # spectral window it is derived from.
 
-            @assert this_swin isa BinnedSpectralWindow "Must be a BinnedSpectralWindow!"
+    spectral_idx = this_swin.spectral_idx
 
-            # Note this only works if this_swin is a BinnedSpectralWindow,
-            # which should always be the case. The spectral_idx field of a
-            # BinnedSpectralWindow always refers to the e.g. band-center of the original
-            # spectral window it is derived from.
+    # Select all points that fall into this τ/√ξ-bin
+    idx = (
+        (lsi.tau_gas_bin_assignment .== tau_gas_bin) .&
+        (lsi.ξ_sqrt_bin_assignment .== ξ_bin)
+    )
 
-            spectral_idx = this_swin.spectral_idx
+    #=
+        For LSI, the binned optical properties are constructed the following way.
+        Optical depth due to gas absorption is the mean of all gas optical depths
+        of the spectral points that belong to a certain bin.
+    =#
 
-            # Select all points that fall into this τ/√ξ-bin
-            idx = (
-                (lsi.tau_gas_bin_assignment .== i_bin) .&
-                (lsi.ξ_sqrt_bin_assignment .== ξ_bin)
-            )
+    # Set to zero, just in case
+    for (gas, gas_tau) in rt.optical_properties.gas_tau
+        @views gas_tau[:,:] .= 0
+    end
 
-            #=
-                For LSI, the binned optical properties are constructed the following way.
-                Optical depth due to gas absorption is the mean of all gas optical depths
-                of the spectral points that belong to a certain bin.
-            =#
+    for (gas, gas_tau) in old_rt.optical_properties.gas_tau
+        @views rt.optical_properties.gas_tau[gas][1,:] .+=
+            mean(gas_tau[idx,:], dims=1)[1,:]
+    end
 
-            # Set to zero, just in case
-            for (gas, gas_tau) in this_rt.optical_properties.gas_tau
-                @views gas_tau[:,:] .= 0
-            end
+    #=
+        Optical depth due to scattering (Rayleigh, aerosols) is constructed as a
+        profile taken straight from the band center
+    =#
 
-            for (gas, gas_tau) in old_rt.optical_properties.gas_tau
-                @views this_rt.optical_properties.gas_tau[gas][1,:] .+=
-                    mean(gas_tau[idx,:], dims=1)[1,:]
-            end
+    rt.optical_properties.rayleigh_tau[1,:] =
+        old_rt.optical_properties.rayleigh_tau[spectral_idx,:]
 
-            #=
-                Optical depth due to scattering (Rayleigh, aerosols) is constructed as a
-                profile taken straight from the band center
-            =#
+    for (aer, aer_tau) in old_rt.optical_properties.aerosol_tau
+        rt.optical_properties.aerosol_tau[aer][1,:] = aer_tau[spectral_idx,:]
+        # We must also grab the aerosol single-scatter albedo
+        rt.optical_properties.aerosol_omega[aer][1,:] =
+            old_rt.optical_properties.aerosol_omega[aer][spectral_idx,:]
+    end
 
-            this_rt.optical_properties.rayleigh_tau[1,:] =
-                old_rt.optical_properties.rayleigh_tau[spectral_idx,:]
+    #=
+        For now, we don't have to do anything with coefficients, since those are
+        evaluated at the band center anyway..
 
-            for (aer, aer_tau) in old_rt.optical_properties.aerosol_tau
-                this_rt.optical_properties.aerosol_tau[aer][1,:] = aer_tau[spectral_idx,:]
-                # We must also grab the aerosol single-scatter albedo
-                this_rt.optical_properties.aerosol_omega[aer][1,:] =
-                    old_rt.optical_properties.aerosol_omega[aer][spectral_idx,:]
-            end
+        Finally, compute all "total" optical properties from the individual
+        contributions.
+    =#
 
-            #=
-                For now, we don't have to do anything with coefficients, since those are
-                evaluated at the band center anyway..
+    opt = rt.optical_properties
+    @views opt.total_tau[:,:] .= 0.0
 
-                Finally, compute all "total" optical properties from the individual
-                contributions.
-            =#
+    # Add up total optical depth from contributions of each gas
+    for (gas, gas_tau) in opt.gas_tau
+        @views opt.total_tau[:,:] += gas_tau[:,:]
+    end
 
-            opt = this_rt.optical_properties
-            @views opt.total_tau[:,:] .= 0.0
+    # Add up aerosol contributions
+    for (aer, aer_tau) in opt.aerosol_tau
+        @views opt.total_tau[:,:] += aer_tau[:,:]
+    end
 
-            # Add up total optical depth from contributions of each gas
-            for (gas, gas_tau) in opt.gas_tau
-                @views opt.total_tau[:,:] += gas_tau[:,:]
-            end
+    # Add Rayleigh contributions
+    # (this will be zero if no RayleighScattering is present..)
+    @views opt.total_tau[:,:] += opt.rayleigh_tau[:,:]
 
-            # Add up aerosol contributions
-            for (aer, aer_tau) in opt.aerosol_tau
-                @views opt.total_tau[:,:] += aer_tau[:,:]
-            end
+    #=
+        Calculate total ω
+    =#
 
-            # Add Rayleigh contributions
-            # (this will be zero if no RayleighScattering is present..)
-            @views opt.total_tau[:,:] += opt.rayleigh_tau[:,:]
+    @views opt.total_omega[:,:] .= 0.0
 
-            #=
-                Calculate total ω
-            =#
-
-            @views opt.total_omega[:,:] .= 0.0
-
-            # Start with Rayleigh
-            @views opt.total_omega[:,:] += opt.rayleigh_tau[:,:]
-            # Add each aerosol scattering optical depths
-            for (aer, aer_tau) in opt.aerosol_tau
-                @views opt.total_omega[:,:] += opt.aerosol_omega[aer][:,:] .* aer_tau[:,:]
-            end
-            # Divide by total extinction tau
-            @views opt.total_omega[:,:] ./= opt.total_tau[:,:]
-
-        end # End RT-bin loop
-    end # End RT loop
+    # Start with Rayleigh
+    @views opt.total_omega[:,:] += opt.rayleigh_tau[:,:]
+    # Add each aerosol scattering optical depths
+    for (aer, aer_tau) in opt.aerosol_tau
+        @views opt.total_omega[:,:] += opt.aerosol_omega[aer][:,:] .* aer_tau[:,:]
+    end
+    # Divide by total extinction tau
+    @views opt.total_omega[:,:] ./= opt.total_tau[:,:]
 
 end
 
@@ -361,7 +398,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         XRTM_PROGRESS = true
     end
 
-    time_bin = @timed begin
+    #time_bin = @timed begin
 
         #=
             We have to loop over the number of XRTM configurations known to us; they are
@@ -401,6 +438,120 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             will be).
 
         =#
+
+
+        # Make all model options into a list so we can iterate over them
+        low_options = Dict[]
+        high_options = Dict[]
+        if lsi.monochromatic_RT.model_options isa Dict
+            push!(low_options, lsi.monochromatic_RT.model_options)
+        else
+            push!(low_options, lsi.monochromatic_RT.model_options...)
+        end
+
+        if lsi.high_options isa Dict
+            push!(high_options, lsi.high_options)
+        else
+            push!(high_options, lsi.high_options...)
+        end
+
+        # Low bins
+        for this_option in low_options
+
+            xrtm_low = create_XRTM(
+                lsi.RT_bin,
+                lsi.RT_bin.scene.observer,
+                this_option
+                )
+
+            # Loop through all tau and xi bins and calcuate radiances!
+            for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
+
+                # Skip unused bin
+                if !lsi.used_bin[τ_bin, ξ_bin]
+                    continue
+                end
+
+                calculate_binned_properties!(lsi, τ_bin, ξ_bin, false)
+
+
+                clear!(lsi.RT_bin)  # Must clear out beforehand
+                _calculate_radiances_and_wfs_XRTM!(
+                    lsi.RT_bin,
+                    lsi.RT_bin.scene.observer,
+                    this_option,
+                    xrtm_in=xrtm_low
+                    )
+
+                # Results are ADDED to the total from the various solvers
+                @views lsi.bin_res_lo[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
+
+            end
+
+            calculate_binned_properties!(lsi, 1, 1, true)
+            _calculate_radiances_and_wfs_XRTM!(
+                lsi.RT_bin_edge,
+                lsi.RT_bin_edge.scene.observer,
+                this_option,
+                xrtm_in=xrtm_low
+                )
+
+
+            @views lsi.bin_edge_res_lo[1, 1][:] += lsi.RT_bin.hires_radiance[:]
+
+            XRTM.destroy(xrtm_low)
+        end
+
+        # High bins
+        for this_option in high_options
+
+            xrtm_high = create_XRTM(
+                lsi.RT_bin,
+                lsi.RT_bin.scene.observer,
+                this_option
+                )
+
+            # Loop through all tau and xi bins and calcuate radiances!
+            for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
+
+                # Skip unused bin
+                if !lsi.used_bin[τ_bin, ξ_bin]
+                    continue
+                end
+
+                calculate_binned_properties!(lsi, τ_bin, ξ_bin, false)
+
+                clear!(lsi.RT_bin) # Must clear out beforehand
+                _calculate_radiances_and_wfs_XRTM!(
+                    lsi.RT_bin,
+                    lsi.RT_bin.scene.observer,
+                    this_option,
+                    xrtm_in=xrtm_high
+                    )
+
+                # Results are ADDED to the total from the various solvers
+                @views lsi.bin_res_hi[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
+
+
+            end
+
+
+            calculate_binned_properties!(lsi, 1, 1, true)
+            _calculate_radiances_and_wfs_XRTM!(
+                lsi.RT_bin_edge,
+                lsi.RT_bin_edge.scene.observer,
+                this_option,
+                xrtm_in=xrtm_high
+                )
+
+            @views lsi.bin_edge_res_hi[1, 1][:] += lsi.RT_bin.hires_radiance[:]
+
+            XRTM.destroy(xrtm_high)
+        end
+
+
+    #=
+
 
         _low_rt = first(values(lsi.low_RT)) # Grab some RT object, doesn't matter which
         if _low_rt.model_options isa Dict
@@ -515,7 +666,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             XRTM.destroy(xrtm_high)
         end
 
-    end # End timed section
+    #end # End timed section
 
     @info "LSI binned calculations done in $(time_bin.time) sec."
 
@@ -1000,6 +1151,8 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             calculate_rt_jacobian!(orig_rt.hires_jacobians[sve], orig_rt, sve)
         end
     end
+
+    =#
 
 end
 
