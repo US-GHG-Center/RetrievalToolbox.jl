@@ -275,6 +275,66 @@ function calculate_aerosol_tau_at_all_ww!(
 
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the linearized inputs needed to calculate ∂I/∂τ_aerosol
+
+TODO: add formulae here
+"""
+function create_aerosol_coef_deriv_inputs!(
+    lcoef::AbstractArray,
+    rt::AbstractRTMethod,
+    aer::AbstractAerosolType,
+    l::Integer
+)
+
+    # Useful short-cuts
+    opt = rt.optical_properties
+    this_aer_ssa = opt.aerosol_omega[aer]
+
+    #=
+        The number of coefficient elements going into XRTM will depend on whether XRTM was
+        initilized in vector mode, or not. We can ask XRTM itself for that information. If
+        the number of stokes inside XRTM == 1, use 1, otherwise 6. Note that we create a
+        new array here with a different amount of coefficient elements, since we want to
+        retain the possibility to have set up the retrieval in "Vector" mode, but do some
+        RT calculates for scalar only.
+    =#
+
+    # Placeholder for interpolated aerosol coefficients (need only 2 dimensions)
+    this_aer_coef = @view opt.tmp_coef[:,:,1]
+    this_aer_coef[:] .= 0
+
+    # Aerosol coeffs: expansion moments, matrix element, wavelength
+    # We need the aerosol coefficients for this mixture, and this wavelength center
+    # (this interpolation call takes <0.1 ms generally)
+    swin = opt.spectral_window
+    idx_aer = get_scattering_index(swin)
+
+    # Interpolate coefficients for this aerosol for spectral point `swin.ww_grid[idx_aer]`
+    interpolate_aer_coef!(this_aer_coef, aer, swin.ww_grid[idx_aer], swin.ww_unit)
+
+    # Calculate the linearized phase function expansion coefficient inputs for this
+    # aerosol.
+
+    tau_scat = opt.total_tau[idx_aer,l] * opt.total_omega[idx_aer,l]
+
+    @turbo for c in axes(lcoef, 1) # Loops through pfmoms
+        for q in axes(lcoef, 2) # Loops through elements (1 or 6)
+
+            lcoef[c,q] = this_aer_ssa[idx_aer, l] * (
+                this_aer_coef[c,q] - opt.total_coef[c,q,l]) /
+                tau_scat
+
+        end
+    end
+
+end
+
+
+
 """
     Calculates and sets the linearized inputs for XRTM for aerosol optical depth. Keep in
     mind that this function will be called for every spectral point in the hires
