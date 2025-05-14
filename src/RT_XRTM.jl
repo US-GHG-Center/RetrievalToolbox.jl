@@ -681,6 +681,7 @@ function _run_XRTM!(
     spec_dep_wfuncs = [sve for sve in keys(rt.wfunctions_map)
         if sve isa AbstractStateVectorElement]
 
+
     if length(spec_dep_wfuncs) > 0
         #=
             If we have to calculate aerosol-related Jacobians, we also need the linearized
@@ -697,6 +698,7 @@ function _run_XRTM!(
 
         =#
         l_coef_threads = Vector{Matrix{Float64}}[]
+
         for t in 1:Threads.nthreads()
             l_coef_layers = Matrix{Float64}[]
 
@@ -713,6 +715,7 @@ function _run_XRTM!(
         end
 
     end
+
 
     #=
         We can direct the spectral loop to only evaluate certain points, which is very
@@ -894,6 +897,7 @@ function _run_XRTM!(
 
         end
 
+
         # Let XRTM know which layers involve weighting functions
         if first_XRTM_call[Threads.threadid()] & have_jacobians
             # This function needs to be called only once (as per XRTM manual)
@@ -916,6 +920,7 @@ function _run_XRTM!(
             # Results are:
             # upwelling intensity, downwelling intensity,
             # upwelling weighting functions, downwelling weighting functions
+
             I_up, I_dn, K_up, K_dn = XRTM.radiance(
                 xrtm,
                 solver,
@@ -923,8 +928,9 @@ function _run_XRTM!(
                 out_phis
             )
 
-            #=
+
             # DEBUG
+            #=
             I_up, I_dn, K_up, K_dn = [
                 rand(Float64, (Int(n_stokes),1,1,1)),
                 rand(Float64, (Int(n_stokes),1,1,1)),
