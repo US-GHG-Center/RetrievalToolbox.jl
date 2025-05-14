@@ -583,7 +583,6 @@ function _run_XRTM!(
         if haskey(options_dict, "n_coefs")
             for i in 1:length(n_coef_arr)
                 n_coef_arr[i] = min(options_dict["n_coefs"], n_coef_arr[i])
-                #@info "Setting ncoef for $(i): $(n_coef_arr[i])"
             end
         end
 

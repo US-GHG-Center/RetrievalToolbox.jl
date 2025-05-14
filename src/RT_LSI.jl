@@ -242,9 +242,18 @@ function LSIRTMethod(
     # Short-cut to the type of the radiance, allows us to construct new ones
     RadType = typeof(rt.hires_radiance).name.wrapper
 
+    # Allocate radiances
     for ar in [bin_rad_lo, bin_rad_hi, bin_edge_rad_lo, bin_edge_rad_hi]
         for i in eachindex(ar)
             _v = RadType(Trad, 1)
+            ar[i] = _v
+        end
+    end
+
+    # Allocate weighting functions
+    for ar in [bin_wf_lo, bin_wf_hi]
+        for i in eachindex(ar)
+            _v = [RadType(Trad, 1) for j in 1:length(rt.hires_wfunctions)]
             ar[i] = _v
         end
     end
@@ -399,167 +408,190 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         gains to be made if we know the RT is performed by XRTM.
     =#
 
+    N_wf = map(length, values(lsi.monochromatic_RT.wfunctions_map)) |> sum
+    N_stokes = get_nstokes(lsi.monochromatic_RT)
+
     # Decide whether we want progress bars for XRTM calculations
     XRTM_PROGRESS = false
     if haskey(ENV, "XRTM_PROGRESS") && (ENV["XRTM_PROGRESS"] == "1")
         XRTM_PROGRESS = true
     end
 
-    #time_bin = @timed begin
+    #=
+        We have to loop over the number of XRTM configurations known to us; they are
+        incompatible, so we must create XRTM instances for each.
 
-        #=
-            We have to loop over the number of XRTM configurations known to us; they are
-            incompatible, so we must create XRTM instances for each.
+        Note that we are only doing this explicitly so we do not have to create two
+        new XRTM instances for every bin calculation, which is easily possible, but
+        very slow.
 
-            Note that we are only doing this explicitly so we do not have to create two
-            new XRTM instances for every bin calculation, which is easily possible, but
-            very slow.
+        Roughly, the steps are these:
 
-            Roughly, the steps are these:
+        1) all lsi.low_RT and all lsi.high_RT objects have the same sets of
+        configurations. We grab an arbitrary one, and extract the `model_options`
+        field. The model options can be either a Vector{Dict} or a Dict, so we must
+        first check and create a new one-element Vector{Dict}, if necessary, so we
+        can loop over.
 
-            1) all lsi.low_RT and all lsi.high_RT objects have the same sets of
-            configurations. We grab an arbitrary one, and extract the `model_options`
-            field. The model options can be either a Vector{Dict} or a Dict, so we must
-            first check and create a new one-element Vector{Dict}, if necessary, so we
-            can loop over.
+        2) The outer-most loop iterates over the known XRTM configurations. For each
+        iteration, a new XRTM instance is created.
 
-            2) The outer-most loop iterates over the known XRTM configurations. For each
-            iteration, a new XRTM instance is created.
+        3) Inside the main options loop, we call the function to calculate radiances
+        and weighting functions, and supply the recently created XRTM instance, so
+        that inside of `_calculate_radiances_and_wfs_XRTM!`, the XRTM instance does
+        not have to be created again. *THIS IS THE MAIN SPEED-UP*
 
-            3) Inside the main options loop, we call the function to calculate radiances
-            and weighting functions, and supply the recently created XRTM instance, so
-            that inside of `_calculate_radiances_and_wfs_XRTM!`, the XRTM instance does
-            not have to be created again. *THIS IS THE MAIN SPEED-UP*
-
-            4) At the end of the bin calculations, the XRTM instance is destroyed to free
-            up memory (explicitly needed since Julia cannot garbage collect it!). The same
-            process is done separately for the low-accuracy and high-accuracy
-            calculations!
+        4) At the end of the bin calculations, the XRTM instance is destroyed to free
+        up memory (explicitly needed since Julia cannot garbage collect it!). The same
+        process is done separately for the low-accuracy and high-accuracy
+        calculations!
 
 
-            NOTE
-            These calculations cannot easily be threaded, since each binned calculation
-            relies on its own `MonochromaticRTMethod` object with a single spectral point
-            each, and thus spreading out the calculations on multiple threads requires
-            copying those objects, which currently is not implemented (and probably never
-            will be).
+        NOTE
+        These calculations cannot easily be threaded, since each binned calculation
+        relies on its own `MonochromaticRTMethod` object with a single spectral point
+        each, and thus spreading out the calculations on multiple threads requires
+        copying those objects, which currently is not implemented (and probably never
+        will be).
 
-        =#
+    =#
 
-
-        # Make all model options into a list so we can iterate over them
-        low_options = Dict[]
-        high_options = Dict[]
-        if lsi.monochromatic_RT.model_options isa Dict
-            push!(low_options, lsi.monochromatic_RT.model_options)
-        else
-            push!(low_options, lsi.monochromatic_RT.model_options...)
-        end
-
-        if lsi.high_options isa Dict
-            push!(high_options, lsi.high_options)
-        else
-            push!(high_options, lsi.high_options...)
-        end
-
-        # Low bins
-        for this_option in low_options
-
-            xrtm_low = create_XRTM(
-                lsi.RT_bin,
-                lsi.RT_bin.scene.observer,
-                this_option
-                )
-
-            # Loop through all tau and xi bins and calcuate radiances!
-            for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
-
-                # Skip unused bin
-                if !lsi.used_bin[τ_bin, ξ_bin]
-                    continue
-                end
-
-                calculate_binned_properties!(lsi, τ_bin, ξ_bin, false)
+    # Bin-averaged √ξ
+    ξ = zeros(size(lsi.used_bin))
+    # Bin-averaged τ_gas
+    τ_gas = zeros(size(lsi.used_bin))
 
 
-                clear!(lsi.RT_bin)  # Must clear out beforehand
-                _calculate_radiances_and_wfs_XRTM!(
-                    lsi.RT_bin,
-                    lsi.RT_bin.scene.observer,
-                    this_option,
-                    xrtm_in=xrtm_low
-                    )
+    # Make all model options into a list so we can iterate over them
+    low_options = Dict[]
+    high_options = Dict[]
+    if lsi.monochromatic_RT.model_options isa Dict
+        push!(low_options, lsi.monochromatic_RT.model_options)
+    else
+        push!(low_options, lsi.monochromatic_RT.model_options...)
+    end
 
-                # Results are ADDED to the total from the various solvers
-                @views lsi.bin_rad_lo[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
+    if lsi.high_options isa Dict
+        push!(high_options, lsi.high_options)
+    else
+        push!(high_options, lsi.high_options...)
+    end
 
+    # Low bins
+    for this_option in low_options
+
+        xrtm_low = create_XRTM(
+            lsi.RT_bin,
+            lsi.RT_bin.scene.observer,
+            this_option
+            )
+
+        # Loop through all tau and xi bins and calcuate radiances!
+        @showprogress desc="$(this_option["solvers"])" for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
+
+            # Skip unused bin
+            if !lsi.used_bin[τ_bin, ξ_bin]
+                continue
             end
 
-            calculate_binned_properties!(lsi, 1, 1, true)
+            calculate_binned_properties!(lsi, τ_bin, ξ_bin, false)
+
+            # Since it is convenient here, calculate bin-averaged tau and sqrt(xi)
+            # Also, calculate the bin-averaged τ_gas and √ξ
+            opt = lsi.RT_bin.optical_properties
+            # Remember, binned optical properties only have one spectral point and the optical
+            # properties of both low_RT and high_RT ar the same (or should be).
+            ξ[τ_bin, ξ_bin] = calculate_ξ_sqrt(opt, 1)
+
+            # Total column tau gas in this bin, extracted from the optical properties
+            # object that is attached to the low/high RT object
+            τ_gas[τ_bin, ξ_bin] = sum(sum(gas_tau) for gas_tau in values(opt.gas_tau))
+
+
+            clear!(lsi.RT_bin)  # Must clear out beforehand
             _calculate_radiances_and_wfs_XRTM!(
-                lsi.RT_bin_edge,
-                lsi.RT_bin_edge.scene.observer,
+                lsi.RT_bin,
+                lsi.RT_bin.scene.observer,
                 this_option,
                 xrtm_in=xrtm_low
                 )
 
-
-            @views lsi.bin_edge_rad_lo[1, 1][:] += lsi.RT_bin.hires_radiance[:]
-
-            XRTM.destroy(xrtm_low)
+            # Results are ADDED to the total from the various solvers
+            @views lsi.bin_rad_lo[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
+            for (i_wf, wf) in enumerate(lsi.RT_bin.hires_wfunctions)
+                @views lsi.bin_wf_lo[τ_bin, ξ_bin][i_wf][:] += wf[:]
+            end
         end
 
-        # High bins
-        for this_option in high_options
-
-            xrtm_high = create_XRTM(
-                lsi.RT_bin,
-                lsi.RT_bin.scene.observer,
-                this_option
-                )
-
-            # Loop through all tau and xi bins and calcuate radiances!
-            for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
-
-                # Skip unused bin
-                if !lsi.used_bin[τ_bin, ξ_bin]
-                    continue
-                end
-
-                calculate_binned_properties!(lsi, τ_bin, ξ_bin, false)
-
-                clear!(lsi.RT_bin) # Must clear out beforehand
-                _calculate_radiances_and_wfs_XRTM!(
-                    lsi.RT_bin,
-                    lsi.RT_bin.scene.observer,
-                    this_option,
-                    xrtm_in=xrtm_high
-                    )
-
-                # Results are ADDED to the total from the various solvers
-                @views lsi.bin_rad_hi[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
+        calculate_binned_properties!(lsi, 1, 1, true)
+        clear!(lsi.RT_bin_edge)
+        _calculate_radiances_and_wfs_XRTM!(
+            lsi.RT_bin_edge,
+            lsi.RT_bin_edge.scene.observer,
+            this_option,
+            xrtm_in=xrtm_low
+            )
 
 
+        @views lsi.bin_edge_rad_lo[1, 1][:] += lsi.RT_bin.hires_radiance[:]
+
+        XRTM.destroy(xrtm_low)
+    end
+
+    # High bins
+    for this_option in high_options
+
+        xrtm_high = create_XRTM(
+            lsi.RT_bin,
+            lsi.RT_bin.scene.observer,
+            this_option
+            )
+
+        # Loop through all tau and xi bins and calcuate radiances!
+        @showprogress desc="$(this_option["solvers"])" for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
+
+            # Skip unused bin
+            if !lsi.used_bin[τ_bin, ξ_bin]
+                continue
             end
 
+            calculate_binned_properties!(lsi, τ_bin, ξ_bin, false)
 
-            calculate_binned_properties!(lsi, 1, 1, true)
+
+            clear!(lsi.RT_bin) # Must clear out beforehand
             _calculate_radiances_and_wfs_XRTM!(
-                lsi.RT_bin_edge,
-                lsi.RT_bin_edge.scene.observer,
+                lsi.RT_bin,
+                lsi.RT_bin.scene.observer,
                 this_option,
                 xrtm_in=xrtm_high
                 )
 
-            @views lsi.bin_edge_rad_hi[1, 1][:] += lsi.RT_bin.hires_radiance[:]
 
-            XRTM.destroy(xrtm_high)
+            # Results are ADDED to the total from the various solvers
+            @views lsi.bin_rad_hi[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
+            for (i_wf, wf) in enumerate(lsi.RT_bin.hires_wfunctions)
+                @views lsi.bin_wf_hi[τ_bin, ξ_bin][i_wf][:] += wf[:]
+            end
+
         end
 
 
+        calculate_binned_properties!(lsi, 1, 1, true)
+        clear!(lsi.RT_bin_edge)
+        _calculate_radiances_and_wfs_XRTM!(
+            lsi.RT_bin_edge,
+            lsi.RT_bin_edge.scene.observer,
+            this_option,
+            xrtm_in=xrtm_high
+            )
+
+        @views lsi.bin_edge_rad_hi[1, 1][:] += lsi.RT_bin.hires_radiance[:]
+
+        XRTM.destroy(xrtm_high)
+    end
+
+
     #=
-
-
         _low_rt = first(values(lsi.low_RT)) # Grab some RT object, doesn't matter which
         if _low_rt.model_options isa Dict
             low_options = [_low_rt.model_options]
@@ -674,8 +706,8 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         end
 
     #end # End timed section
-
-    @info "LSI binned calculations done in $(time_bin.time) sec."
+    =#
+    #@info "LSI binned calculations done in $(time_bin.time) sec."
 
     #=
         Construct the error array for each bin, as well as calculate the total gas
@@ -702,34 +734,23 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     RadType = typeof(lsi.monochromatic_RT.hires_radiance).name.wrapper
 
     # Error of Stokes components
-    ε = Dict()
+    ε = deepcopy(lsi.bin_rad_hi)
+    map(x -> x[:] .= 0, ε) # Set all to zero
     # Partial derivative of ε w.r.t. weighting function ∂ε/∂x
-    ∂ε = Dict()
-    # Bin-averaged ξ
-    ξ = Dict()
-    # Bin-averaged τ_gas
-    τ_gas = Dict()
-    # Which bins should use relative errors? (this is for error catching)
-    use_scaled_error = Dict()
-    # How many weighting functions do we have?
-    k_first = first(keys(lsi.low_RT))
-    N_wf = map(length, values(lsi.low_RT[k_first].wfunctions_map)) |> sum
-    N_stokes = size(lsi.monochromatic_RT.hires_radiance.S, 2)
+    ∂ε = deepcopy(lsi.bin_wf_hi)
+    for l in 1:N_wf
+        map(x -> x[:] .= 0, ∂ε[l]) # Set all to zero
+    end
 
-    bad_bins = Int[]
 
-    #=
-        First, create some handy short cuts that contain the bin errors for both
-        Stokes components ε[(i,j)], as well as the weighting functions ε_wf[(i,j)].
-    =#
-    for k in keys(lsi.low_RT)
-        # k = (i_bin, ξ_bin)
+    # Calculate bin errors and bin error derivatives
+    for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
+        !lsi.used_bin[τ_bin, ξ_bin] && continue
 
         # Subtract all Stokes components
-        ε[k] = RadType(T, 1)
-        @views ε[k].S[1,:] = (
-            lsi.low_RT[k].hires_radiance.S[1,:] -
-            lsi.high_RT[k].hires_radiance.S[1,:]
+        @views ε[τ_bin, ξ_bin].S[1,:] .= (
+            lsi.bin_rad_lo[τ_bin, ξ_bin].S[1,:] -
+            lsi.bin_rad_hi[τ_bin, ξ_bin].S[1,:]
         )
 
         # Produce relative errors by dividing by the intensity, such that
@@ -745,55 +766,25 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             to be very large if ε ≈ 1.
 
         =#
+        ε[τ_bin, ξ_bin].S[1,1] /= lsi.bin_rad_hi[τ_bin, ξ_bin].S[1,1]
 
-        fac = abs(ε[k].S[1,1]) / abs(lsi.high_RT[k].hires_radiance.S[1,1])
-
-        if fac > 1
-
-            #@info "Bin error larger than high-bin radiance for $(k)! Ratio: $(fac)"
-            #@info "Bin tau is between $(lsi.bin_boundaries[k[1]]) and $(lsi.bin_boundaries[k[1]+1])"
-            ε[k].S[1,1] /= lsi.high_RT[k].hires_radiance.S[1,1]
-            push!(bad_bins, k[1])
-        else
-            # Otherwise: OK, we can move on and scale the error to produce
-            # ε[(i,j)] = (low_I[(i,j)] - high_I[(i,j)]) / high_I[(i,j)]
-
-            ε[k].S[1,1] /= lsi.high_RT[k].hires_radiance.S[1,1]
-
-        end
-
-
-
-        # Calculate bin errors for derivatives
-        ∂ε[k] = [RadType(T, 1) for l in 1:N_wf]
-        r_high = lsi.high_RT[k].hires_radiance # this is the high-stream radiance result
+        r_high = lsi.bin_rad_hi[τ_bin, ξ_bin] # this is the high-stream radiance result
 
         for l in 1:N_wf
 
-            wf_low = lsi.low_RT[k].hires_wfunctions[l]
-            wf_high = lsi.high_RT[k].hires_wfunctions[l]
+            wf_low = lsi.bin_wf_lo[τ_bin, ξ_bin][l]
+            wf_high = lsi.bin_wf_hi[τ_bin, ξ_bin][l]
 
             # Again, we produce the scaled error for intensity only, not for Stokes
-
-            ∂ε[k][l].S[1,1] = 1/r_high.S[1,1] * (
-                wf_low.S[1,1] - wf_high.S[1,1] * (1 + ε[k].S[1,1])
+            ∂ε[τ_bin, ξ_bin][l].S[1,1] = 1/r_high.S[1,1] * (
+                wf_low.S[1,1] - wf_high.S[1,1] * (1 + ε[τ_bin, ξ_bin].S[1,1])
             )
-
-            if RadType == VectorRadiance
-                ∂ε[k][l].S[1,2:end] = wf_low.S[1,2:end] - wf_high.S[1,2:end]
+            # Stokes compontents derivatives U and V are just differences
+            for s in 2:N_stokes
+                ∂ε[τ_bin, ξ_bin][l].S[1,s] = wf_low.S[1,s] - wf_high.S[1,s]
             end
 
         end
-
-        # Also, calculate the bin-averaged τ_gas and √ξ
-        opt = lsi.low_RT[k].optical_properties
-        # Remember, binned optical properties only have one spectral point and the optical
-        # properties of both low_RT and high_RT ar the same (or should be).
-        ξ[k] = calculate_ξ_sqrt(opt, 1)
-
-        # Total column tau gas in this bin, extracted from the optical properties
-        # object that is attached to the low/high RT object
-        τ_gas[k] = sum(sum(gas_tau) for gas_tau in values(opt.gas_tau))
 
     end
 
@@ -804,24 +795,78 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     nodes_ξ = Float64[]
     nodes_err = Float64[]
 
-    for k in keys(lsi.low_RT)
+    for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
+        !lsi.used_bin[τ_bin, ξ_bin] && continue
 
-        push!(nodes_τ, (τ_gas[k]))
-        push!(nodes_ξ, ξ[k])
-        push!(nodes_err, ε[k].I[1])
+        push!(nodes_τ, (τ_gas[τ_bin, ξ_bin]))
+        push!(nodes_ξ, ξ[τ_bin, ξ_bin])
+        push!(nodes_err, ε[τ_bin, ξ_bin].S[1,1])
 
     end
 
+
+
     # Equation A1 in O'Dell
     # (center-corrected errors, only a function of τ-bin, not of ξ)
-    ε_τ = Dict()
-    ∂ε_τ = Dict()
-    mean_τ = Dict()
 
-    used_τ_bins = unique(lsi.tau_gas_bin_assignment)
-    first_τ_bin = minimum(used_τ_bins)
-    sort!(used_τ_bins)
+    ε_τ = deepcopy(lsi.bin_rad_hi)
+    map(x -> x[:] .= 0, ε_τ) # Set all to zero
+    ∂ε_τ = deepcopy(lsi.bin_wf_hi)
+    for l in 1:N_wf
+        map(x -> x[:] .= 0, ∂ε_τ[l]) # Set all to zero
+    end
+    #mean_τ = Dict()
 
+    #used_τ_bins = unique(lsi.tau_gas_bin_assignment)
+    #first_τ_bin = minimum(used_τ_bins)
+    #sort!(used_τ_bins)
+
+    @time for τ_bin in axes(lsi.used_bin, 1)
+        (!lsi.used_bin[τ_bin, 1] | !lsi.used_bin[τ_bin, 2]) && continue
+
+        # Number of spectral points in each sub-bin (ξ_bin == 1 and ξ_bin == 2) that
+        # belong to a certain tau bin.
+        idx_τ = lsi.tau_gas_bin_assignment .== τ_bin
+        N1 = sum((idx_τ) .& (lsi.ξ_sqrt_bin_assignment .== 1))
+        N2 = sum((idx_τ) .& (lsi.ξ_sqrt_bin_assignment .== 2))
+
+        # This (A1) is needed for the "centering correction", and not well explained in
+        # the manuscript ..
+
+        r_low = RadType(T, 1)
+        r_high = RadType(T, 1)
+
+        # Some bins might not have valid entries in the ξ_bin == 2 dimension
+        @views r_low.S[:,:] = (
+            lsi.bin_rad_lo[τ_bin,1].S[:,:] * N1 +
+            lsi.bin_rad_lo[τ_bin,2].S[:,:] * N2
+        ) / (N1 + N2)
+
+        @views r_high.S[:,:] = (
+            lsi.bin_rad_hi[τ_bin,1].S[:,:] * N1 +
+            lsi.bin_rad_hi[τ_bin,2].S[:,:] * N2
+        ) / (N1 + N2)
+
+        @views ε_τ[τ_bin,1].S[1,:] = (r_low.S[1,:] - r_high.S[1,:])
+        # Again divide by intensity to get relative errors
+        @views ε_τ[τ_bin,1].S[1,1] /= r_high.S[1,1]
+
+        # Calculate derivative of the error term w.r.t. any weighting function
+        # if ε = (low_bin - high_bin) / high_bin = (low_bin/high_bin) - 1
+        # then
+        # ∂ε/∂x = 1/high_bin * (∂low_bin/∂x - ∂high_bin/∂x * (1 + ε)).
+        # ONLY FOR THE I STOKES COMPONENT
+        # For Q and U, the equations are
+        # ε = low_bin - high_bin
+        # so
+        # ∂ε = ∂low_bin/∂x - ∂high_bin/∂x
+
+
+
+
+    end
+
+    #=
     for i in used_τ_bins
 
         # Number of spectral points in each sub-bin (ξ_bin == 1 and ξ_bin == 2) that
