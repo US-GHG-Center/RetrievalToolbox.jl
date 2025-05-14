@@ -1063,7 +1063,7 @@ function calculate_total_coef!(
 
     ray_coef = zeros(3, N_elem)
 
-    for i in [Int(round(swin.N_hires/2))] # For now, only band center
+    for i in [get_scattering_index(swin)] # For now, only band center
 
         @views coef_denom[:,:,:] .= 0
 
