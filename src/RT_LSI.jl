@@ -229,23 +229,28 @@ function LSIRTMethod(
 
 
 
-    bin_res_lo = Array{typeof(rt.hires_radiance)}(undef, N_tau_bins, N_ξ_bins)
-    bin_res_hi = Array{typeof(rt.hires_radiance)}(undef, N_tau_bins, N_ξ_bins)
-    bin_edge_res_lo = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
-    bin_edge_res_hi = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
+
+    bin_rad_lo = Array{typeof(rt.hires_radiance)}(undef, N_tau_bins, N_ξ_bins)
+    bin_wf_lo = Array{Vector{typeof(rt.hires_radiance)}}(undef, N_tau_bins, N_ξ_bins)
+    bin_rad_hi = Array{typeof(rt.hires_radiance)}(undef, N_tau_bins, N_ξ_bins)
+    bin_wf_hi = Array{Vector{typeof(rt.hires_radiance)}}(undef, N_tau_bins, N_ξ_bins)
+    bin_edge_rad_lo = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
+    bin_edge_rad_hi = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
 
     # Element type of radiance array (e.g. Float64)
     Trad = eltype(rt.hires_radiance)
     # Short-cut to the type of the radiance, allows us to construct new ones
     RadType = typeof(rt.hires_radiance).name.wrapper
 
-    # Fill with NaNs
-    for ar in [bin_res_lo, bin_res_hi, bin_edge_res_lo, bin_edge_res_hi]
+    for ar in [bin_rad_lo, bin_rad_hi, bin_edge_rad_lo, bin_edge_rad_hi]
         for i in eachindex(ar)
             _v = RadType(Trad, 1)
             ar[i] = _v
         end
     end
+
+
+
 
     #=
         Create the LSI RT method object
@@ -262,10 +267,12 @@ function LSIRTMethod(
         rt,
         RT_bin,
         RT_bin_edge,
-        bin_res_lo,
-        bin_res_hi,
-        bin_edge_res_lo,
-        bin_edge_res_hi
+        bin_rad_lo,
+        bin_wf_lo,
+        bin_rad_hi,
+        bin_wf_hi,
+        bin_edge_rad_lo,
+        bin_edge_rad_hi
     )
 
 end
@@ -484,7 +491,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
                     )
 
                 # Results are ADDED to the total from the various solvers
-                @views lsi.bin_res_lo[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
+                @views lsi.bin_rad_lo[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
 
             end
 
@@ -497,7 +504,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
                 )
 
 
-            @views lsi.bin_edge_res_lo[1, 1][:] += lsi.RT_bin.hires_radiance[:]
+            @views lsi.bin_edge_rad_lo[1, 1][:] += lsi.RT_bin.hires_radiance[:]
 
             XRTM.destroy(xrtm_low)
         end
@@ -530,7 +537,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
                     )
 
                 # Results are ADDED to the total from the various solvers
-                @views lsi.bin_res_hi[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
+                @views lsi.bin_rad_hi[τ_bin, ξ_bin][:] += lsi.RT_bin.hires_radiance[:]
 
 
             end
@@ -544,7 +551,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
                 xrtm_in=xrtm_high
                 )
 
-            @views lsi.bin_edge_res_hi[1, 1][:] += lsi.RT_bin.hires_radiance[:]
+            @views lsi.bin_edge_rad_hi[1, 1][:] += lsi.RT_bin.hires_radiance[:]
 
             XRTM.destroy(xrtm_high)
         end

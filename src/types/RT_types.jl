@@ -96,12 +96,16 @@ struct LSIRTMethod <: AbstractRTMethod
     RT_bin::MonochromaticRTMethod
     "`MonochromaticRTMethod` objects to use for binned calculations at window edge"
     RT_bin_edge::MonochromaticRTMethod
-    "Low-res binned results"
-    bin_res_lo::Array{Radiance}
+    "Low-res binned radiances"
+    bin_rad_lo::Array{Radiance}
+    "Low-res binned weighting functions"
+    bin_wf_lo::Array{Vector{Radiance}}
     "High-res binned results"
-    bin_res_hi::Array{Radiance}
+    bin_rad_hi::Array{Radiance}
+    "High-res binned weighting functions"
+    bin_wf_hi::Array{Vector{Radiance}}
     "Low-res binned results for edge bin"
-    bin_edge_res_lo::Array{Radiance}
+    bin_edge_rad_lo::Array{Radiance}
     "High-res binned results for edge bin"
-    bin_edge_res_hi::Array{Radiance}
+    bin_edge_rad_hi::Array{Radiance}
 end
