@@ -881,10 +881,10 @@ Calculates the derivative ∂τ/∂width for a GaussAerosol at layer `l`.
 
 $(TYPEDSIGNATURES)
 """
-function calculate_layer_dtau_dwidth(
+function calculate_layer_dtau_dwidth!(
+    result::AbstractArray,
     atm::EarthAtmosphere,
-    aer::GaussAerosol,
-    l::Integer
+    aer::GaussAerosol
 )
 
     #=
@@ -905,52 +905,54 @@ function calculate_layer_dtau_dwidth(
         psurf = atm.pressure_levels[end]
         p0 = aer.pressure
         σ = aer.width
-        p = atm.pressure_layers[l] / psurf
         pprime_fac = 1.0 / psurf
 
     else
 
         p0 = ustrip(atm.pressure_unit, aer.pressure * aer.pressure_unit)
         σ = ustrip(atm.pressure_unit, aer.width * aer_pressure_unit)
-        p = atm.pressure_layers[l]
         pprime_fac = 1.0
+
     end
 
-    pterm = _calculate_layer_dtau_dwidth(
-        p,
+    _calculate_layer_dtau_dwidth!(
+        result,
         atm.pressure_layers,
         p0,
-        aer.width,
+        σ,
         pprime_fac
     )
 
-    return aer.total_optical_depth * pterm
+    @views result[:] .*= aer.total_optical_depth
 
 end
 
-function _calculate_layer_dtau_dwidth(
-    p,
+function _calculate_layer_dtau_dwidth!(
+    result,
     play,
     p0,
     σ,
     pprime_fac
 )
 
-    S = exp(-(p-p0)^2 / (2*σ^2))
-
     Ssum = 0
     Ssum2 = 0
 
-    @turbo for i in eachindex(play)
+    for i in eachindex(play)
         pp = pprime_fac * play[i]
         Ssum += exp(-(pp - p0)^2 / (2*σ^2))
         Ssum2 += (pp - p0)^2 / σ^3 * exp(-(pp - p0)^2 / (2*σ^2))
     end
 
-    pterm = ((p - p0)^2 / σ^3 * Ssum - Ssum2) * S
-    pterm /= Ssum^2
+    for i in eachindex(play)
 
-    return pterm
+        p = pprime_fac * play[i]
+        S = exp(-(p-p0)^2 / (2*σ^2))
+
+        result[i] = ((p - p0)^2 / σ^3 * Ssum - Ssum2) * S
+        result[i] /= Ssum^2
+
+    end
 
 end
 
