@@ -512,34 +512,81 @@ function calculate_rt_jacobian!(
 )
 
 
-    if !haskey(rt.wfunctions_map, sve)
-        error("RT weighting function mapper is not aware of $(sve)")
+
+    if !haskey(rt.wfunctions_map, sve.aerosol)
+        @warn "No weighting function present for $(sve.aerosol)"
+        return
     end
 
-    wf_idx = rt.wfunctions_map[sve][1]
-    this_wf = rt.hires_wfunctions[wf_idx]
+
+    # Useful short-cuts
+    opt = rt.optical_properties
+    this_aer_tau = opt.aerosol_tau[sve.aerosol]
+    this_aer_ssa = opt.aerosol_omega[sve.aerosol]
+
     # Zero out
     @views jac[:] .= 0
 
-    # Simply copy over, both `jac` and `this_wf` are the same type of
-    # either ScalarRadiance or VectorRadiance, so we can simply do a
-    # copy operation that broadcasts over all Stokes components.
-    @views jac[:] .= this_wf[:]
-    # This is now ∂I/∂AOD
+    # Cast the current AOD value to a unitless quantity
+    # (this can be either AOD or log(AOD))
+    this_aod = get_current_value_with_unit(sve) |> NoUnits
+    if sve.log
+        this_aod = exp(this_aod)
+    end
 
     #=
-        If we retrieve log(AOD) rather than AOD, we must correct:
-
-        ∂I/∂log(AOD) = ∂I/∂AOD * AOD
-
-        Of course if the state vector element uses log(AOD), then the value in
-        sve.iterations is log(AOD), and we must exponentiate to get the AOD itself.
+        Part 1: ∂τ/∂AOD, summed over all layers `l`
+        ∂τ/∂AOD = τ_aerosol / AOD
+        (this should hold true for all AbstractAerosols, regardless of shape)
     =#
+
+    #=
+        Part 2: ∂ω/∂AOD, summed over all layers `l`
+        ∂ω/∂AOD =  τ_aerosol / AOD * (ω_aerosol - ω) / τ
+        (this should hold true for all AbstractAerosols, regardless of shape)
+    =#
+
+    #=
+        Part 2: ∂βaer/∂AOD, summed over all layers `l`
+        ∂β_tot/∂τ_aerosol is calculated through `create_aerosol_coef_deriv_inputs`, so
+        we only need ∂τ_aerosol/∂AOD
+        (this should hold true for all AbstractAerosols, regardless of shape)
+    =#
+
+    for l in 1:rt.scene.atmosphere.N_layer
+
+        # These all have layer indices
+        ∂I_∂τ = rt.hires_wfunctions[rt.wfunctions_map["dI_dTau"][l]]
+        ∂I_∂ω = rt.hires_wfunctions[rt.wfunctions_map["dI_dOmega"][l]]
+        ∂I_∂β = rt.hires_wfunctions[rt.wfunctions_map[sve.aerosol][l]]
+
+        @turbo for i in axes(jac, 1) # Spectral loop
+
+            # These all have layer indices
+            # These here relate to this particular aerosol
+            τ_aer = this_aer_tau[i, l]
+            ω_aer = this_aer_ssa[i, l]
+
+            # These here are *TOTAL* quantities (all aerosols)
+            τ = opt.total_tau[i, l]
+            ω = opt.total_omega[i, l]
+
+            ∂τ_∂AOD = τ_aer / this_aod
+            ∂ω_∂AOD = ∂τ_∂AOD * (ω_aer - ω) / τ
+
+            for s in axes(jac, 2) # Stokes component loop
+                jac.S[i,s] +=
+                    ∂I_∂τ.S[i,s] * ∂τ_∂AOD +
+                    ∂I_∂ω.S[i,s] * ∂ω_∂AOD +
+                    ∂I_∂β.S[i,s] * ∂τ_∂AOD
+            end
+        end
+    end
+
+
     if sve.log
-
-        this_aod = get_current_value_with_unit(sve) |> NoUnits
-        @views jac[:,:] .*= exp(this_aod)
-
+        # ∂I/∂log(AOD) = ∂I/AOD * AOD
+        @turbo jac[:] .*= this_aod
     end
 
 end
@@ -551,34 +598,86 @@ function calculate_rt_jacobian!(
 )
 
 
-    if !haskey(rt.wfunctions_map, sve)
-        error("RT weighting function mapper is not aware of $(sve)")
+    if !haskey(rt.wfunctions_map, sve.aerosol)
+        @warn "No weighting function present for $(sve.aerosol)"
+        return
     end
 
-    wf_idx = rt.wfunctions_map[sve][1]
-    this_wf = rt.hires_wfunctions[wf_idx]
+
+    # Useful short-cuts
+    opt = rt.optical_properties
+    this_aer_ssa = opt.aerosol_omega[sve.aerosol]
+
     # Zero out
     @views jac[:] .= 0
 
-    # Simply copy over, both `jac` and `this_wf` are the same type of
-    # either ScalarRadiance or VectorRadiance, so we can simply do a
-    # copy operation that broadcasts over all Stokes components.
-    @views jac[:] .= this_wf[:]
-    # This is now ∂I/∂Height
+    # Cast the current height value to a unitless quantity
+    # (this can be either height or log(height))
+    this_height = get_current_value_with_unit(sve) |> NoUnits
+    if sve.log
+        this_height = exp(this_height)
+    end
 
     #=
-        If we retrieve log(Height) rather than Height, we must correct:
-
-        ∂I/∂log(Height) = ∂I/Height * Height
-
-        Of course if the state vector element uses log(Height), then the value in
-        sve.iterations is log(Height), and we must exponentiate to get the Height itself.
+        Part 1: ∂τ/∂Height, summed over all layers `l`
+        ∂τ/∂Height = see function `calculate_layer_dtau_dheight`
+        (this should hold true for all AbstractAerosols, regardless of shape)
     =#
+
+    ∂τ_∂height = rt.optical_properties.tmp_Nlay1
+    # Calculate and store
+    calculate_layer_dtau_dheight!(
+        ∂τ_∂height,
+        rt.scene.atmosphere,
+        sve.aerosol
+    )
+
+
+    #=
+        Part 2: ∂ω/∂Height, summed over all layers `l`
+        ∂ω/∂Height =  ∂τ/∂Height * (ω_aerosol - ω) / τ
+        (this should hold true for all AbstractAerosols, regardless of shape)
+    =#
+
+    #=
+        Part 2: ∂βaer/∂Height, summed over all layers `l`
+        ∂β_tot/∂τ_aerosol is calculated through `create_aerosol_coef_deriv_inputs`, so
+        we only need ∂τ_aerosol/∂Height, which is the same as ∂τ/∂Height
+        (this should hold true for all AbstractAerosols, regardless of shape)
+    =#
+
+    for l in 1:rt.scene.atmosphere.N_layer
+
+        # These all have layer indices
+        ∂I_∂τ = rt.hires_wfunctions[rt.wfunctions_map["dI_dTau"][l]]
+        ∂I_∂ω = rt.hires_wfunctions[rt.wfunctions_map["dI_dOmega"][l]]
+        ∂I_∂β = rt.hires_wfunctions[rt.wfunctions_map[sve.aerosol][l]]
+
+        @turbo for i in axes(jac, 1) # Spectral loop
+
+            # These all have layer indices
+            # These here relate to this particular aerosol
+            ω_aer = this_aer_ssa[i, l]
+
+            # These here are *TOTAL* quantities (all aerosols)
+            τ = opt.total_tau[i, l]
+            ω = opt.total_omega[i, l]
+
+            ∂ω_∂height = ∂τ_∂height[l] * (ω_aer - ω) / τ
+
+            for s in axes(jac, 2) # Stokes component loop
+                jac.S[i,s] +=
+                    ∂I_∂τ.S[i,s] * ∂τ_∂height[l] +
+                    ∂I_∂ω.S[i,s] * ∂ω_∂height +
+                    ∂I_∂β.S[i,s] * ∂τ_∂height[l]
+            end
+        end
+    end
+
+
     if sve.log
-
-        this_height = get_current_value_with_unit(sve) |> NoUnits
-        @views jac[:] .*= exp(this_height)
-
+        # ∂I/∂log(Height) = ∂I/Height * Height
+        @turbo jac[:] .*= this_height
     end
 
 end
@@ -591,34 +690,86 @@ function calculate_rt_jacobian!(
 )
 
 
-    if !haskey(rt.wfunctions_map, sve)
-        error("RT weighting function mapper is not aware of $(sve)")
+    if !haskey(rt.wfunctions_map, sve.aerosol)
+        @warn "No weighting function present for $(sve.aerosol)"
+        return
     end
 
-    wf_idx = rt.wfunctions_map[sve][1]
-    this_wf = rt.hires_wfunctions[wf_idx]
+
+    # Useful short-cuts
+    opt = rt.optical_properties
+    this_aer_ssa = opt.aerosol_omega[sve.aerosol]
+
     # Zero out
     @views jac[:] .= 0
 
-    # Simply copy over, both `jac` and `this_wf` are the same type of
-    # either ScalarRadiance or VectorRadiance, so we can simply do a
-    # copy operation that broadcasts over all Stokes components.
-    @views jac[:] .= this_wf[:]
-    # This is now ∂I/∂Width
+    # Cast the current width value to a unitless quantity
+    # (this can be either width or log(width))
+    this_width = get_current_value_with_unit(sve) |> NoUnits
+    if sve.log
+        this_width = exp(this_width)
+    end
 
     #=
-        If we retrieve log(Width) rather than Width, we must correct:
-
-        ∂I/∂log(Width) = ∂I/Width * Width
-
-        Of course if the state vector element uses log(Width), then the value in
-        sve.iterations is log(Width), and we must exponentiate to get the Width itself.
+        Part 1: ∂τ/∂width, summed over all layers `l`
+        ∂τ/∂width = see function `calculate_layer_dtau_dwidth`
+        (this should hold true for all AbstractAerosols, regardless of shape)
     =#
+
+    ∂τ_∂width = rt.optical_properties.tmp_Nlay1
+    # Calculate and store
+    calculate_layer_dtau_dwidth!(
+        ∂τ_∂width,
+        rt.scene.atmosphere,
+        sve.aerosol
+    )
+
+
+    #=
+        Part 2: ∂ω/∂width, summed over all layers `l`
+        ∂ω/∂width =  ∂τ/∂width * (ω_aerosol - ω) / τ
+        (this should hold true for all AbstractAerosols, regardless of shape)
+    =#
+
+    #=
+        Part 2: ∂βaer/∂width summed over all layers `l`
+        ∂β_tot/∂τ_aerosol is calculated through `create_aerosol_coef_deriv_inputs`, so
+        we only need ∂τ_aerosol/∂width, which is the same as ∂τ/∂width
+        (this should hold true for all AbstractAerosols, regardless of shape)
+    =#
+
+    for l in 1:rt.scene.atmosphere.N_layer
+
+        # These all have layer indices
+        ∂I_∂τ = rt.hires_wfunctions[rt.wfunctions_map["dI_dTau"][l]]
+        ∂I_∂ω = rt.hires_wfunctions[rt.wfunctions_map["dI_dOmega"][l]]
+        ∂I_∂β = rt.hires_wfunctions[rt.wfunctions_map[sve.aerosol][l]]
+
+        @turbo for i in axes(jac, 1) # Spectral loop
+
+            # These all have layer indices
+            # These here relate to this particular aerosol
+            ω_aer = this_aer_ssa[i, l]
+
+            # These here are *TOTAL* quantities (all aerosols)
+            τ = opt.total_tau[i, l]
+            ω = opt.total_omega[i, l]
+
+            ∂ω_∂width = ∂τ_∂width[l] * (ω_aer - ω) / τ
+
+            for s in axes(jac, 2) # Stokes component loop
+                jac.S[i,s] +=
+                    ∂I_∂τ.S[i,s] * ∂τ_∂width[l] +
+                    ∂I_∂ω.S[i,s] * ∂ω_∂width +
+                    ∂I_∂β.S[i,s] * ∂τ_∂width[l]
+            end
+        end
+    end
+
+
     if sve.log
-
-        this_width = get_current_value_with_unit(sve) |> NoUnits
-        @views jac[:] .*= exp(this_width)
-
+        # ∂I/∂log(Height) = ∂I/Height * Height
+        @turbo jac[:] .*= this_height
     end
 
 end

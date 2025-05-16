@@ -76,6 +76,8 @@ end
 
 struct LSIRTMethod <: AbstractRTMethod
 
+    "Options dictonary to control hi-res RT settings"
+    high_options::Union{<:AbstractDict, Vector{<:AbstractDict}}
     "Boundaries of gas optical depth bins"
     bin_boundaries::Vector{Float64}
     "Total (gas) tau per spectral point"
@@ -86,13 +88,28 @@ struct LSIRTMethod <: AbstractRTMethod
     tau_gas_bin_assignment::Vector{Integer}
     "Assigment of spectral points of to ξ bins"
     ξ_sqrt_bin_assignment::Vector{Integer}
+    "Array to quickly check if this tau/ξ bin is used or not"
+    used_bin::Array{Bool}
     "`MonochromaticRTMethod` object to contain the full low-streams results"
     monochromatic_RT::MonochromaticRTMethod
-    "Dict of `MonochromaticRTMethod` objects to contain the binned low-streams results"
-    low_RT::Dict{Any, MonochromaticRTMethod}
-    "Dict of `MonochromaticRTMethod` objects to contain the binned high-streams results"
-    high_RT::Dict{Any, MonochromaticRTMethod}
-    low_RT_edge::Dict{Any, MonochromaticRTMethod}
-    "Dict of `MonochromaticRTMethod` objects to contain the binned high-streams results"
-    high_RT_edge::Dict{Any, MonochromaticRTMethod}
+    "`MonochromaticRTMethod` objects to use for binned calculations at window center"
+    RT_bin::MonochromaticRTMethod
+    "`MonochromaticRTMethod` objects to use for binned calculations at window edge"
+    RT_bin_edge::MonochromaticRTMethod
+    "Low-res binned radiances"
+    bin_rad_lo::Array{Radiance}
+    "Low-res binned weighting functions"
+    bin_wf_lo::Array{Vector{Radiance}}
+    "High-res binned results"
+    bin_rad_hi::Array{Radiance}
+    "High-res binned weighting functions"
+    bin_wf_hi::Array{Vector{Radiance}}
+    "Low-res binned results for edge bin"
+    bin_edge_rad_lo::Array{Radiance}
+    "Low-res binned weighting functions for edge bin"
+    bin_edge_wf_lo::Array{Vector{Radiance}}
+    "High-res binned results for edge bin"
+    bin_edge_rad_hi::Array{Radiance}
+    "High-res binned weighting functions for edge bin"
+    bin_edge_wf_hi::Array{Vector{Radiance}}
 end

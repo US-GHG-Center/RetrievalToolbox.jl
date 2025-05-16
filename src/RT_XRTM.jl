@@ -48,6 +48,7 @@ function _create_weighting_function_dictonary!(
     =#
     need_dI_dTau = false
     need_dI_dOmega = false
+    need_dI_dBeta = false
 
     if any_SVE_is_type(sv, GasLevelScalingFactorSVE)
         @debug "Found GasLevelScalingFactorSVE! Need ∂I/∂τ"
@@ -74,6 +75,7 @@ function _create_weighting_function_dictonary!(
     if findanytype(scene.atmosphere.atm_elements, AbstractAerosolType)
         @debug "Found some aerosol! Need ∂I/∂ω"
         need_dI_dOmega = true
+        need_dI_dBeta = true
     end
 
     if need_dI_dTau
@@ -108,16 +110,17 @@ function _create_weighting_function_dictonary!(
 
 
     #=
-        Do we need aerosol-related Jacobians?
+        Aerosols (only retrieved ones)
     =#
+
     for sve in sv.state_vector_elements
-
         if is_aerosol_SVE(sve)
-            # The dictionary key is the state vector element itself
-            d[sve] = [current_idx]
-            current_idx +=1
-        end
+            if !haskey(d, sve.aerosol)
 
+                d[sve.aerosol] = collect(current_idx:current_idx+scene.atmosphere.N_layer-1)
+                current_idx += scene.atmosphere.N_layer
+            end
+        end
     end
 
     @debug "Require a total of $(current_idx - 1) XRTM weighting functions"
@@ -580,7 +583,6 @@ function _run_XRTM!(
         if haskey(options_dict, "n_coefs")
             for i in 1:length(n_coef_arr)
                 n_coef_arr[i] = min(options_dict["n_coefs"], n_coef_arr[i])
-                #@info "Setting ncoef for $(i): $(n_coef_arr[i])"
             end
         end
 
@@ -591,6 +593,60 @@ function _run_XRTM!(
                 rt.optical_properties.total_coef[:,1:n_elem,:]
                 )
         end
+
+        # Coef derivatives have to be set AFTER the coefficients are ingested
+        # (for the first time at least)
+
+        if "calc_derivs" in options_dict["options"]
+
+            # The number of coefs might be different for every layer, so we must
+            # create a new derivative coef matrix for each layer, sized correctly.
+            l_coef_layer = Matrix{Float64}[]
+            for l in 1:N_layer
+                n_coef = XRTM.get_n_coef(xrtm_l[1], l-1)
+                l_coef = zeros(n_coef, n_elem)
+                push!(l_coef_layer, l_coef)
+            end
+
+            # Loop through aerosol-related SVEs
+            for sve in filter(is_aerosol_SVE, rt.state_vector.state_vector_elements)
+
+                # Grab the aerosol from the state vector element
+                aer = sve.aerosol
+
+                if !haskey(rt.wfunctions_map, aer)
+                    @debug "No weighting function assigment for aerosol $(aer)."
+                    continue
+                end
+
+                for (l, wf_idx) in enumerate(rt.wfunctions_map[aer])
+
+                    create_aerosol_coef_deriv_inputs!(
+                        l_coef_layer[l],
+                        rt,
+                        aer,
+                        l
+                    )
+
+                    l_coef_layer[l][1,1] = 0 # This must be zero always
+
+                    for xrtm in xrtm_l
+                        # Ingest into each XRTM instance.
+
+                        XRTM.set_coef_l_11(
+                            xrtm,
+                            l-1,
+                            wf_idx-1,
+                            l_coef_layer[l]
+                        )
+
+                    end # End XRTM list loop
+                end # Layer loop
+
+            end # Aerosol loop
+        end # End "do we need Jacobians?"
+
+
     end
 
     # Output azimuth angles: [N_output_azimuths, N_output_zeniths]
@@ -681,6 +737,7 @@ function _run_XRTM!(
     spec_dep_wfuncs = [sve for sve in keys(rt.wfunctions_map)
         if sve isa AbstractStateVectorElement]
 
+
     if length(spec_dep_wfuncs) > 0
         #=
             If we have to calculate aerosol-related Jacobians, we also need the linearized
@@ -697,6 +754,7 @@ function _run_XRTM!(
 
         =#
         l_coef_threads = Vector{Matrix{Float64}}[]
+
         for t in 1:Threads.nthreads()
             l_coef_layers = Matrix{Float64}[]
 
@@ -713,6 +771,7 @@ function _run_XRTM!(
         end
 
     end
+
 
     #=
         We can direct the spectral loop to only evaluate certain points, which is very
@@ -746,8 +805,6 @@ function _run_XRTM!(
 
     # We need some temporary arrays to do various calculations, unfortunately
     tmp_vec_list = [zeros(N_layer) for x in 1:Threads.nthreads()]
-    tmp_Nlay1 = [zeros(N_layer) for x in 1:Threads.nthreads()]
-    tmp_Nlay2 = [zeros(N_layer) for x in 1:Threads.nthreads()]
 
     desc_str = "(Nthread=$(Threads.nthreads())) XRTM loop $(swin) for solver(s): " *
         "$(join(options_dict["solvers"], ", "))"
@@ -857,50 +914,11 @@ function _run_XRTM!(
             continue
         end
 
-        #=
-            Now add all the other required weighting functions, e.g. related to aerosols
-        =#
-
-
-        if have_jacobians
-            # Set spectrally-dependent linearized inputs
-            # (e.g. aerosols)
-
-            for sve in spec_dep_wfuncs
-                # This is not threadsafe due to internal calculations in tmp arrays..
-
-                #= NOTE: BAD PERFORMANCE
-                    We need to make this faster in the future. Unclear how. Maybe it is
-                    posssible to to set the linearized inputs only once per retrieval
-                    window and then make an appropriate calculation to obtain the correct
-                    weighting function for all spectral points.
-                =#
-
-                lock(looplock)
-                set_XRTM_wf!(
-                    xrtm,
-                    rt.wfunctions_map[sve][1],
-                    i_spectral,
-                    rt,
-                    sve,
-                    first_XRTM_call[Threads.threadid()],
-                    tmp_Nlay1[Threads.threadid()],
-                    tmp_Nlay2[Threads.threadid()],
-                    l_coef_threads[Threads.threadid()]
-                )
-                unlock(looplock)
-
-            end
-
-        end
-
         # Let XRTM know which layers involve weighting functions
         if first_XRTM_call[Threads.threadid()] & have_jacobians
             # This function needs to be called only once (as per XRTM manual)
             XRTM.update_varied_layers(xrtm)
         end
-
-
 
         #=
             Calculate radiances!
@@ -916,6 +934,7 @@ function _run_XRTM!(
             # Results are:
             # upwelling intensity, downwelling intensity,
             # upwelling weighting functions, downwelling weighting functions
+
             I_up, I_dn, K_up, K_dn = XRTM.radiance(
                 xrtm,
                 solver,
@@ -923,8 +942,9 @@ function _run_XRTM!(
                 out_phis
             )
 
-            #=
+
             # DEBUG
+            #=
             I_up, I_dn, K_up, K_dn = [
                 rand(Float64, (Int(n_stokes),1,1,1)),
                 rand(Float64, (Int(n_stokes),1,1,1)),
