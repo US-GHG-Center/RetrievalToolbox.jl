@@ -106,6 +106,10 @@ struct LSIRTMethod <: AbstractRTMethod
     bin_wf_hi::Array{Vector{Radiance}}
     "Low-res binned results for edge bin"
     bin_edge_rad_lo::Array{Radiance}
+    "Low-res binned weighting functions for edge bin"
+    bin_edge_wf_lo::Array{Vector{Radiance}}
     "High-res binned results for edge bin"
     bin_edge_rad_hi::Array{Radiance}
+    "High-res binned weighting functions for edge bin"
+    bin_edge_wf_hi::Array{Vector{Radiance}}
 end
