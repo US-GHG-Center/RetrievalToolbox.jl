@@ -355,7 +355,8 @@ function EarthAtmosphereBuffer(
             =#
 
             # N_wfunctions = 2 * N_layer + 2 * N_aerosol + 2 * N_surface kernels?
-            N_wfunctions = 2 * N_layer + 20
+            N_aero_sv = length(filter(is_aerosol_SVE, sv.state_vector_elements))
+            N_wfunctions = 2 * N_layer + N_aero_sv * N_layer + 5
 
             if sv isa RetrievalStateVector
                 hires_wfunctions = [RadType(T, swin.N_hires)
