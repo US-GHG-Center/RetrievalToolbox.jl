@@ -235,7 +235,9 @@ function LSIRTMethod(
     bin_rad_hi = Array{typeof(rt.hires_radiance)}(undef, N_tau_bins, N_ξ_bins)
     bin_wf_hi = Array{Vector{typeof(rt.hires_radiance)}}(undef, N_tau_bins, N_ξ_bins)
     bin_edge_rad_lo = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
+    bin_edge_wf_lo = Array{Vector{typeof(rt.hires_radiance)}}(undef, 1, 1)
     bin_edge_rad_hi = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
+    bin_edge_wf_hi = Array{Vector{typeof(rt.hires_radiance)}}(undef, 1, 1)
 
     # Element type of radiance array (e.g. Float64)
     Trad = eltype(rt.hires_radiance)
@@ -251,7 +253,7 @@ function LSIRTMethod(
     end
 
     # Allocate weighting functions
-    for ar in [bin_wf_lo, bin_wf_hi]
+    for ar in [bin_wf_lo, bin_wf_hi, bin_edge_wf_lo, bin_edge_wf_hi]
         for i in eachindex(ar)
             _v = [RadType(Trad, 1) for j in 1:length(rt.hires_wfunctions)]
             ar[i] = _v
@@ -281,7 +283,9 @@ function LSIRTMethod(
         bin_rad_hi,
         bin_wf_hi,
         bin_edge_rad_lo,
-        bin_edge_rad_hi
+        bin_edge_wf_lo,
+        bin_edge_rad_hi,
+        bin_edge_wf_hi
     )
 
 end
@@ -460,7 +464,8 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     ξ = zeros(size(lsi.used_bin))
     # Bin-averaged τ_gas
     τ_gas = zeros(size(lsi.used_bin))
-
+    # τ-bin (no √ξ bin) averaged τ_gas
+    mean_τ = zeros(length(lsi.bin_boundaries) - 1)
 
     # Make all model options into a list so we can iterate over them
     low_options = Dict[]
@@ -487,7 +492,8 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             )
 
         # Loop through all tau and xi bins and calcuate radiances!
-        @showprogress desc="$(this_option["solvers"])" for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
+        #@showprogress desc="$(this_option["solvers"])"
+        for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
 
             # Skip unused bin
             if !lsi.used_bin[τ_bin, ξ_bin]
@@ -506,7 +512,6 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             # Total column tau gas in this bin, extracted from the optical properties
             # object that is attached to the low/high RT object
             τ_gas[τ_bin, ξ_bin] = sum(sum(gas_tau) for gas_tau in values(opt.gas_tau))
-
 
             clear!(lsi.RT_bin)  # Must clear out beforehand
             _calculate_radiances_and_wfs_XRTM!(
@@ -533,8 +538,10 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             )
 
 
-        @views lsi.bin_edge_rad_lo[1, 1][:] += lsi.RT_bin.hires_radiance[:]
-
+        @views lsi.bin_edge_rad_lo[1, 1][:] += lsi.RT_bin_edge.hires_radiance[:]
+        for (i_wf, wf) in enumerate(lsi.RT_bin_edge.hires_wfunctions)
+            @views lsi.bin_edge_wf_lo[1, 1][i_wf][:] += wf[:]
+        end
         XRTM.destroy(xrtm_low)
     end
 
@@ -548,7 +555,8 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             )
 
         # Loop through all tau and xi bins and calcuate radiances!
-        @showprogress desc="$(this_option["solvers"])" for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
+        #@showprogress desc="$(this_option["solvers"])"
+        for τ_bin in axes(lsi.used_bin, 1), ξ_bin in axes(lsi.used_bin, 2)
 
             # Skip unused bin
             if !lsi.used_bin[τ_bin, ξ_bin]
@@ -556,7 +564,6 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             end
 
             calculate_binned_properties!(lsi, τ_bin, ξ_bin, false)
-
 
             clear!(lsi.RT_bin) # Must clear out beforehand
             _calculate_radiances_and_wfs_XRTM!(
@@ -585,129 +592,13 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             xrtm_in=xrtm_high
             )
 
-        @views lsi.bin_edge_rad_hi[1, 1][:] += lsi.RT_bin.hires_radiance[:]
-
+        @views lsi.bin_edge_rad_hi[1, 1][:] += lsi.RT_bin_edge.hires_radiance[:]
+        for (i_wf, wf) in enumerate(lsi.RT_bin_edge.hires_wfunctions)
+            @views lsi.bin_edge_wf_hi[1, 1][i_wf][:] += wf[:]
+        end
         XRTM.destroy(xrtm_high)
     end
 
-
-    #=
-        _low_rt = first(values(lsi.low_RT)) # Grab some RT object, doesn't matter which
-        if _low_rt.model_options isa Dict
-            low_options = [_low_rt.model_options]
-        else
-            low_options = _low_rt.model_options
-        end
-        _high_rt = first(values(lsi.high_RT)) # Grab some RT object, doesn't matter which
-        if _high_rt.model_options isa Dict
-            high_options = [_high_rt.model_options]
-        else
-            high_options = _high_rt.model_options
-        end
-        # Low bins
-        for this_option in low_options
-
-            xrtm_low = create_XRTM(
-                _low_rt,
-                _low_rt.scene.observer,
-                this_option
-                )
-
-            desc_str="LSI low bin calculations ($(this_option["solvers"]))"
-            prog = Progress(length(keys(lsi.low_RT));
-                dt=0.25, barlen=10, desc=desc_str,
-                enabled=XRTM_PROGRESS
-                )
-
-            for ((tau_bin, ξ_bin), rt) in lsi.low_RT
-                # ingore √ξ == 0 for RT
-                ξ_bin == 0 && continue
-                _calculate_radiances_and_wfs_XRTM!(
-                    rt,
-                    rt.scene.observer,
-                    this_option,
-                    xrtm_in=xrtm_low
-                    )
-
-                # Let the user know if there are any NaNs etc.
-                check_non_finites(rt)
-                # Update progress bar
-                next!(prog)
-            end
-
-            # Low edge bin
-            for ((tau_bin, ξ_bin), rt) in lsi.low_RT_edge
-                _calculate_radiances_and_wfs_XRTM!(
-                    rt,
-                    rt.scene.observer,
-                    this_option,
-                    xrtm_in=xrtm_low
-                    )
-                # Let the user know if there are any NaNs etc.
-                check_non_finites(rt)
-            end
-
-            # We don't need this XRTM instance anymore..
-            XRTM.destroy(xrtm_low)
-        end
-
-        # High bins
-        for this_option in high_options
-
-            xrtm_high = create_XRTM(
-                _high_rt,
-                _high_rt.scene.observer,
-                this_option
-            )
-
-            desc_str="LSI high bin calculations ($(this_option["solvers"]))"
-            prog = Progress(length(keys(lsi.high_RT));
-                dt=0.25, barlen=10, desc=desc_str,
-                enabled=XRTM_PROGRESS
-            )
-
-            for k in collect(eachindex(lsi.high_RT))
-
-                # We have to do it this way because threads does not like Dict keys..
-                tau_bin, ξ_bin = k
-                rt = lsi.high_RT[k]
-
-                # ingore √ξ == 0 for RT
-                ξ_bin == 0 && continue
-
-                _calculate_radiances_and_wfs_XRTM!(
-                    rt,
-                    rt.scene.observer,
-                    this_option,
-                    xrtm_in=xrtm_high
-                )
-
-                # Let the user know if there are any NaNs etc.
-                check_non_finites(rt)
-                # Update progress bar
-                next!(prog)
-            end
-
-            # High edge bin (there should only be one here)
-            for ((tau_bin, ξ_bin), rt) in lsi.high_RT_edge
-                _calculate_radiances_and_wfs_XRTM!(
-                    rt,
-                    rt.scene.observer,
-                    this_option,
-                    xrtm_in=xrtm_high
-                )
-
-                # Let the user know if there are any NaNs etc.
-                check_non_finites(rt)
-            end
-
-            # We don't need this XRTM instance anymore..
-            XRTM.destroy(xrtm_high)
-        end
-
-    #end # End timed section
-    =#
-    #@info "LSI binned calculations done in $(time_bin.time) sec."
 
     #=
         Construct the error array for each bin, as well as calculate the total gas
@@ -739,7 +630,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     # Partial derivative of ε w.r.t. weighting function ∂ε/∂x
     ∂ε = deepcopy(lsi.bin_wf_hi)
     for l in 1:N_wf
-        map(x -> x[:] .= 0, ∂ε[l]) # Set all to zero
+        map(x -> x[l][:] .= 0, ∂ε) # Set all to zero
     end
 
 
@@ -813,15 +704,11 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     map(x -> x[:] .= 0, ε_τ) # Set all to zero
     ∂ε_τ = deepcopy(lsi.bin_wf_hi)
     for l in 1:N_wf
-        map(x -> x[:] .= 0, ∂ε_τ[l]) # Set all to zero
+        map(x -> x[l][:] .= 0, ∂ε_τ) # Set all to zero
     end
-    #mean_τ = Dict()
 
-    #used_τ_bins = unique(lsi.tau_gas_bin_assignment)
-    #first_τ_bin = minimum(used_τ_bins)
-    #sort!(used_τ_bins)
 
-    @time for τ_bin in axes(lsi.used_bin, 1)
+    for τ_bin in axes(lsi.used_bin, 1)
         (!lsi.used_bin[τ_bin, 1] | !lsi.used_bin[τ_bin, 2]) && continue
 
         # Number of spectral points in each sub-bin (ξ_bin == 1 and ξ_bin == 2) that
@@ -829,6 +716,9 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         idx_τ = lsi.tau_gas_bin_assignment .== τ_bin
         N1 = sum((idx_τ) .& (lsi.ξ_sqrt_bin_assignment .== 1))
         N2 = sum((idx_τ) .& (lsi.ξ_sqrt_bin_assignment .== 2))
+
+        # Mean of τ_gas for ALL points in the same τ_gas bin (regardless of √ξ)
+        mean_τ[τ_bin] = (τ_gas[τ_bin,1] * N1 + τ_gas[τ_bin,2] * N2) / (N1 + N2)
 
         # This (A1) is needed for the "centering correction", and not well explained in
         # the manuscript ..
@@ -861,108 +751,30 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         # so
         # ∂ε = ∂low_bin/∂x - ∂high_bin/∂x
 
-
-
-
-    end
-
-    #=
-    for i in used_τ_bins
-
-        # Number of spectral points in each sub-bin (ξ_bin == 1 and ξ_bin == 2) that
-        # belong to a certain tau bin.
-        idx_τ = lsi.tau_gas_bin_assignment .== i
-        N1 = sum((idx_τ) .& (lsi.ξ_sqrt_bin_assignment .== 1))
-        N2 = sum((idx_τ) .& (lsi.ξ_sqrt_bin_assignment .== 2))
-
-        # This (A1) is needed for the "centering correction", and not well explained in
-        # the manuscript ..
-
-        r_low = RadType(T, 1)
-        r_high = RadType(T, 1)
-
-        # Some bins might not have valid entries in the ξ_bin == 2 dimension
-        @views r_low.S[:,:] = (
-            lsi.low_RT[i,1].hires_radiance.S[:,:] * N1 +
-            lsi.low_RT[i,2].hires_radiance.S[:,:] * N2
-        ) / (N1 + N2)
-
-        @views r_high.S[:,:] = (
-            lsi.high_RT[i,1].hires_radiance.S[:,:] * N1 +
-            lsi.high_RT[i,2].hires_radiance.S[:,:] * N2
-        ) / (N1 + N2)
-
-        ε_τ[i] = RadType(T, 1)
-        @views ε_τ[i].S[1,:] = (r_low.S[1,:] - r_high.S[1,:])
-        # Again divide by intensity to get relative errors
-        @views ε_τ[i].S[1,1] /= r_high.S[1,1]
-
-
-        # Calculate derivative of the error term w.r.t. any weighting function
-        # if ε = (low_bin - high_bin) / high_bin = (low_bin/high_bin) - 1
-        # then
-        # ∂ε/∂x = 1/high_bin * (∂low_bin/∂x - ∂high_bin/∂x * (1 + ε)).
-        # ONLY FOR THE I STOKES COMPONENT
-        # For Q and U, the equations are
-        # ε = low_bin - high_bin
-        # so
-        # ∂ε = ∂low_bin/∂x - ∂high_bin/∂x
-
-
-        ∂ε_τ[i] = [RadType(T, 1) for l in 1:N_wf]
         wf_low = RadType(T, 1)
         wf_high = RadType(T, 1)
 
         for l in 1:N_wf
 
             @views wf_low.S[:,:] = (
-                lsi.low_RT[i,1].hires_wfunctions[l].S[:,:] * N1 +
-                lsi.low_RT[i,2].hires_wfunctions[l].S[:,:] * N2
+                lsi.bin_wf_lo[τ_bin,1][l].S[:,:] * N1 +
+                lsi.bin_wf_lo[τ_bin,2][l].S[:,:] * N2
             ) / (N1 + N2)
 
             @views wf_high.S[:,:] = (
-                lsi.high_RT[i,1].hires_wfunctions[l].S[:,:] * N1 +
-                lsi.high_RT[i,2].hires_wfunctions[l].S[:,:] * N2
+                lsi.bin_wf_hi[τ_bin,1][l].S[:,:] * N1 +
+                lsi.bin_wf_hi[τ_bin,2][l].S[:,:] * N2
             ) / (N1 + N2)
 
-            ∂ε_τ[i][l].S[1,1] = 1/r_high.S[1,1] * (
-                wf_low.S[1,1] - wf_high.S[1,1] * (1 + ε_τ[i].S[1,1])
+            ∂ε_τ[τ_bin,1][l].S[1,1] = 1/r_high.S[1,1] * (
+                wf_low.S[1,1] - wf_high.S[1,1] * (1 + ε_τ[τ_bin,1].S[1,1])
             )
 
-            #if i in bad_bins
-            #    ∂ε_τ[i][l].S[1,1] = NaN
-            #end
-
-
-            if RadType == VectorRadiance
-                ∂ε_τ[i][l].S[1,2:end] = wf_low.S[1,2:end] - wf_high.S[1,2:end]
+            for s in 2:N_stokes
+                ∂ε_τ[τ_bin,1][l].S[1,s] = wf_low.S[1,s] - wf_high.S[1,s]
             end
 
         end
-
-        # This is the mean of all gas-tau within the full tau-bin
-        # (both ξ bins)
-        mean_τ[i] = mean(lsi.tau_gas[idx_τ])
-
-    end
-
-    l = 5
-
-    for s in 1:N_stokes
-
-        plot_x = Float64[]
-        plot_y1 = Float64[]
-        plot_y2 = Float64[]
-
-        for i in used_τ_bins
-
-            push!(plot_x, log(τ_gas[i,1]))
-            push!(plot_y1, ∂ε_τ[i][l].S[1,s])
-            push!(plot_y2, ε_τ[i].S[1,s])
-        end
-
-        #display(scatterplot(plot_x, plot_y1, grid=false, marker=:xcross, title="stokes q=$(s)"))
-        #display(scatterplot(plot_x, plot_y2, grid=false, marker=:xcross, title="stokes q=$(s)"))
     end
 
     #=
@@ -978,21 +790,25 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
 
     # This interpolation object now has the same dimension as the radiances, so this
     # should behave correctly whether we use ScalarRadiance or VectorRadiance
+
+    used_τ_bins = findall(lsi.used_bin[:,1] .| lsi.used_bin[:,2])
+
     itp_centering_ε = LinearInterpolation(
-        log.([mean_τ[x] for x in used_τ_bins]),
-        [ε_τ[x].S[:,:] for x in used_τ_bins],
+        log.([mean_τ[τ_bin] for τ_bin in used_τ_bins]),
+        [ε_τ[τ_bin].S[:,:] for τ_bin in used_τ_bins],
         extrapolation_bc=Linear()
         )
 
     # Do the same for weighting functions, but loop over the weighting function index l
     itp_centering_∂ε_I = [
         LinearInterpolation(
-            log.([mean_τ[x] for x in used_τ_bins]),
-            [∂ε_τ[x][l].S[:,:] for x in used_τ_bins],
+            log.([mean_τ[τ_bin] for τ_bin in used_τ_bins]),
+            [∂ε_τ[τ_bin][l].S[:,:] for τ_bin in used_τ_bins],
             extrapolation_bc=Linear()
             )
             for l in 1:N_wf
     ]
+
 
     # Equation A3 in O'Dell
 
@@ -1003,15 +819,15 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     xA = minimum(lsi.ξ_sqrt) #0.0
     xB = maximum(lsi.ξ_sqrt) #1.0
 
-    ε_τ_A = Dict()
-    ε_τ_B = Dict()
-    ∂ε_τ_A = Dict()
-    ∂ε_τ_B = Dict()
+    ε_τ_A = deepcopy(lsi.bin_rad_lo)
+    ε_τ_B = deepcopy(lsi.bin_rad_lo)
+    ∂ε_τ_A = deepcopy(lsi.bin_wf_lo)
+    ∂ε_τ_B = deepcopy(lsi.bin_wf_lo)
 
-    for i in used_τ_bins
+    for τ_bin in used_τ_bins
 
-        idx_ξ1 = (lsi.tau_gas_bin_assignment .== i) .& (lsi.ξ_sqrt_bin_assignment .== 1)
-        idx_ξ2 = (lsi.tau_gas_bin_assignment .== i) .& (lsi.ξ_sqrt_bin_assignment .== 2)
+        idx_ξ1 = (lsi.tau_gas_bin_assignment .== τ_bin) .& (lsi.ξ_sqrt_bin_assignment .== 1)
+        idx_ξ2 = (lsi.tau_gas_bin_assignment .== τ_bin) .& (lsi.ξ_sqrt_bin_assignment .== 2)
 
         ξ1_mean = mean(lsi.ξ_sqrt[idx_ξ1])
         ξ2_mean = mean(lsi.ξ_sqrt[idx_ξ2])
@@ -1021,54 +837,48 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         # Perform the centering correction, this will adjust the computed errors
         # within a bin ε([i,j]) to be representative of common gas optical depth
 
-        for j in [1,2]
+        for ξ_bin in [1,2]
 
-            if haskey(ε, (i,j))
+            center_adj_I = ε_τ[τ_bin].S[:,:] .- itp_centering_ε(log_τ_mean[ξ_bin])
+            ε[τ_bin,ξ_bin].S[:,:] .+= center_adj_I
 
-                center_adj_I = ε_τ[i].S[:,:] .- itp_centering_ε(log_τ_mean[j])
-                ε[i,j].S[:,:] .+= center_adj_I
+            for l in 1:N_wf
 
-                for l in 1:N_wf
+                ∂_center_adj_I = ∂ε_τ[τ_bin][l].S[:,:] .-
+                    itp_centering_∂ε_I[l](log_τ_mean[ξ_bin])
+                ∂ε[τ_bin,ξ_bin][l].S[:,:] .+= ∂_center_adj_I
 
-                    ∂_center_adj_I = ∂ε_τ[i][l].S[:,:] .- itp_centering_∂ε_I[l](log_τ_mean[j])
-                    ∂ε[i,j][l].S[:,:] .+= ∂_center_adj_I
-
-                end
             end
         end
 
+
         # Extrapolate errors to be at x = xA and x = xB to create the interpolation
         # rectangle.
-        ε_τ_A[i] = RadType(T, 1)
-        ε_τ_B[i] = RadType(T, 1)
 
         x_slope_A = (xA - ξ1_mean) / (ξ2_mean - ξ1_mean)
         x_slope_B = (xB - ξ1_mean) / (ξ2_mean - ξ1_mean)
 
-        @views @. ε_τ_A[i].S[:,:] = (ε[(i,2)].S[:,:] - ε[(i,1)].S[:,:]) * x_slope_A +
-            ε[(i,1)].S[:,:]
-        @views @. ε_τ_B[i].S[:,:] = (ε[(i,2)].S[:,:] - ε[(i,1)].S[:,:]) * x_slope_B +
-            ε[(i,1)].S[:,:]
-
-        ∂ε_τ_A[i] = [RadType(T, 1) for l in 1:N_wf]
-        ∂ε_τ_B[i] = [RadType(T, 1) for l in 1:N_wf]
+        @views @. ε_τ_A[τ_bin,1].S[:,:] = (ε[τ_bin,2].S[:,:] - ε[τ_bin,1].S[:,:]) *
+            x_slope_A + ε[τ_bin,1].S[:,:]
+        @views @. ε_τ_B[τ_bin,1].S[:,:] = (ε[τ_bin,2].S[:,:] - ε[τ_bin,1].S[:,:]) *
+            x_slope_B + ε[τ_bin,1].S[:,:]
 
         for l in 1:N_wf
 
-            @views @. ∂ε_τ_A[i][l].S[:,:] = (∂ε[(i,2)][l].S[:,:] - ∂ε[(i,1)][l].S[:,:]) *
-                x_slope_A + ∂ε[(i,1)][l].S[:,:]
-            @views @. ∂ε_τ_B[i][l].S[:,:] = (∂ε[(i,2)][l].S[:,:] - ∂ε[(i,1)][l].S[:,:]) *
-                x_slope_B + ∂ε[(i,1)][l].S[:,:]
+            @views @. ∂ε_τ_A[τ_bin,1][l].S[:,:] = (
+                ∂ε[τ_bin,2][l].S[:,:] - ∂ε[τ_bin,1][l].S[:,:]) *
+                x_slope_A + ∂ε[τ_bin,1][l].S[:,:]
+
+            @views @. ∂ε_τ_B[τ_bin,1][l].S[:,:] = (
+                ∂ε[τ_bin,2][l].S[:,:] - ∂ε[τ_bin,1][l].S[:,:]) *
+                x_slope_B + ∂ε[τ_bin,1][l].S[:,:]
 
         end
 
     end
 
-    center_idx = lsi.low_RT[(first_τ_bin, 1)].optical_properties.spectral_window.spectral_idx
-    edge_idx = lsi.low_RT_edge[(first_τ_bin, 1)].optical_properties.spectral_window.spectral_idx
-
-    ww_c = lsi.monochromatic_RT.optical_properties.spectral_window.ww_grid[center_idx]
-    ww_edge = lsi.monochromatic_RT.optical_properties.spectral_window.ww_grid[edge_idx]
+    ww_c = lsi.RT_bin.optical_properties.spectral_window.ww_grid[1]
+    ww_edge = lsi.RT_bin_edge.optical_properties.spectral_window.ww_grid[1]
 
     #=
         Construct nodes for the interpolant
@@ -1081,23 +891,25 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
 
     =#
 
-    ε_ξ_nodes_log = ([log(mean_τ[i]) for i in used_τ_bins], [xA, xB])
-    ε_ξ_nodes = ([mean_τ[i] for i in used_τ_bins], [xA, xB])
+    ε_ξ_nodes_log = ([log(mean_τ[τ_bin,1]) for τ_bin in used_τ_bins], [xA, xB])
+    ε_ξ_nodes = ([mean_τ[τ_bin,1] for τ_bin in used_τ_bins], [xA, xB])
 
     # Construct array for Stokes components
-    ε_τ_AB = [[ε_τ_A[i], ε_τ_B[i]] for i in used_τ_bins]
-    ε_int =[[ε_τ_AB[i][j].S[1,s] for i in 1:length(used_τ_bins), j in [1,2]]
+    ε_τ_AB = [[ε_τ_A[τ_bin], ε_τ_B[τ_bin]] for τ_bin in used_τ_bins]
+    ε_int =[[ε_τ_AB[τ_bin][ξ_bin].S[1,s] for τ_bin in 1:length(used_τ_bins), ξ_bin in [1,2]]
             for s in 1:N_stokes]
+
 
     # Construct array for derivative components
     # which you then can access via ∂ε_int[l] with l being the weighting function index..
     ∂ε_int = []
     for l in 1:N_wf
-        ∂ε_τ_AB = [[∂ε_τ_A[i][l], ∂ε_τ_B[i][l]] for i in used_τ_bins]
-        this_int = [[∂ε_τ_AB[i][j].S[1,s] for i in 1:length(used_τ_bins), j in [1,2]]
+        ∂ε_τ_AB = [[∂ε_τ_A[τ_bin][l], ∂ε_τ_B[τ_bin][l]] for τ_bin in used_τ_bins]
+        this_int = [[∂ε_τ_AB[τ_bin][ξ_bin].S[1,s] for τ_bin in 1:length(used_τ_bins), ξ_bin in [1,2]]
             for s in 1:N_stokes]
         push!(∂ε_int, this_int)
     end
+
 
     ε_itp_log = [Interpolations.extrapolate(
         Interpolations.interpolate(ε_ξ_nodes_log, ε_int[s], Gridded(Linear())),
@@ -1132,45 +944,47 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
 
     error_center = RadType(T, 1)
     error_edge = RadType(T, 1)
+    first_τ_bin = used_τ_bins[1]
 
     @views error_center.S[1,:] = (
-        lsi.low_RT[(first_τ_bin,1)].hires_radiance.S[1,:] -
-        lsi.high_RT[(first_τ_bin,1)].hires_radiance.S[1,:]
+        lsi.bin_rad_lo[first_τ_bin, 1].S[1,:] -
+        lsi.bin_rad_hi[first_τ_bin, 1].S[1,:]
         )
 
     @views error_edge.S[1,:] = (
-        lsi.low_RT_edge[(first_τ_bin,1)].hires_radiance.S[1,:] -
-        lsi.high_RT_edge[(first_τ_bin,1)].hires_radiance.S[1,:]
+        lsi.bin_edge_rad_lo[1,1].S[1,:] -
+        lsi.bin_edge_rad_hi[1,1].S[1,:]
         )
 
     # Again divide all Stokes components by intensity (Eq. 3)
-    error_center.S[1,1] /= lsi.high_RT[(first_τ_bin,1)].hires_radiance.S[1,1]
-    error_edge.S[1,1] /= lsi.high_RT_edge[(first_τ_bin,1)].hires_radiance.S[1,1]
+    error_center.S[1,1] /= lsi.bin_rad_hi[first_τ_bin, 1].S[1,1]
+    error_edge.S[1,1] /= lsi.bin_edge_rad_hi[1,1].S[1,1]
 
     ∂_error_center = [RadType(T, 1) for l in 1:N_wf]
     ∂_error_edge = [RadType(T, 1) for l in 1:N_wf]
 
+
     for l in 1:N_wf
         @views @. ∂_error_center[l][1,:] = (
-            lsi.low_RT[(first_τ_bin,1)].hires_wfunctions[l].S[1,:] -
-            lsi.high_RT[(first_τ_bin,1)].hires_wfunctions[l].S[1,:]
+            lsi.bin_wf_lo[first_τ_bin,1][l].S[1,:] -
+            lsi.bin_wf_hi[first_τ_bin,1][l].S[1,:]
             )
 
         ∂_error_center[l][1,1] -= error_center.S[1,1] *
-            lsi.high_RT[(first_τ_bin,1)].hires_wfunctions[l].S[1,1]
-        ∂_error_center[l][1,1] /=
-            lsi.high_RT[(first_τ_bin,1)].hires_radiance.S[1,1]
+            lsi.bin_wf_hi[first_τ_bin,1][l].S[1,1]
+        ∂_error_center[l][1,1] /= lsi.bin_rad_hi[first_τ_bin,1].S[1,1]
+
 
         @views @. ∂_error_edge[l][1,:] = (
-            lsi.low_RT_edge[(first_τ_bin,1)].hires_wfunctions[l].S[1,:] -
-            lsi.high_RT_edge[(first_τ_bin,1)].hires_wfunctions[l].S[1,:]
+            lsi.bin_edge_wf_lo[1,1][l].S[1,:] -
+            lsi.bin_edge_wf_hi[1,1][l].S[1,:]
             )
 
-        ∂_error_edge[l][1,1] -= error_edge.S[1,1] *
-            lsi.high_RT_edge[(first_τ_bin,1)].hires_wfunctions[l].S[1,1]
-        ∂_error_edge[l][1,1] /=
-            lsi.high_RT_edge[(first_τ_bin,1)].hires_radiance.S[1,1]
+        ∂_error_edge[l][1,1] -= error_edge.S[1,1] * lsi.bin_edge_wf_hi[1,1][l].S[1,1]
+        ∂_error_edge[l][1,1] /= lsi.bin_edge_rad_hi[1,1].S[1,1]
+
     end
+
 
     #=
         Final, in-place correction of Stokes components for every spectral point.
@@ -1203,8 +1017,6 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             calculate_rt_jacobian!(orig_rt.hires_jacobians[sve], orig_rt, sve)
         end
     end
-
-    =#
 
 end
 
@@ -1247,7 +1059,6 @@ function _lsi_correct_stokes!(
     N_wf = length(∂ε_interpolant_linear)
     N_stokes = size(stokes_error, 2)
 
-    first = true
 
     for idx_spec in 1:N_hires
 
