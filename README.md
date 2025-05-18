@@ -1,5 +1,7 @@
 
-RetrievalToolbox is a library for building trace gas retrieval algorithms and related applications written in pure [Julia](https://julialang.org). The library is currently in an early release stage, and feature-breaking updates might happen - although we attempt to keep those to a minimum. For the time being, we recommend to fork this repository into your own GitHub organization and integrate updates from here as to now break your own application.
+RetrievalToolbox is a library for building trace gas retrieval algorithms and related applications written in pure [Julia](https://julialang.org). The library is currently in an early release stage, and feature-breaking updates might happen - although we attempt to keep those to a minimum. For the time being, we recommend to fork this repository into your own GitHub organization and integrate updates from here as to not break your own application.
+
+RetrievalToolbox was developed at the Earth System Science Interdisciplinary Center (ESSIC) at the University of Maryland College Park, and at NASA Goddard Space Flight Center.
 
 # Installation
 
@@ -70,7 +72,7 @@ We are working on finalizing a set of tutorials for new users that introduce the
 
 ## Citing RetrievalToolbox
 
-We will be working in the future to submit an entry to the Journal of Open Source Software (JOSS), which will allow a citing RetrievalToolbox with a proper DOI.
+We will be working in the future to submit an entry to the Journal of Open Source Software (JOSS), which will allow citing RetrievalToolbox with a proper DOI.
 
 ## Alternatives
 
