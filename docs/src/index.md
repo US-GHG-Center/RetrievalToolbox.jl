@@ -1,1 +1,1 @@
-Here is some introductory text.
+RetrievalToolbox is a software library written in pure Julia to facilitate building trace gas retrieval algorithms and related applications.
