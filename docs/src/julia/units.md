@@ -80,7 +80,7 @@ qr(A)
 
 While the result of certain linear algebra operations using matrices with physical units might make sense intuitively, others might not be well-defined. Further, it depends highly on the actual implementation and it is difficult to know whether a certain piece of Julia code will execute for a vector or matrix that has `Unitful` units attached to them.
 
-## Usage within RE.jl
+## Usage within RetrievalToolbox
 
 It is possible to use `Unitful` quantities directly in custom types and perform calculations using objects of those types. The convenience of this approach is clear: since every variable has units attached to them, an error will be raised immediately when an incompatible computation is performed. So if some part of a computation is accidentally mistyped and results in an operation that is not valid from a physical unit perspective, such as adding pressure and temperature, the code will not successfully execute. Further, if the computations themselves implicitly perform the required unit conversions, users do not need to write code that takes care of possible unit conversions. In addition to that, a flexible unit system allows users to choose their units of preference, e.g. state their pressures in "hPa" rather than "Pa".
 

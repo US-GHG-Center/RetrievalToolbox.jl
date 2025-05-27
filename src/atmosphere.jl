@@ -332,6 +332,13 @@ end
 
 =#
 
+
+"""
+$(TYPEDSIGNATURES)
+
+Default function to update the atmosphere element `atm_element` according to the
+current value of the state vector element `sve`. This does nothing!
+"""
 function atmosphere_element_statevector_update!(
     atm_element::AbstractAtmosphereElement,
     sve::AbstractStateVectorElement)
@@ -342,7 +349,12 @@ function atmosphere_element_statevector_update!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
+Function to update all atmosphere elements in the vector `atm_elements` according to the
+current value of all state vector elements in the state vector `SV`.
+"""
 function atmosphere_element_statevector_update!(
     atm_elements::Vector{T},
     SV::AbstractStateVector
@@ -358,9 +370,9 @@ end
 
 
 """
-Default behavior: do nothing
-
 $(TYPEDSIGNATURES)
+
+Default behavior: do nothing
 """
 function atmosphere_element_statevector_rollback!(
     atm_element::AbstractAtmosphereElement,
@@ -387,10 +399,10 @@ end
 
 
 """
+$(TYPEDSIGNATURES)
+
 Updates atmospheric element `atm_element` if a `GasVMRProfileSVE` is
 present.
-
-$(TYPEDSIGNATURES)
 """
 function atmosphere_element_statevector_update!(
     atm_element::GasAbsorber,
@@ -410,9 +422,9 @@ end
 
 
 """
-Updates the `GasAbsorber` volume mixing ratio profile according to `sve`.
-
 $(TYPEDSIGNATURES)
+
+Updates the `GasAbsorber` volume mixing ratio profile according to `sve`.
 """
 function atmosphere_element_statevector_update!(
     atm_element::GasAbsorber,
@@ -445,10 +457,10 @@ function atmosphere_element_statevector_update!(
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Rolls back the `GasAbsorber` volume mixing ratio profile to its first-guess state
 as defined in `sve`.
-
-$(TYPEDSIGNATURES)
 """
 function atmosphere_element_statevector_rollback!(
     atm_element::GasAbsorber,
