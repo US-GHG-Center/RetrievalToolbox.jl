@@ -1,9 +1,11 @@
+# RetrievalToolbox
+[![docs-dev](https://img.shields.io/badge/docs-dev-blue.svg)][docs-dev-url]
 
 RetrievalToolbox is a library for building trace gas retrieval algorithms and related applications written in pure [Julia](https://julialang.org). The library is currently in an early release stage, and feature-breaking updates might happen - although we attempt to keep those to a minimum. For the time being, we recommend to fork this repository into your own GitHub organization and integrate updates from here as to not break your own application.
 
 RetrievalToolbox was developed at the Earth System Science Interdisciplinary Center (ESSIC) at the University of Maryland College Park, and at NASA Goddard Space Flight Center.
 
-# Installation
+## Installation
 
 The library can be installed directly from Julia by typing (via http)
 
@@ -20,7 +22,7 @@ This will install the RetrievalToolbox including all needed dependencies.
 If you forked this repository, you must amend the above commands to pull the package from your new repository location.
 
 
-## Building XRTM and making RetrievalToolbox aware of its location
+### Building XRTM and making RetrievalToolbox aware of its location
 
 RetrievalToolbox makes use of the XRTM library to perform the various radiative transfer calculations which require scattering from, e.g. molecular Rayleigh scattering or aerosols. While it is possible to use RetrievalToolbox with a built-in Beer-Lambert-Bouguer method, many retrieval applications will need to account for scattering and thus require the XRTM library. XRTM is published at (https://github.com/gmcgarragh/xrtm/), and we also maintain a fork at (https://github.com/PeterSomkuti/xrtm). Depending on your needs and the way how you create your own algorithm, you might prefer one vs. the other option.
 
@@ -66,6 +68,7 @@ using RetrievalToolbox
 ```
 (instead of `#define DO_NOT_ADD_SFI_SS 0`). This has the effect that for certain RT solvers, such as the `eig_bvp` or `two_stream` ones, the contributions from single-scattering **are not automatically computed and added** to the total radiance fields and their derivatives. This is the wanted behavior for some applications, such as retrievals from NASA's OCO instruments, where you may want to compute the single-scatter contributions with a vector RT call, but the diffuse (MS) contributions with a scalar RT call. **Be aware that this is a compile-time choice** at the moment, so switching between `#define DO_NOT_ADD_SFI_SS 0` and `#define DO_NOT_ADD_SFI_SS 1` requires re-compiling. Alternatively, you can keep two copies of the code with the two different variants for this variable, and point RetrievalToolbox to a different path when you run it via changing `XRTM_PATH`.
 
+
 ## Learning
 
 We are working on finalizing a set of tutorials for new users that introduce the basic concepts of RetrievalToolbox. Once ready, they will be linked here.
@@ -80,3 +83,6 @@ RetrievalToolbox was heavily influenced by the hard work of numerous scientists 
 
 - NASA's RtRetrievalFramework (https://github.com/NASA/RtRetrievalFramework)
 - SRON's RemoteC (https://bitbucket.org/sron_earth/remotec_general/src/main/)
+
+
+[docs-dev-url]: https://US-GHG-Center.github.io/RetrievalToolbox.jl/dev/

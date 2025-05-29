@@ -36,7 +36,7 @@ makedocs(
 )
 
 deploydocs(;
-    repo = "github.com/PeterSomkuti/RetrievalToolbox.jl.git",
+    repo = "github.com/US-GHG-Center/RetrievalToolbox.jl.git",
     versions = ["stable" => "v^", "v#.#", "dev" => "main"],
     push_preview = false,
 )
