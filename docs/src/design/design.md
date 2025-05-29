@@ -90,6 +90,10 @@ Early versions of RetrievalToolbox did not make use of much pre-allocation, and 
 
 Thus, we make use of pre-allocated objects, which we call buffers here.
 
+
+
+### Order of instantiation in a retrieval algorithm
+
 ## Executing the forward model will mutate some objects
 
 Kinda bad for e.g. gas scale factors that mean factors of some initial atmospheric state.

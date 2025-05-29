@@ -34,7 +34,8 @@ function apply_radiance_correction!(
         rt_buf.radiance.I,
         rt_buf.radiance_unit,
         sve,
-        rt_buf.dispersion[sve.swin]
+        rt_buf.dispersion[sve.swin],
+        rt_buf.indices[sve.swin]
     )
 
 end

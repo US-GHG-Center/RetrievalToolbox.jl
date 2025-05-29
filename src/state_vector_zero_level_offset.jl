@@ -45,23 +45,23 @@ function calculate_jacobian_before_isrf(sve::ZeroLevelOffsetPolynomialSVE)
 end
 
 """
-    Calculates the per-sample zero-level offset as given by the state vector element
-    `sve` and indexed by the dispersion `dispersion`.
+$(TYPEDSIGNATURES)
+
+Calculates the per-sample zero-level offset as given by the state vector element
+`sve` and indexed by the dispersion `dispersion`.
 """
 function calculate_zlo!(
     output::AbstractVector,
     radiance_unit,
     sve::ZeroLevelOffsetPolynomialSVE,
-    dispersion::AbstractDispersion
+    dispersion::AbstractDispersion,
+    indices::AbstractVector
 )
 
     # This is the spectral window which the SVE references
     swin = sve.swin
-    # These are the dispersion/detector indices for this spectral window
-    indices = dispersion.index
 
-    # Convert the ZLO to units specified in the
-    # radiance buffer.
+    # Convert the ZLO to units specified in the radiance buffer.
 
     # Figure out the physical unit before the loop
     # NOTE that doing this calculation within the loop is very performance-draining!
@@ -89,9 +89,9 @@ end
 
 
 """
-Calculates the Jacobian for a `ZeroLevelOffsetPolynomialSVE`
-
 $(TYPEDSIGNATURES)
+
+Calculates the Jacobian for a `ZeroLevelOffsetPolynomialSVE`
 
 # Details
 
