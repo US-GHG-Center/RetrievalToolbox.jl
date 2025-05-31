@@ -35,5 +35,6 @@ struct EarthAtmosphereOpticalProperties{T} <: AbstractOpticalProperties where T
     tmp_Nlay1::Vector{T} # Shape of N_layer
     tmp_Nlay2::Vector{T} # Shape of N_layer
     tmp_coef::Union{Array{T, 3}, Nothing}
+    tmp_coef_scalar::Union{Array{T, 3}, Nothing}
 
 end

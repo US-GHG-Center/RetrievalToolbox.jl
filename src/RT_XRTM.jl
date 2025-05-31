@@ -213,7 +213,6 @@ function create_XRTM(
     @debug "Requiring $(n_derivs) derivatives from XRTM"
 
 
-
     # Set max coefs to either 1 (no aerosols in scene), or whatever
     # the optical properties tell us to use
     if isnothing(rt.optical_properties.total_coef)
@@ -586,11 +585,34 @@ function _run_XRTM!(
             end
         end
 
+        #=
+            XRTM wants one contiguous array for ingesting the phase function expansion
+            coefficients, but depending on whether we run in scalar or vector mode, the
+            array must have different sizes:
+
+                scalar mode: [n_coef_max, 1, n_layer]
+                vector mode: [n_coef_max, 6, n_layer]
+
+            To avoid additional allocations in this function, we make use of the pre-
+            allocated array `rt.optical_properties.tmp_coef_scalar`, which already has
+            the right size [n_coef_max, 1, n_layer]. If running in vector mode, we simply
+            use the default `rt.optical_properties.total_coef`.
+        =#
+        if n_elem == 1
+            @views rt.optical_properties.tmp_coef_scalar[:,1,:] =
+                rt.optical_properties.total_coef[:,1,:]
+            these_coefs = rt.optical_properties.tmp_coef_scalar
+        elseif n_elem == 6
+            these_coefs = rt.optical_properties.total_coef
+        else
+            @error "Unsupported number of elements!"
+        end
+
         for xrtm in xrtm_l
             XRTM.set_coef_n(
                 xrtm,
                 n_coef_arr,
-                rt.optical_properties.total_coef[:,1:n_elem,:]
+                these_coefs
                 )
         end
 
@@ -724,54 +746,6 @@ function _run_XRTM!(
         end
 
     end
-
-    #=
-        Establish which spectrally dependent XRTM weighting functions we must use!
-
-        Some weighting functions, notably aerosol-related for example, require their
-        linearized inputs to be calculated for every spectral point. In order to keep that
-        portion of the spectral loop fast, however, we figure out here which ones we need.
-        Doing this inside the spectral loop leads to significant performance loss!
-
-    =#
-    spec_dep_wfuncs = [sve for sve in keys(rt.wfunctions_map)
-        if sve isa AbstractStateVectorElement]
-
-
-    if length(spec_dep_wfuncs) > 0
-        #=
-            If we have to calculate aerosol-related Jacobians, we also need the linearized
-            inputs for XRTM for the phase function expansion coefficients. To minimize
-            allocations, we create empty arrays here and re-use them in the `set_XRTM_wf`
-            functions inside the hires spectral loop.
-
-            This will be a list of list of matrices.
-            l_coef[t][l] is a 2D matrix for thread `t` for layer `l`.
-
-            Remember, we have to have differently-sized l_coef for every layer due to the
-            fact that each layer might have a different number of effective phase function
-            coefficients.
-
-        =#
-        l_coef_threads = Vector{Matrix{Float64}}[]
-
-        for t in 1:Threads.nthreads()
-            l_coef_layers = Matrix{Float64}[]
-
-            for l in 1:rt.scene.atmosphere.N_layer
-
-                n_coef = XRTM.get_n_coef(xrtm_l[1], l-1)
-                l_coef = zeros(n_coef, n_elem)
-
-                push!(l_coef_layers, l_coef)
-
-            end
-
-            push!(l_coef_threads, l_coef_layers)
-        end
-
-    end
-
 
     #=
         We can direct the spectral loop to only evaluate certain points, which is very
@@ -944,6 +918,7 @@ function _run_XRTM!(
 
 
             # DEBUG
+
             #=
             I_up, I_dn, K_up, K_dn = [
                 rand(Float64, (Int(n_stokes),1,1,1)),
