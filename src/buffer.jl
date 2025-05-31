@@ -259,10 +259,12 @@ function EarthAtmosphereBuffer(
 
             total_coef = zeros(T, max_coef, n_elem, N_layer)
             tmp_coef = zeros(T, max_coef, n_elem, N_layer)
+            tmp_coef_scalar = zeros(T, max_coef, 1, N_layer)
         else
             # No aerosols, no Rayleigh scattering => no need for coefficients
             total_coef = nothing
             tmp_coef = nothing
+            tmp_coef_scalar = nothing
         end
 
         # Allocate optical property object
@@ -283,7 +285,8 @@ function EarthAtmosphereBuffer(
             tmp_Nhi2,
             tmp_Nlay1,
             tmp_Nlay2,
-            tmp_coef
+            tmp_coef,
+            tmp_coef_scalar
         )
 
         # push into dict

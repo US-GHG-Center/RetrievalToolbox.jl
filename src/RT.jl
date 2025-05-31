@@ -236,9 +236,11 @@ function create_rt_copy_for_bins(
     if isnothing(opt.total_coef)
         total_coef = nothing
         tmp_coef = nothing
+        tmp_coef_scalar = nothing
     else
         total_coef = copy(opt.total_coef)
         tmp_coef = copy(opt.total_coef)
+        tmp_coef_scalar = copy(opt.tmp_coef_scalar)
     end
 
     nair_dry = copy(opt.nair_dry)
@@ -267,7 +269,8 @@ function create_rt_copy_for_bins(
         tmp_Nhi2,
         tmp_Nlay1,
         tmp_Nlay2,
-        tmp_coef
+        tmp_coef,
+        tmp_coef_scalar
     )
 
 

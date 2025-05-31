@@ -514,6 +514,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             τ_gas[τ_bin, ξ_bin] = sum(sum(gas_tau) for gas_tau in values(opt.gas_tau))
 
             clear!(lsi.RT_bin)  # Must clear out beforehand
+
             _calculate_radiances_and_wfs_XRTM!(
                 lsi.RT_bin,
                 lsi.RT_bin.scene.observer,
@@ -530,6 +531,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
 
         calculate_binned_properties!(lsi, 1, 1, true)
         clear!(lsi.RT_bin_edge)
+
         _calculate_radiances_and_wfs_XRTM!(
             lsi.RT_bin_edge,
             lsi.RT_bin_edge.scene.observer,
@@ -566,6 +568,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             calculate_binned_properties!(lsi, τ_bin, ξ_bin, false)
 
             clear!(lsi.RT_bin) # Must clear out beforehand
+
             _calculate_radiances_and_wfs_XRTM!(
                 lsi.RT_bin,
                 lsi.RT_bin.scene.observer,
@@ -585,6 +588,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
 
         calculate_binned_properties!(lsi, 1, 1, true)
         clear!(lsi.RT_bin_edge)
+
         _calculate_radiances_and_wfs_XRTM!(
             lsi.RT_bin_edge,
             lsi.RT_bin_edge.scene.observer,
@@ -598,7 +602,6 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         end
         XRTM.destroy(xrtm_high)
     end
-
 
     #=
         Construct the error array for each bin, as well as calculate the total gas
@@ -679,6 +682,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
 
     end
 
+
     # Create the interpolator object, but note that we are interpolating in log(τ) rather
     # than just τ.
 
@@ -704,7 +708,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     map(x -> x[:] .= 0, ε_τ) # Set all to zero
     ∂ε_τ = deepcopy(lsi.bin_wf_hi)
     for l in 1:N_wf
-        map(x -> x[l][:] .= 0, ∂ε_τ) # Set all to zero
+        map(x -> @views x[l][:] .= 0, ∂ε_τ) # Set all to zero
     end
 
 
@@ -990,6 +994,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         Final, in-place correction of Stokes components for every spectral point.
     =#
 
+
     _lsi_correct_stokes!(
         lsi.monochromatic_RT.hires_radiance,
         lsi.monochromatic_RT.hires_wfunctions,
@@ -1007,6 +1012,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         ∂ε_itp,
         ∂ε_itp_log
     )
+
 
     # After the correction of radiances and WFs has taken place, we must produce
     # the new Jacobians, derived from the weighting functions.
@@ -1047,18 +1053,35 @@ function _lsi_correct_stokes!(
     # Short-cut to the type of the radiance, allows us to construct new ones
     RadType = typeof(radiance).name.wrapper
 
+    N_hires = length(ww_array)
+    N_wf = length(∂ε_interpolant_linear)
+    N_stokes = size(radiance, 2)
+
     # Make some minor allocations ahead of time to be used inside the spectral loo.
     # Note that all these radiance-type arrays have one spectral element only, so further
     # below, they have to be
-    stokes_error = RadType(T, 1)
+    stokes_error = RadType(T, N_hires)
     slope_adjust = RadType(T, 1)
-    ∂_stokes_error = RadType(T, 1)
+    ∂_stokes_error = RadType(T, N_hires)
     ∂_slope_adjust = RadType(T, 1)
 
-    N_hires = length(ww_array)
-    N_wf = length(∂ε_interpolant_linear)
-    N_stokes = size(stokes_error, 2)
 
+
+    #=
+        We have to evaluate some of the quantities beforehand to avoid excessive
+        allocations. Mostly, the evaluation of the interpolands causes many allocations
+        when done for each point individually.
+    =#
+
+    idx_small = τ_array .< 100
+    idx_large = τ_array .>= 100
+
+    for s in 1:N_stokes
+        stokes_error.S[idx_small, s] .=
+            ε_interpolant_linear[s].(τ_array[idx_small], x_array[idx_small])
+        stokes_error.S[idx_large, s] .=
+            ε_interpolant_log[s].(log.(τ_array[idx_large]), x_array[idx_large])
+    end
 
     for idx_spec in 1:N_hires
 
@@ -1069,70 +1092,66 @@ function _lsi_correct_stokes!(
         x = x_array[idx_spec]
         ww = ww_array[idx_spec]
 
-        # Performance issue: casting directly causes allocations
-        # such as: stokes_error[1,:] = ε_interpolant_linear(τ, x)
-        # It works, but is quite slow. Probably due to some needed conversion
-        # into a new vector or something like that.
-
-        for s in 1:N_stokes
-            if τ > 100.0
-                stokes_error.S[1,s] = ε_interpolant_linear[s](τ, x)
-            else
-                stokes_error.S[1,s] = ε_interpolant_log[s](log_τ, x)
-            end
-        end
-
         #=
             Perform the slope correction (Eq. 6 in O'Dell)
         =#
 
         for s in 1:N_stokes
-            slope_adjust.S[1,s] = (error_edge.S[1,s] - error_center.S[1,s])
+            slope_adjust.S[1,s] = error_edge.S[1,s] - error_center.S[1,s]
             slope_adjust.S[1,s] *= (ww_center - ww) / (ww_center - ww_edge)
 
-            stokes_error.S[1,s] += slope_adjust.S[1,s]
+            stokes_error.S[idx_spec,s] += slope_adjust.S[1,s]
         end
 
         # In-place correction of low-stream radiances
-        radiance.S[idx_spec,1] /= (1.0 + stokes_error.S[1,1])
+        radiance.S[idx_spec,1] /= (1.0 + stokes_error.S[idx_spec,1])
 
         # Correct Vector radiance if needed
         if RadType == VectorRadiance
-            radiance.S[idx_spec,2] -= stokes_error.S[1,2]
-            radiance.S[idx_spec,3] -= stokes_error.S[1,3]
+            radiance.S[idx_spec,2] -= stokes_error.S[idx_spec,2]
+            radiance.S[idx_spec,3] -= stokes_error.S[idx_spec,3]
         end
 
-        # .. do the same for weighting functions
-        for l in 1:N_wf
+    end # End hires loop for radiances
 
-            # Calculate interpolated error
-            for s in 1:N_stokes
-                if τ > 100.0
-                    ∂_stokes_error.S[1,s] = ∂ε_interpolant_linear[l][s](τ, x)
-                else
-                    ∂_stokes_error.S[1,s] = ∂ε_interpolant_log[l][s](log_τ, x)
-                end
-            end
+
+    # Now do all weighting functions
+
+
+    for l in 1:N_wf
+
+        # Note that these operations still allocate quite a bit..
+        for s in 1:N_stokes
+            ∂_stokes_error.S[idx_small, s] .=
+                ∂ε_interpolant_linear[l][s].(τ_array[idx_small], x_array[idx_small])
+            ∂_stokes_error.S[idx_large, s] .=
+                ∂ε_interpolant_log[l][s].(log.(τ_array[idx_large]), x_array[idx_large])
+        end
+
+        for idx_spec in 1:N_hires
+
+            ww = ww_array[idx_spec]
 
             # Slope-correct
+
             for s in 1:N_stokes
-                ∂_slope_adjust.S[1,s] = (∂_error_edge[l].S[1,s] - ∂_error_center[l].S[1,s])
+                ∂_slope_adjust.S[1,s] = ∂_error_edge[l].S[1,s] - ∂_error_center[l].S[1,s]
                 ∂_slope_adjust.S[1,s] *= (ww_center - ww) / (ww_center - ww_edge)
 
                 ∂_stokes_error.S[1,s] += ∂_slope_adjust.S[1,s]
             end
 
-            wfunctions[l].S[idx_spec,1] -= radiance.S[idx_spec,1] * ∂_stokes_error.S[1,1]
-            wfunctions[l].S[idx_spec,1] /= (1 + stokes_error.S[1,1])
+            wfunctions[l].S[idx_spec,1] -= radiance.S[idx_spec,1] * ∂_stokes_error.S[idx_spec,1]
+            wfunctions[l].S[idx_spec,1] /= (1 + stokes_error.S[idx_spec,1])
 
             if RadType == VectorRadiance
-                wfunctions[l].S[idx_spec,2] -= ∂_stokes_error.S[1,2]
-                wfunctions[l].S[idx_spec,3] -= ∂_stokes_error.S[1,3]
+                wfunctions[l].S[idx_spec,2] -= ∂_stokes_error.S[idx_spec,2]
+                wfunctions[l].S[idx_spec,3] -= ∂_stokes_error.S[idx_spec,3]
             end
 
+
+
         end
-
-
     end
 
 end
