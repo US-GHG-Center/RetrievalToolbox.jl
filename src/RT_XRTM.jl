@@ -51,16 +51,16 @@ function _create_weighting_function_dictonary!(
     need_dI_dBeta = false
 
     if any_SVE_is_type(sv, GasLevelScalingFactorSVE)
-        @debug "Found GasLevelScalingFactorSVE! Need ∂I/∂τ"
+        @debug "[XRTM] Found GasLevelScalingFactorSVE! Need ∂I/∂τ"
         need_dI_dTau = true
     elseif any_SVE_is_type(sv, GasVMRProfileSVE)
-        @debug "Found GasVMRProfileSVE! Need ∂I/∂τ"
+        @debug "[XRTM] Found GasVMRProfileSVE! Need ∂I/∂τ"
         need_dI_dTau = true
     elseif any_SVE_is_type(sv, TemperatureOffsetSVE)
-        @debug "Found TemperatureOffsetSVE! Need ∂I/∂τ"
+        @debug "[XRTM] Found TemperatureOffsetSVE! Need ∂I/∂τ"
         need_dI_dTau = true
     elseif any_SVE_is_type(sv, SurfacePressureSVE)
-        @debug "Found SurfacePressureSVE! Need ∂I/∂τ"
+        @debug "[XRTM] Found SurfacePressureSVE! Need ∂I/∂τ"
         need_dI_dTau = true
     end
 
@@ -69,11 +69,11 @@ function _create_weighting_function_dictonary!(
         aerosols in the atmosphere
     =#
     if findanytype(scene.atmosphere.atm_elements, AbstractRayleighScattering)
-        @debug "Found RayleighScattering! Need ∂I/∂ω"
+        @debug "[XRTM] Found RayleighScattering! Need ∂I/∂ω"
         need_dI_dOmega = true
     end
     if findanytype(scene.atmosphere.atm_elements, AbstractAerosolType)
-        @debug "Found some aerosol! Need ∂I/∂ω"
+        @debug "[XRTM] Found some aerosol! Need ∂I/∂ω"
         need_dI_dOmega = true
         need_dI_dBeta = true
     end
@@ -98,7 +98,7 @@ function _create_weighting_function_dictonary!(
         # For surface polynomials, we only require ∂I/∂s, and can
         # construct the polynomial coefficient derivatives via chain rule
         # ∂I/∂c_i = ∂I/∂s * ∂s/∂c_i
-        @debug "Found surface retrieval! Need ∂I/∂s"
+        @debug "[XRTM] Found surface retrieval! Need ∂I/∂s"
         d["dI_dSurface"] = Int[]
 
         # We need one index per BRDF kernel..
@@ -123,7 +123,7 @@ function _create_weighting_function_dictonary!(
         end
     end
 
-    @debug "Require a total of $(current_idx - 1) XRTM weighting functions"
+    @debug "[XRTM] Require a total of $(current_idx - 1) XRTM weighting functions"
 
 end
 
@@ -210,7 +210,7 @@ function create_XRTM(
     else
         n_derivs = 0
     end
-    @debug "Requiring $(n_derivs) derivatives from XRTM"
+    @debug "[XRTM] Requiring $(n_derivs) derivatives from XRTM"
 
 
     # Set max coefs to either 1 (no aerosols in scene), or whatever
@@ -273,11 +273,7 @@ function create_XRTM(
         # as per the order in the vector itself. So the XRTM BRDF kernel `k-1` will be the
         # k'th entry here.
         for kernel in get_surface(rt.scene, swin).kernels
-            if kernel isa LambertianPolynomialKernel
-                push!(kernels, "lambertian")
-            elseif kernel isa RPVPolynomialKernel
-                push!(kernels, "rahman")
-            end
+            push!(kernels, get_XRTM_name(kernel))
         end
     else
         @error "XRTM is currently only set up to use `BRDFSurface`-type surfaces!"
@@ -370,12 +366,12 @@ function _calculate_radiances_and_wfs_XRTM!(
 
             pade_s = options_dict["pade_add"][1]
             pade_r = options_dict["pade_add"][2]
-            @debug "Setting Padé parameters: s = $(pade_s), r = $(pade_r)"
+            @debug "[XRTM] Setting Padé parameters: s = $(pade_s), r = $(pade_r)"
             for xrtm in xrtm_l
                 XRTM.set_pade_params(xrtm, pade_s, pade_r)
             end
         else
-            @debug "Padé parameters not supplied via `pade_add`. " *
+            @debug "[XRTM] Padé parameters not supplied via `pade_add`. " *
             "XRTM will use its own lookup table."
         end
     end
@@ -637,7 +633,7 @@ function _run_XRTM!(
                 aer = sve.aerosol
 
                 if !haskey(rt.wfunctions_map, aer)
-                    @debug "No weighting function assigment for aerosol $(aer)."
+                    @debug "[XRTM] No weighting function assigment for aerosol $(aer)."
                     continue
                 end
 
@@ -684,12 +680,12 @@ function _run_XRTM!(
         # Adjust ϕ such that ϕ - ϕ0 is > 0 but < 360
         # (phi_0 is set to 0)
         if (vaa - saa) > 360
-            @debug "Subtracting 360 from azimuth!!"
+            @debug "[XRTM] Subtracting 360 from azimuth!!"
             out_phis[1,1] -= 360.0
             flip_U = true
         end
         if (rt.scene.observer.viewing_azimuth - rt.scene.solar_azimuth) < 0
-            @debug "Adding 360 to viewing azimuth!!"
+            @debug "[XRTM] Adding 360 to viewing azimuth!!"
             out_phis[1,1] += 360
             flip_U = true
         end
@@ -701,7 +697,7 @@ function _run_XRTM!(
     # Zero out all radiance containers, unless user declares otherwise
     if haskey(options_dict, "add")
         if options_dict["add"] == true
-            @debug "Model option -add- found and set to -false-: " *
+            @debug "[XRTM] Model option -add- found and set to -false-: " *
                 "we are *NOT* zero-ing out radiances and " *
                 "derivatives, but adding to previous results!"
         else
@@ -875,8 +871,8 @@ function _run_XRTM!(
 
             ampfac = evaluate_surface_at_idx(kernel, i_spectral)
 
-            if (ampfac <= 0) | (ampfac >= 1.0)
-                @error "[XRTM] Surface kernel amplitude factor not in (0,1)."
+            if (ampfac <= 0)
+                @error "[XRTM] Surface kernel amplitude factor must be > 0."
                 thread_error_flags[Threads.threadid()] = true
                 break
             end

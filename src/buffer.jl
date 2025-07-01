@@ -426,13 +426,13 @@ function calculate_indices!(buf::EarthAtmosphereBuffer)
 
         # How many elements do we need for this spectral window?
         L = length(buf.rt_buf.dispersion[swin].index)
-        @debug "$(swin) has $(L) elements"
+        @debug "[BUFFER] $(swin) has $(L) elements"
 
         idx_stop = idx_start+L-1
         # Store the values into the empty vector
         append!(buf.rt_buf.indices[swin], collect(idx_start:idx_stop))
 
-        @debug "Added indices for $(swin) => $(idx_start):$(idx_stop)"
+        @debug "[BUFFER] Added indices for $(swin) => $(idx_start):$(idx_stop)"
         # Set the new start index
         idx_start += L
 

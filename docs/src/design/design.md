@@ -98,6 +98,11 @@ Thus, we make use of pre-allocated objects, which we call buffers here.
 
 Kinda bad for e.g. gas scale factors that mean factors of some initial atmospheric state.
 
+## Explicit and lengthy or simplified and short?
+
+Explain why some code sections look explicitly verbose and long, and why making it shorter
+and less verbose is an option - sometimes.
+
 ## Wrapper functions and specific dispatch
 
 ## Considering quantities with physical units

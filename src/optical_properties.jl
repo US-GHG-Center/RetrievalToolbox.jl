@@ -52,22 +52,22 @@ function calculate_earth_optical_properties!(
         for _sve in state_vector.state_vector_elements
 
             if _sve isa SurfacePressureSVE
-                @debug "Surface pressure retrieval: need dTau_dpsurf"
+                @debug "[OPT] Surface pressure retrieval: need dTau_dpsurf"
                 return_dpsurf = true
             end
 
             if _sve isa GasLevelScalingFactorSVE
-                @debug "Gas scaling factor retrieval: need dTau_dVMR"
+                @debug "[OPT] Gas scaling factor retrieval: need dTau_dVMR"
                 return_dVMR = true
             end
 
             if _sve isa GasVMRProfileSVE
-                @debug "Gas profile retrieval: need dTau_dVMR"
+                @debug "[OPT] Gas profile retrieval: need dTau_dVMR"
                 return_dVMR = true
             end
 
             if _sve isa TemperatureOffsetSVE
-                @debug "Temperature offset retrieval: need dTau_dT"
+                @debug "[OPT] Temperature offset retrieval: need dTau_dT"
                 return_dT = true
             end
 
@@ -281,7 +281,7 @@ function calculate_gas_optical_depth_profiles!(
             (maximum(gases[i].spectroscopy.ww) < minimum(swin.ww_grid))
 
             push!(remove_idx, i)
-            @debug "Removing gas $(gases[i]) from optical property calculations."
+            @debug "[OPT] Removing gas $(gases[i]) from optical property calculations."
         end
     end
 
@@ -340,9 +340,9 @@ function calculate_gas_optical_depth_profiles!(
 
         this_spec = this_gas.spectroscopy
 
-        @debug "Calculating optical properties for $(this_gas)"
+        @debug "[OPT] Calculating optical properties for $(this_gas)"
 
-        @debug "Checking if gas $(this_gas.gas_name) is matched with $(swin.window_name)."
+        @debug "[OPT] Checking if gas $(this_gas.gas_name) is matched with $(swin.window_name)."
         #=
         Check if the retrieval wavelength grid is an exact
         subset of the spectroscopy wavelength grid.
@@ -365,8 +365,8 @@ function calculate_gas_optical_depth_profiles!(
         if start_idx == -1
             # If not, we can find the wavelength indices that are
             # later used for wavelength interpolation
-            @debug "Gas $(this_gas) is NOT matched with the wavelength grid!"
-            @debug "Gas optical depth calculations will be slower."
+            @debug "[OPT] Gas $(this_gas) is NOT matched with the wavelength grid!"
+            @debug "[OPT] Gas optical depth calculations will be slower."
             is_swin_matched_with_spec[this_gas] = false
             spec_wl_idx_left[this_gas] = _find_ww_indices(
                 ustrip.(
@@ -377,7 +377,7 @@ function calculate_gas_optical_depth_profiles!(
             )
 
             if findany(spec_wl_idx_left[this_gas], -1)
-                @warn "Spectroscopy for $(this_gas) out-of-bounds. " *
+                @warn "[OPT] Spectroscopy for $(this_gas) out-of-bounds. " *
                     "Gas optical depth values for some spectral points will be zero."
 
             end
@@ -386,7 +386,7 @@ function calculate_gas_optical_depth_profiles!(
             # If so, the wavelength indices will correspond
             # truly to the position of wavelengths in the spectroscopy
             # wavelength grid
-            @debug "Gas $(this_gas) is matched with the wavelength grid!"
+            @debug "[OPT] Gas $(this_gas) is matched with the wavelength grid!"
             is_swin_matched_with_spec[this_gas] = true
             spec_wl_idx_left[this_gas] = collect(
                 start_idx:start_idx+length(wl)-1)
@@ -676,7 +676,7 @@ end
 function refractive_index_peck_reeder(λ::Unitful.Length)
 
     if λ < 0.185u"µm" | λ > 1.69u"µm"
-        @debug "Warning: Peck-Reeder formula for refractive index not in valid range. "
+        @debug "[OPT] Warning: Peck-Reeder formula for refractive index not in valid range. "
     end
 
     # Convert to microns, as required by the formula
@@ -963,7 +963,7 @@ function calculate_aerosol_optical_properties!(
 )
 
     for (aer, aer_tau) in opt.aerosol_tau
-        @debug "Calculating aerosol optical propertes for $(aer)"
+        @debug "[OPT] Calculating aerosol optical propertes for $(aer)"
         # Dispatches to specific aerosol type
         calculate_aerosol_optical_depth_profile!(opt, scene, aer)
     end
