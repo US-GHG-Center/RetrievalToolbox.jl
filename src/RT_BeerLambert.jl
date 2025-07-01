@@ -2,21 +2,19 @@
 
     General Notes
 
-    Beer-Lambert type RT calculations will only ever produce radiance
-    intensities, so everything below is hardcoded to only modify the
-    intensity component (.I).
-    However, there is no explicit restriction to `ScalarRadaiance` types in
-    these functions below, so users could provide `VectorRadiance` objects in
-    the corresponding RT structures, but the other componentes (Q,U) will not
-    be calculated or modified.
+    Beer-Lambert type RT calculations will only ever produce radiance intensities, so
+    everything below is hardcoded to only modify the intensity component (.I). However,
+    there is no explicit restriction to `ScalarRadaiance` types in these functions below,
+    so users could provide `VectorRadiance` objects in the corresponding RT structures,
+    but the other componentes (Q,U) will not be calculated or modified.
 
 =#
 
 
 """
-Pretty printing for Beer-Lambert RT
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for Beer-Lambert RT
 """
 function show(io::IO, ::MIME"text/plain", rt::BeerLambertRTMethod)
     # Just print this for now
@@ -25,9 +23,9 @@ function show(io::IO, ::MIME"text/plain", rt::BeerLambertRTMethod)
 end
 
 """
-Pretty printing for Beer-Lambert RT
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for Beer-Lambert RT
 """
 function show(io::IO, rt::BeerLambertRTMethod)
     # Just print this for now
@@ -36,6 +34,12 @@ function show(io::IO, rt::BeerLambertRTMethod)
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates radiances and Jacobians for a `BeerLambertRTMethod` object. This
+further dispatches to the correct function for the specific observer type.
+"""
 function calculate_radiances_and_jacobians!(rt::BeerLambertRTMethod)
 
     # Make explicit dispatch to function, depending on observer mode
@@ -43,6 +47,12 @@ function calculate_radiances_and_jacobians!(rt::BeerLambertRTMethod)
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the radiances and Jacobians of a `BeerLambertRTMethod` object,
+for a `SatelliteObserver` type.
+"""
 function calculate_radiances_and_jacobians!(
     rt::BeerLambertRTMethod,
     observer::SatelliteObserver
@@ -185,8 +195,11 @@ function calculate_radiances_and_jacobians!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
-# Default behaviour for RT jacobians
+Default behavior for `BeerLambertRTMethod` jacobians
+"""
 function calculate_rt_jacobian!(
     rt::BeerLambertRTMethod,
     sve::AbstractStateVectorElement
@@ -196,10 +209,35 @@ function calculate_rt_jacobian!(
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `SurfaceAlbedoPolynomialSVE` Jacobian for a `BeerLambertRTMethod` RT
+object. This further dispatches to the correct function for the specific observer type.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
     sve::SurfaceAlbedoPolynomialSVE
+)
+
+    # Dispatch to specific observer type
+    calculate_rt_jacobian!(jac, rt, sve, rt.scene.observer)
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `SurfaceAlbedoPolynomialSVE` Jacobian for a `BeerLambertRTMethod` RT
+object and a `SatelliteObserver` observer.
+"""
+function calculate_rt_jacobian!(
+    jac::Radiance,
+    rt::BeerLambertRTMethod,
+    sve::SurfaceAlbedoPolynomialSVE,
+    observer::SatelliteObserver
     )
 
     # Rebind to surface for more convenient access
@@ -253,6 +291,12 @@ function calculate_rt_jacobian!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `SurfacePressureSVE` Jacobian for a `BeerLambertRTMethod` RT object. This
+further dispatches to the correct function for the specific observer type.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
@@ -264,7 +308,12 @@ function calculate_rt_jacobian!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
+Calculates the `SurfacePressureSVE` Jacobian for a `BeerLambertRTMethod` RT object and a
+`SatelliteObserver` observer.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
@@ -305,6 +354,12 @@ function calculate_rt_jacobian!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `SurfacePressureSVE` Jacobian for a `BeerLambertRTMethod` RT object and a
+`UplookingGroundObserver` observer.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
@@ -345,7 +400,12 @@ function calculate_rt_jacobian!(
 end
 
 
+"""
+$(TYPEDSIGNATURES)
 
+Calculates the `GasVMRProfileSVE` Jacobian for a `BeerLambertRTMethod` RT object. This
+further dispatches to the correct function for the specific observer type.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
@@ -428,13 +488,11 @@ end
 
 
 """
-Calculates the Jacobian for dRadiance/dc where "c" is
-a gas sub-column scaling factor.
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
 
-# Details
-
+Calculates the `GasLevelScalingFactorSVE` Jacobian for a `BeerLambertRTMethod` RT object. This
+further dispatches to the correct function for the specific observer type.
 """
 function calculate_rt_jacobian!(
     jac::Radiance,
@@ -454,6 +512,12 @@ function calculate_rt_jacobian!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `GasLevelScalingFactorSVE` Jacobian for a `BeerLambertRTMethod` RT object
+and a `SatelliteObserver` observer.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
@@ -498,6 +562,12 @@ function calculate_rt_jacobian!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `GasLevelScalingFactorSVE` Jacobian for a `BeerLambertRTMethod` RT object
+and an `UplookingGroundObserver` observer.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
@@ -558,7 +628,13 @@ function calculate_rt_jacobian!(
 end
 
 
+"""
+$(TYPEDSIGNATURES)
 
+Calculates the `SolarScalerPolynomialSVE` Jacobian for a `BeerLambertRTMethod` RT object.
+This function should work for any kind of observer type since it scales the incident
+irradiance.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
@@ -596,6 +672,9 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Calculates the partial derivative ∂I/∂τ for a `SatelliteObserver` viewing geometry for a
+`BeerLambertRTMethod` RT object.
 """
 function calculate_dI_dTau(
     rt::BeerLambertRTMethod,
@@ -610,6 +689,9 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Calculates the partial derivative ∂I/∂τ for a `UplookingGroundObserver` viewing geometry
+for a `BeerLambertRTMethod` RT object.
 """
 function calculate_dI_dTau(
     rt::BeerLambertRTMethod,
@@ -623,8 +705,13 @@ end
 
 
 """
-
 $(TYPEDSIGNATURES)
+
+Calculates the partial derivative ∂I/∂VMR for each level for a particular **gas** of type
+`GasAbsorber` for the RT object **rt** of type `BeerLambertRTMethod`. Note that this
+function allocates a new vector of length `rt.scene.atmosphere.N_level`.
+
+This function is mainly needed to produce column averaging kernels for scaling retrievals.
 """
 function calculate_dI_dVMR(
     rt::BeerLambertRTMethod,
@@ -672,7 +759,12 @@ function calculate_dI_dVMR(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
+Calculates the `GasLevelScalingFactorSVE` Jacobian for a `BeerLambertRTMethod` RT object. This
+further dispatches to the correct function for the specific observer type.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
@@ -686,6 +778,12 @@ function calculate_rt_jacobian!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `TemperatureOffsetSVE` Jacobian for a `BeerLambertRTMethod` RT object
+and an `SatelliteObserverGroundObserver` observer.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
@@ -727,6 +825,12 @@ function calculate_rt_jacobian!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `GasLevelScalingFactorSVE` Jacobian for a `BeerLambertRTMethod` RT object
+and an `UplookingGroundObserver` observer.
+"""
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::BeerLambertRTMethod,
