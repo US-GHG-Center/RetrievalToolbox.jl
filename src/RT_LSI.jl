@@ -302,7 +302,7 @@ function calculate_binned_properties!(
     do_edge::Bool
     )
 
-    @debug "Calculating binned optical properties for $(tau_gas_bin) / $(ξ_bin)"
+    @debug "[RT] Calculating binned optical properties for $(tau_gas_bin) / $(ξ_bin)"
 
     # Create some shortcuts
     old_rt = lsi.monochromatic_RT
@@ -568,7 +568,6 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
             calculate_binned_properties!(lsi, τ_bin, ξ_bin, false)
 
             clear!(lsi.RT_bin) # Must clear out beforehand
-
             _calculate_radiances_and_wfs_XRTM!(
                 lsi.RT_bin,
                 lsi.RT_bin.scene.observer,
@@ -995,7 +994,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     =#
 
 
-    _lsi_correct_stokes!(
+     _lsi_correct_stokes!(
         lsi.monochromatic_RT.hires_radiance,
         lsi.monochromatic_RT.hires_wfunctions,
         lsi.monochromatic_RT.optical_properties.spectral_window.ww_grid,
@@ -1019,7 +1018,7 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     orig_rt = lsi.monochromatic_RT
     for (i, sve) in enumerate(orig_rt.state_vector.state_vector_elements)
         if calculate_jacobian_before_isrf(sve)
-            @debug "Re-calculating Jacobian for $(sve)"
+            @debug "[RT] Re-calculating Jacobian for $(sve)"
             calculate_rt_jacobian!(orig_rt.hires_jacobians[sve], orig_rt, sve)
         end
     end

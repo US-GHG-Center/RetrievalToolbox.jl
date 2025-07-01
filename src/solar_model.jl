@@ -129,7 +129,7 @@ end
 function convert_solar_model_to_W!(s::OCOHDFSolarModel)
 
     if s.irradiance_unit == u"ph/s/m^2/µm"
-        @debug "Solar model in units of ph/s/m2/µm - converting to W/m2/µm!"
+        @debug "[SOLAR] Solar model in units of ph/s/m2/µm - converting to W/m2/µm!"
         @views s.continuum[:] .*= ustrip.(Ref(u"W"),
             1.0u"s^-1" .* SPEED_OF_LIGHT ./ (s.ww[:] .* u"µm") .* PLANCK
         )
@@ -150,7 +150,7 @@ end
 function convert_solar_model_to_photons!(s::TSISSolarModel)
 
     if s.irradiance_unit == u"W/m^2/nm"
-        @debug "Solar model in units of W/m^2/nm - converting to ph/s/m^2/µm!"
+        @debug "[SOLAR] Solar model in units of W/m^2/nm - converting to ph/s/m^2/µm!"
         @views s.irradiance[:] .*= ustrip.(u"m^-2 * µm^-1", # We want this in 1/m2 1/µm
         s.irradiance_unit * 1.0u"s" ./ SPEED_OF_LIGHT .* (s.ww[:] .* u"nm") ./ PLANCK
         )
@@ -182,7 +182,7 @@ function OCOHDFSolarModel(
 
     @assert isfile(filename) "File $(filename) is not a regular file!"
 
-    @debug "Opening up Solar HDF file $(filename)"
+    @debug "[SOLAR] Opening up Solar HDF file $(filename)"
     h5 = h5open(filename, "r")
 
     h5g_c = h5["Solar/Continuum/Continuum_$(band_number)"]

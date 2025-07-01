@@ -39,8 +39,6 @@ struct LambertianPolynomialKernel{T} <: BRDFKernel
     swin::AbstractSpectralWindow
     order::Int
     coefficients::Vector{T}
-    asymmetry::T
-    anisotropy::T
 
     function LambertianPolynomialKernel(
         swin::AbstractSpectralWindow,

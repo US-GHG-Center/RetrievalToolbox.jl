@@ -12,12 +12,12 @@ function next_iteration!(
     fm_success = s.forward_model(s.state_vector; fm_kwargs...)
 
     if !fm_success
-        @debug "Forward model not successfully run."
+        @debug "[INV] Forward model not successfully run."
         return false
     end
 
     if !check_solver_validity(s)
-        @debug "Invalid results found in solver object."
+        @debug "[INV] Invalid results found in solver object."
         return false
     end
 
@@ -25,7 +25,7 @@ function next_iteration!(
     K = create_K_from_solver(s)
 
     if any(.!isfinite.(K))
-        @info "Non-finites in Jacobian matrix!"
+        @info "[INV] Non-finites in Jacobian matrix!"
         return false
     end
 

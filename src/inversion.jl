@@ -427,7 +427,7 @@ function calculate_scale_factor_AK(
         # G * ∂I/∂VMR * (h^T * VMR)
         # .. and a last factor to account for the unit conversion
         # between SVE unit (e.g. percent, or nothing) and unit 1.
-        @debug "Adding up for $(sve) at $(idx)"
+        @debug "[INV] Adding up for $(sve) at $(idx)"
         for l in 1:N_level
             AK[l] += (G * dI_dVMR_low[:,l])[idx] * dot(h, fg_vmr .* c) * unit_fac
         end
@@ -453,7 +453,7 @@ function print_posterior(s::AbstractSolver)
     if !isnothing(q)
         print_posterior(s, q)
     else
-        @error "OE quantities could not be calculated."
+        @error "[INV] OE quantities could not be calculated."
     end
 
 end

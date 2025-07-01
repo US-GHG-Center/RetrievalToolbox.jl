@@ -58,7 +58,7 @@ function update_dispersion!(
 
     # Update dispersion wavelengths/wavenumbers and indices!
     if needs_updating
-        @debug "Dispersion attached to $(disp.spectral_window) updated!"
+        @debug "[DISP] Dispersion attached to $(disp.spectral_window) updated!"
         update_dispersion!(disp)
     end
 

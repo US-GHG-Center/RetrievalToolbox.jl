@@ -191,7 +191,7 @@ function calculate_rt_jacobian!(
     rt::BeerLambertRTMethod,
     sve::AbstractStateVectorElement
 )
-    @debug "No Beer-Lambert RT Jacobian calculated for $(sve)"
+    @debug "[RT] No Beer-Lambert RT Jacobian calculated for $(sve)"
     return nothing
 end
 
@@ -463,7 +463,7 @@ function calculate_rt_jacobian!(
 
     # If this gas is not part of this window, ignore
     if !haskey(rt.optical_properties.gas_tau, sve.gas)
-        @debug "Skipping RT Jacobian for $(sve.gas)"
+        @debug "[RT] Skipping RT Jacobian for $(sve.gas)"
         return
     end
 
@@ -601,7 +601,7 @@ function calculate_dI_dTau(
     rt::BeerLambertRTMethod,
     observer::SatelliteObserver
 )
-    @debug "Calculating ∂I/∂Tau for $(rt) and $(observer)"
+    @debug "[RT] Calculating ∂I/∂Tau for $(rt) and $(observer)"
 
     return -rt.hires_radiance.I *
         (1/cosd(rt.scene.solar_zenith) + 1/cosd(observer.viewing_zenith))
@@ -615,7 +615,7 @@ function calculate_dI_dTau(
     rt::BeerLambertRTMethod,
     observer::UplookingGroundObserver
 )
-    @debug "Calculating ∂I/∂Tau for $(rt) and $(observer)"
+    @debug "[RT] Calculating ∂I/∂Tau for $(rt) and $(observer)"
 
     return -rt.hires_radiance.I * (1/cosd(rt.scene.solar_zenith))
 
@@ -703,7 +703,7 @@ function calculate_rt_jacobian!(
 
         # We can double-check here if a ∂τ/∂T was actually calculated
         if !haskey(rt.optical_properties.gas_derivatives[gas], "dTau_dT")
-            @debug "No ∂τ/∂T found for $(gas)"
+            @debug "[RT] No ∂τ/∂T found for $(gas)"
             continue
         end
 
@@ -744,7 +744,7 @@ function calculate_rt_jacobian!(
 
         # We can double-check here if a ∂τ/∂T was actually calculated
         if !haskey(rt.optical_properties.gas_derivatives[gas], "dTau_dT")
-            @debug "No ∂τ/∂T found for $(gas)"
+            @debug "[RT] No ∂τ/∂T found for $(gas)"
             continue
         end
 

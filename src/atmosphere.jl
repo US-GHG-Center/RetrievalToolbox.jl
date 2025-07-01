@@ -103,7 +103,7 @@ function create_UoL_pressure_grid(
     p_levels[5] = 8000.0u"Pa"
 
     if p_tropo <= 8000u"Pa"
-        @debug "Tropopause pressure < 8000 Pa"
+        @debug "[ATMOS] Tropopause pressure < 8000 Pa"
         p_levels[6] = 11500.0u"Pa"
         p_levels[7] = 15000.0u"Pa"
     else
@@ -497,7 +497,7 @@ function atmosphere_element_statevector_update!(
             this_value = get_current_value_with_unit(sve) |> NoUnits
         end
 
-        @debug "Updating $(atm_element) AOD to $(this_value)"
+        @debug "[ATMOS] Updating $(atm_element) AOD to $(this_value)"
         atm_element.total_optical_depth = this_value
 
     end
@@ -522,7 +522,7 @@ function atmosphere_element_statevector_update!(
             this_value = get_current_value_with_unit(sve) |> NoUnits
         end
 
-        @debug "Updating $(atm_element) height to $(this_value)"
+        @debug "[ATMOS] Updating $(atm_element) height to $(this_value)"
         atm_element.pressure = this_value
 
     end
@@ -546,7 +546,7 @@ function atmosphere_element_statevector_update!(
             this_value = get_current_value_with_unit(sve) |> NoUnits
         end
 
-        @debug "Updating $(atm_element) width to $(this_value)"
+        @debug "[ATMOS] Updating $(atm_element) width to $(this_value)"
         atm_element.width = this_value
 
     end
@@ -819,7 +819,7 @@ function update_specific_humidity_from_H2O!(atm::EarthAtmosphere)
             # this function will not be able to find the appropriate profile.
             if lowercase(a.gas_name) == "h2o"
 
-                @debug "Water vapor gas identified: $(a)"
+                @debug "[ATMOS] Water vapor gas identified: $(a)"
 
                 # Calculate SH from H2O (at RT pressure levels)
                 sh_from_h2o = H2O_VMR_to_specific_humidity.(a.vmr_levels)

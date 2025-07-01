@@ -17,9 +17,9 @@ for name in names(@__MODULE__, all=true)
 
         # Abstract types cannot be processed this way so, skip those
         try (fieldcount(getfield(@__MODULE__, name)))
-            @debug "$(name) will be checked for magical ww."
+            @debug "[MISC] $(name) will be checked for magical ww."
         catch
-            @debug "$(name) is not compatible here."
+            @debug "[MISC] $(name) is not compatible here."
             continue
         end
 
@@ -56,9 +56,9 @@ for name in names(@__MODULE__, all=true)
                 nn1 = replace(fname_str, "ww" => "ν")
                 nn2 = replace(fname_str, "ww" => "wavenumber")
 
-                @debug "Creating λ/ν magic accessors for $(name)::$(fname_str)"
-                @debug "$(name)::$(fname_str) -> $(name)::$(nl1), $(name)::$(nn1)"
-                @debug "$(name)::$(fname_str) -> $(name)::$(nl2), $(name)::$(nn2)"
+                @debug "[MISC] Creating λ/ν magic accessors for $(name)::$(fname_str)"
+                @debug "[MISC] $(name)::$(fname_str) -> $(name)::$(nl1), $(name)::$(nn1)"
+                @debug "[MISC] $(name)::$(fname_str) -> $(name)::$(nl2), $(name)::$(nn2)"
 
                 # short-circuit evaluation
                 function_string *= """

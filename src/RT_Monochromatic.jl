@@ -52,7 +52,7 @@ function calculate_rt_jacobian!(
     rt::MonochromaticRTMethod,
     sve::AbstractStateVectorElement
 )
-    @debug "No Monochromatic RT Jacobian calculated for $(sve)"
+    @debug "[RT] No Monochromatic RT Jacobian calculated for $(sve)"
     return false
 end
 
@@ -62,7 +62,7 @@ function calculate_rt_jacobian!(
     sve::AbstractStateVectorElement
 )
 
-    @warn "Not implemented for $(typeof(sve))"
+    @warn "[RT] Not implemented for $(typeof(sve))"
     return false
 end
 
@@ -127,7 +127,7 @@ function calculate_rt_jacobian!(
 
     # If this gas is not part of this window, ignore
     if !haskey(rt.optical_properties.gas_tau, sve.gas)
-        @debug "Skipping RT Jacobian for $(sve.gas)"
+        @debug "[RT] Skipping RT Jacobian for $(sve.gas)"
         return
     end
 
@@ -255,7 +255,7 @@ function calculate_rt_jacobian!(
 
     # If this gas is not part of this window, ignore
     if !haskey(rt.optical_properties.gas_tau, sve.gas)
-        @debug "Skipping RT Jacobian for $(sve.gas)"
+        @debug "[RT] Skipping RT Jacobian for $(sve.gas)"
         return
     end
 
@@ -316,7 +316,7 @@ function calculate_rt_jacobian!(
 
     # Need dI_dTau at least ..
     if !("dI_dTau" in keys(rt.wfunctions_map))
-        @error "dI_dTau weighting functions not found!"
+        @error "[RT] dI_dTau weighting functions not found!"
     end
 
 
@@ -514,7 +514,7 @@ function calculate_rt_jacobian!(
 
 
     if !haskey(rt.wfunctions_map, sve.aerosol)
-        @warn "No weighting function present for $(sve.aerosol)"
+        @warn "[RT] No weighting function present for $(sve.aerosol)"
         return
     end
 
@@ -599,7 +599,7 @@ function calculate_rt_jacobian!(
 
 
     if !haskey(rt.wfunctions_map, sve.aerosol)
-        @warn "No weighting function present for $(sve.aerosol)"
+        @warn "[RT] No weighting function present for $(sve.aerosol)"
         return
     end
 
@@ -691,7 +691,7 @@ function calculate_rt_jacobian!(
 
 
     if !haskey(rt.wfunctions_map, sve.aerosol)
-        @warn "No weighting function present for $(sve.aerosol)"
+        @warn "[RT] No weighting function present for $(sve.aerosol)"
         return
     end
 

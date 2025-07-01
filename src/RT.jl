@@ -281,10 +281,10 @@ function create_rt_copy_for_bins(
 
     new_model = rt.model
     if isnothing(options)
-        @debug "No RT model options supplied, inheriting from `rt`"
+        @debug "[XRTM] No RT model options supplied, inheriting from `rt`"
         new_model_options = rt.model_options
     else
-        @debug "User-supplied model options for new RT object!"
+        @debug "[XRTM] User-supplied model options for new RT object!"
         new_model_options = options
     end
 

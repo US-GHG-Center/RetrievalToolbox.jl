@@ -10,14 +10,14 @@ function next_iteration!(s::IMAPSolver; fm_kwargs=())
     fm_success = s.forward_model(s.state_vector; fm_kwargs...)
 
     if !fm_success
-        @debug "Forward model not successfully run."
+        @debug "[INV] Forward model not successfully run."
         return false
     else
-        @debug "Forward model successfully run!"
+        @debug "[INV] Forward model successfully run!"
     end
 
     if !check_solver_validity(s)
-        @debug "Invalid results found in solver object."
+        @debug "[INV] Invalid results found in solver object."
         return false
     end
 
@@ -75,7 +75,7 @@ function next_iteration!(s::IMAPSolver; fm_kwargs=())
     end
 
     if any(isnan.(delta_sv))
-        @error "NaNs in state vector update."
+        @error "[INV] NaNs in state vector update."
         return false
     end
 
@@ -121,7 +121,7 @@ function check_convergence(s::IMAPSolver; verbose=false)
     dsigma_square = dot(delta_sv, Shat_inv * delta_sv)
 
     if verbose
-        @info "Δσ² = $(dsigma_square) ($(length(s.state_vector) * s.dsigma_scale))"
+        @info "[INV] Δσ² = $(dsigma_square) ($(length(s.state_vector) * s.dsigma_scale))"
     end
      # Scale by user-defined value (dsigma_scale) and see if it meets
     # our convergence criterion.

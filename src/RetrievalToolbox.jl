@@ -89,7 +89,7 @@ function __init__()
                 have_XRTM = true
                 break
             else
-                @debug "No XRTM.jl in $(s)"
+                @debug "[XRTM] No XRTM.jl in $(s)"
             end
         end
 

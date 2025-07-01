@@ -56,7 +56,7 @@ function load_ABSCO_spectroscopy(
         broadener_key = "Broadener_$(broadener_index)_VMR"
         broadener_vmrs = h5[broadener_key][:]
 
-        @debug "This ABSCO table has a broadener: " * broadener_index
+        @debug "[SPEC] This ABSCO table has a broadener: " * broadener_index
     else
         has_H2O = false
     end
