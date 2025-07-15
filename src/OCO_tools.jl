@@ -89,7 +89,7 @@ function OCO_get_footprint_and_frame_from_snid(
     idx = OCO_one_or_all(h5, sounding_id)
 
     if sounding_id isa Integer
-        return idx[1], idx[2]
+        return Dict(sounding_id => (idx[1], idx[2]))
     else
         sounding_ids = h5["/SoundingGeometry/sounding_id"][:,:]
         fp_frame_dict = Dict{Integer, Tuple{Integer, Integer}}()
@@ -224,7 +224,7 @@ function OCO_pull_sounding_time(
 
     if sounding_id isa Integer
 
-        return this_time
+        return Dict(sounding_id => this_time)
 
     else
 
@@ -262,8 +262,10 @@ function OCO_pull_sounding_location(
 
     if sounding_id isa Integer
 
-        return EarthLocation(
-            lon, lat, alt, u"m"
+        return Dict(sounding_id =>
+            EarthLocation(
+                lon, lat, alt, u"m"
+            )
         )
 
     elseif isnothing(sounding_id)
@@ -306,7 +308,12 @@ function OCO_pull_CO2_prior(
 
     if sounding_id isa Integer
 
-        return co2pr, ch4pr
+        return Dict(sounding_id =>
+            Dict(
+                "co2_prior" => co2pr,
+                "ch4_prior" => ch4pr
+            )
+        )
 
     elseif isnothing(sounding_id)
 
@@ -349,11 +356,13 @@ function OCO_pull_observer(
 
     if sounding_id isa Integer
 
-        return SatelliteObserver(
-            this_vza,
-            this_vaa,
-            this_velocity,
-            this_position
+        return Dict(sounding_id =>
+            SatelliteObserver(
+                this_vza,
+                this_vaa,
+                this_velocity,
+                this_position
+            )
         )
 
     else
