@@ -132,8 +132,8 @@ function OCO_pull_atmosphere_from_met(
         windspeed_v_met = _h5["windspeed_v_met"][idx...]u"m/s"
 
         # ?, height, width, aod
-        aerosol_gauss_params = _h5_aer["composite_aod_gaussian_met"][idx...,:,:]
-        aerosol_sort = _h5_aer["composite_aod_sort_index_met"][idx...,:]
+        aerosol_gauss_params = _h5_aer["composite_aod_gaussian_met"][:,:, idx...]
+        aerosol_sort = _h5_aer["composite_aod_sort_index_met"][:, idx...]
 
     elseif "ECMWF" in keys(met_h5)
 
@@ -161,17 +161,19 @@ function OCO_pull_atmosphere_from_met(
 
         # If only one atmosphere is requested,
         # we return one object
-        return Dict(
-            "qflag_met" => qflag,
-            "pressure_levels_met" => pressure_levels_met,
-            "temperature_profile_met" => temperature_levels_met,
-            "specific_humidity_profile_met" => specific_humidity_levels_met,
-            "surface_pressure_met" => psurf,
-            "tropopause_pressure_met" => ptropo,
-            "windspeed_u_met" => windspeed_u_met,
-            "windspeed_v_met" => windspeed_v_met,
-            "aerosol_gauss_params_met" => aerosol_gauss_params,
-            "aerosol_sort_met" => aerosol_sort,
+        return Dict(sounding_id =>
+                Dict(
+                "qflag_met" => qflag,
+                "pressure_levels_met" => pressure_levels_met,
+                "temperature_profile_met" => temperature_levels_met,
+                "specific_humidity_profile_met" => specific_humidity_levels_met,
+                "surface_pressure_met" => psurf,
+                "tropopause_pressure_met" => ptropo,
+                "windspeed_u_met" => windspeed_u_met,
+                "windspeed_v_met" => windspeed_v_met,
+                "aerosol_gauss_params_met" => aerosol_gauss_params,
+                "aerosol_sort_met" => aerosol_sort,
+            )
         )
 
     elseif isnothing(sounding_id)
