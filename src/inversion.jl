@@ -451,13 +451,15 @@ function print_posterior(s::AbstractSolver)
     q = calculate_OE_quantities(s)
 
     if !isnothing(q)
-        print_posterior(s, q)
+        print_posterior(q)
     else
         @error "[INV] OE quantities could not be calculated."
     end
 
 end
 
+# Legacy way
+print_posterior(s::AbstractSolver, q::OEQuantities) = print_posterior(q)
 
 """
 Print a convenient summary of the current state vector, including
@@ -468,9 +470,9 @@ $(TYPEDSIGNATURES)
 Note that this function does not check for convergence.
 
 """
-function print_posterior(s::AbstractSolver, q::OEQuantities)
+function print_posterior(q::OEQuantities)
 
-    sv = s.state_vector
+    sv = q.state_vector
 
     if !isnothing(q)
 

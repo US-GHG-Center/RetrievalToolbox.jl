@@ -25,6 +25,7 @@ makedocs(
             ],
         "Working with Julia" =>
             [
+                "Develop" => joinpath("julia", "develop.md"),
                 "Dictionaries" => joinpath("julia", "dicts.md"),
                 "Units" => joinpath("julia", "units.md"),
             ],

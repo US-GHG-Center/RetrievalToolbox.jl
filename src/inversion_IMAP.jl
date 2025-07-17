@@ -189,6 +189,7 @@ function calculate_OE_quantities(s::IMAPSolver)
 
     # Build type and return
     return OEQuantities(
+        s.state_vector,
         K,
         Se,
         s.prior_covariance,

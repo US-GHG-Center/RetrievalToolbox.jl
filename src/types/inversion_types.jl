@@ -2,18 +2,17 @@ include("inversion_IMAP_types.jl")
 include("inversion_LM_types.jl")
 
 """
-A type to hold matrices and other vectors for
-Rodgers-type OE error analysis.
+A type to hold matrices and other vectors for Rodgers-type OE error analysis.
 
 $(TYPEDFIELDS)
 
-Note that these fields are kept deliberately as
-Abstract-type quantities, such that views on arrays
-and vectors can be used.
+Note that these fields are kept deliberately as Abstract-type quantities, such that views
+on arrays and vectors can be used.
 
 """
 struct OEQuantities
 
+    state_vector::AbstractStateVector # Reference to the state vector whose "result" this is
     K::AbstractMatrix # Jacobian
     Se::AbstractMatrix # Error covariance
     Sa::AbstractMatrix # Prior covariance

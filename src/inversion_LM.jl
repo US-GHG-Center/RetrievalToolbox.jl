@@ -302,9 +302,6 @@ function calculate_OE_quantities(s::LMSolver)
         return nothing
     end
 
-    # L1B index needed to match detector radiance
-    idx = s.indices
-
     # Grab inverse of prior covariance needed for Kᵀ Se⁻¹ K + Sa⁻¹
     Sa_inv = inv(s.prior_covariance)
     # Instrument noise covariance
@@ -341,6 +338,7 @@ function calculate_OE_quantities(s::LMSolver)
 
     # Build type and return
     return OEQuantities(
+        s.state_vector,
         K,
         Se,
         s.prior_covariance,

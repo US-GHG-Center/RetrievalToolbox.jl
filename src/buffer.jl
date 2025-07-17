@@ -1,6 +1,32 @@
 """
 $(TYPEDSIGNATURES)
 
+Pretty printing for EarthAtmosphereBuffer
+"""
+function show(io::IO, ::MIME"text/plain", buf::EarthAtmosphereBuffer)
+    # Just print this for now
+    println(io, "EarthAtmosphereBuffer")
+    println(io, "Windows: ")
+    for swin in buf.spectral_window
+        println(swin)
+    end
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Pretty printing for Beer-Lambert RT
+"""
+function show(io::IO, buf::EarthAtmosphereBuffer)
+    # Just print this for now
+    println(io, "EarthAtmosphereBuffer")
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
 Helper function to populate an **EarthAtmosphereBuffer**, which also includes an
 **EarthAtmosphere** and the corresponding **OpticalProperties** with correctly sized
 arrays.
