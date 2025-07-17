@@ -53,11 +53,47 @@ function length(SV::RetrievalStateVector)
 
 end
 
+
+
+function get_posterior_ucert(q::OEQuantities, SVE::AbstractStateVectorElement)
+
+    for (idx, qSVE) in enumerate(q.state_vector.state_vector_elements)
+        if qSVE === SVE
+            return q.SV_ucert[idx]
+        end
+    end
+
+end
+
+
 """
+$(TYPEDSIGNATURES)
+
+Returns all state vector elements from state vector `SV` that satisfy the type `t`
+"""
+function return_SVE_of_type(
+    SV::RetrievalStateVector,
+    t::Type{T}
+    ) where T<:AbstractStateVectorElement
+
+    # Allocate result container
+    result = AbstractStateVectorElement[]
+
+    # Loop through SVEs that match the type
+    for (idx, sve) in StateVectorIterator(SV, t)
+        push!(result, sve)
+    end
+
+    return result
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
 Returns true if any of the state vector elements
 is of the type requested. Otherwise returns false.
-
-$(SIGNATURES)
 """
 function any_SVE_is_type(
     SV::RetrievalStateVector,
