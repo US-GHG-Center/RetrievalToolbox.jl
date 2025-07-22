@@ -15,6 +15,7 @@ using PrettyTables
 using Printf
 using ProgressMeter
 using QuadGK
+using SharedArrays
 using Statistics
 using StaticArrays
 using Unitful

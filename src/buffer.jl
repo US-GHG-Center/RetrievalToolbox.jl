@@ -6,9 +6,10 @@ Pretty printing for EarthAtmosphereBuffer
 function show(io::IO, ::MIME"text/plain", buf::EarthAtmosphereBuffer)
     # Just print this for now
     println(io, "EarthAtmosphereBuffer")
+    println(io, "=====================")
     println(io, "Windows: ")
     for swin in buf.spectral_window
-        println(swin)
+        println("   $(swin)")
     end
 end
 
