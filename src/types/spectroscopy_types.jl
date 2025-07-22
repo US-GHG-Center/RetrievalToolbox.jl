@@ -19,8 +19,10 @@ general as possible, so we use four different types T1 through T4 to allow for a
 of number types for the axes.
 
 """
-struct ABSCOSpectroscopy4D{T1,T2,T3,T4} <: ABSCOSpectroscopy where
-    {T1 <: Real, T2 <: Real, T3 <: Real, T4 <: Real}
+struct ABSCOSpectroscopy4D{
+    T1 <: Real, T2 <: Real, T3 <: Real, T4 <: Real,
+    A <: AbstractArray{T4, 4}
+    } <: ABSCOSpectroscopy
 
     "Filename/path of the underlying ABSCO data"
     file_name::String
@@ -43,7 +45,7 @@ struct ABSCOSpectroscopy4D{T1,T2,T3,T4} <: ABSCOSpectroscopy where
     "Broadener volume mixing ratio (unit 1)"
     broadener_vmrs::Vector{T3}
     "Cross section array, order: λ (or ν), H2O, T, p"
-    cross_section::Array{T4, 4}
+    cross_section::A
     "Cross section unit (usually cm^2/molecule)"
     cross_section_unit::Unitful.AreaUnits
 
@@ -62,8 +64,10 @@ are 32 bit floats, hence why there are two types T1,T2 for
 for this structure.
 
 """
-struct ABSCOSpectroscopy3D{T1,T2,T3,T4} <: ABSCOSpectroscopy where
-    {T1 <: Real, T2 <: Real, T3 <: Real, T4 <: Real}
+struct ABSCOSpectroscopy3D{
+    T1 <: Real, T2 <: Real, T3 <: Real, T4 <: Real,
+    A <: AbstractArray{T4, 3}
+    } <: ABSCOSpectroscopy
 
     "Filename/path of the underlying ABSCO data"
     file_name::String
@@ -86,7 +90,7 @@ struct ABSCOSpectroscopy3D{T1,T2,T3,T4} <: ABSCOSpectroscopy where
     "Broadener volume mixing ratio (unit 1)"
     broadener_vmrs::Vector{T3}
     "Cross section array, order: λ (or ν), T, p"
-    cross_section::Array{T4, 3}
+    cross_section::A
     "Cross section unit (usually cm^2/molecule)"
     cross_section_unit::Unitful.AreaUnits
 
@@ -128,7 +132,39 @@ function show(io::IO, ::MIME"text/plain", absco::ABSCOSpectroscopy4D)
 
 end
 
+function show(io::IO, absco::ABSCOSpectroscopy4D)
+
+    println(io, "4D ABSCO from file: $(absco.file_name)")
+    println(io, "Scale factor: $(absco.scale_factor)")
+
+    println(io, "Pressures: $(length(absco.pressures)) ")
+    println(io, "Temperatures: $(size(absco.temperatures, 1))")
+    println(io, "Broadener VMRs: $(length(absco.broadener_vmrs))")
+    if absco.ww_unit isa Unitful.LengthUnits
+        println(io, "Wavelengths: $(length(absco.ww))")
+    else
+        println(io, "Wavenumbers: $(length(absco.ww))")
+    end
+
+end
+
+
 function show(io::IO, ::MIME"text/plain", absco::ABSCOSpectroscopy3D)
+
+    println(io, "3D ABSCO from file: $(absco.file_name)")
+    println(io, "Scale factor: $(absco.scale_factor)")
+
+    println(io, "Pressures: $(length(absco.pressures)) ")
+    println(io, "Temperatures: $(size(absco.temperatures, 1))")
+    if absco.ww_unit isa Unitful.LengthUnits
+        println(io, "Wavelengths: $(length(absco.ww))")
+    else
+        println(io, "Wavenumbers: $(length(absco.ww))")
+    end
+
+end
+
+function show(io::IO, absco::ABSCOSpectroscopy3D)
 
     println(io, "3D ABSCO from file: $(absco.file_name)")
     println(io, "Scale factor: $(absco.scale_factor)")

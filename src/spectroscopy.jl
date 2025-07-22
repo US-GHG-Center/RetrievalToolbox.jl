@@ -13,7 +13,8 @@ into the entire table.
 function load_ABSCO_spectroscopy(
     fname::String;
     spectral_unit=:Wavelength,
-    scale_factor=1.0f0
+    scale_factor=1.0f0,
+    distributed=false
     )
 
     if !isfile(fname)
@@ -84,11 +85,23 @@ function load_ABSCO_spectroscopy(
     #  - Temperature
     #  - Pressure
 
-
     # We should use the same number type here, so we must convert:
     scale_factor = convert(eltype(h5[absorption_key]), scale_factor)
     cross_section_unit = u"cm^2" # actually, cm^2 per molecule, but we omit the molecule
-    cross_section = read(h5[absorption_key]) .* scale_factor
+
+    # We handle things a little differently if we use SharedArrays for distributed
+    # computing.
+
+    if distributed
+        # Create a SharedArray
+        cross_section = SharedArray{eltype(h5[absorption_key])}(
+            size(h5[absorption_key])...)
+        # .. fill with values (we know this is 4D)
+        cross_section[:,:,:,:] = h5[absorption_key][:,:,:,:]
+    else
+        # "normal" array
+        cross_section = read(h5[absorption_key]) .* scale_factor
+    end
 
     close(h5)
 
