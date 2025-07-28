@@ -1,7 +1,14 @@
+"""
+$(TYPEDEF)
+
+Type to hold optical property data that contain all necessary information to produce the
+RT inputs for a spectral window `spectral_window`.
+
+$(TYPEDFIELDS)
+"""
 struct EarthAtmosphereOpticalProperties{T} <: AbstractOpticalProperties where T
 
-    # No need for this to be mutable, since
-    # all of the fields are Dicts or arrays
+    # No need for this to be mutable, since all of the fields are Dicts or arrays
 
     "Spectral window for which to calculate optical properties"
     spectral_window::AbstractSpectralWindow
@@ -28,13 +35,17 @@ struct EarthAtmosphereOpticalProperties{T} <: AbstractOpticalProperties where T
     nair_dry::Vector{T}
     "Number of wet air molecules"
     nair_wet::Vector{T}
-
-    # Arrays to hold temporary values during calculation
-    tmp_Nhi1::Vector{T} # Shape of spectral_window.N_hires
-    tmp_Nhi2::Vector{T} # Shape of spectral_window.N_hires
-    tmp_Nlay1::Vector{T} # Shape of N_layer
-    tmp_Nlay2::Vector{T} # Shape of N_layer
+    # Temp array - shape of [spectral_window.N_hires]
+    tmp_Nhi1::Vector{T}
+    # Temp array - shape of [spectral_window.N_hires]
+    tmp_Nhi2::Vector{T}
+    # Temp array - shape of [N_layer]
+    tmp_Nlay1::Vector{T}
+    # Temp array - shape of [N_layer]
+    tmp_Nlay2::Vector{T}
+    # Temp array - same shape as total_coef
     tmp_coef::Union{Array{T, 3}, Nothing}
+    # Temp array - same shape of total_coef but only keep the β coefficents (moment, 1, layer)
     tmp_coef_scalar::Union{Array{T, 3}, Nothing}
 
 end
