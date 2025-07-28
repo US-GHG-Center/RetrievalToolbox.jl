@@ -49,8 +49,8 @@ function EarthAtmosphereBuffer(
     inst_buf,
     N_level,
     N_met_level,
-    ::Type{T}
-    ) where {T <: AbstractFloat}
+    T::Type{<:AbstractFloat}
+    )
 
     N_layer = N_level - 1
     N_met_layer = N_met_level - 1
@@ -168,156 +168,12 @@ function EarthAtmosphereBuffer(
 
     for swin in swins
 
-        # TODO delegate this into its own function: create_empty_EarthOpticalProperties
-
-        # Dictionaries to keep track of gas optical depths and derivatives
-        gas_tau = Dict{GasAbsorber{T}, Array{T, 2}}()
-        gas_derivatives = Dict{GasAbsorber{T}, Dict{String, AbstractArray}}()
-        # Dictionaries to keep track of aerosol optical depths and single-scatter albedo
-        aerosol_tau = Dict{AbstractAerosolType, Array{T, 2}}()
-        aerosol_omega = Dict{AbstractAerosolType, Array{T, 2}}()
-
-        # Rayleigh extinction optical depth
-        rayleigh_tau = zeros(T, swin.N_hires, N_layer)
-        # Rayleigh extinction derivative
-        rayleigh_deriv = zeros(T, swin.N_hires, N_layer)
-        # Total optical depth and single-scatter albedo
-        total_tau = zeros(T, swin.N_hires, N_layer)
-        total_omega = zeros(T, swin.N_hires, N_layer)
-
-        for atm in atm_elements
-
-            # Gases
-            if atm isa GasAbsorber
-                # per-gas layer-resolved optical depth
-                gas_tau[atm] = zeros(T, swin.N_hires, N_layer)
-
-                # related partial derivatives w.r.t.
-                # surface pressure, temperature, VMRs
-                # -> zero-arrays are created later when
-                #    looping through the state vector elements
-
-                # Note: this only creates an empty Dict, and is
-                # filled just below if needed.
-                gas_derivatives[atm] = Dict{String, AbstractArray}()
-
-                if sv isa RetrievalStateVector
-                    for _sve in sv.state_vector_elements
-
-                        if _sve isa SurfacePressureSVE
-                            gas_derivatives[atm]["dTau_dpsurf"] =
-                                zeros(T, swin.N_hires)
-                        end
-
-                        if _sve isa GasLevelScalingFactorSVE
-                            gas_derivatives[atm]["dTau_dVMR"] =
-                                zeros(T, swin.N_hires, N_layer, 2)
-                        end
-
-                        if _sve isa GasVMRProfileSVE
-                            gas_derivatives[atm]["dTau_dVMR"] =
-                                zeros(T, swin.N_hires, N_layer, 2)
-                        end
-
-                        if _sve isa TemperatureOffsetSVE
-                            gas_derivatives[atm]["dTau_dT"] =
-                                zeros(T, swin.N_hires, N_layer)
-                        end
-
-                    end
-                end
-
-            # End of atm-loop
-            end
-
-
-            # TODO: add other atmospheric elements
-            # (aerosols etc.)
-            if atm isa AbstractAerosolType
-
-                aerosol_tau[atm] = zeros(T, swin.N_hires, N_layer)
-                aerosol_omega[atm] = zeros(T, swin.N_hires, N_layer)
-
-            end
-
-        end
-
-        # Allocate dry and wet air molecule numbers
-        nair_dry = zeros(T, N_layer)
-        nair_wet = zeros(T, N_layer)
-
-        # Allocate vector(s) to hold temporary values
-        tmp_Nhi1 = zeros(T, swin.N_hires)
-        tmp_Nhi2 = zeros(T, swin.N_hires)
-        tmp_Nlay1 = zeros(T, N_layer)
-        tmp_Nlay2 = zeros(T, N_layer)
-
-        # Determine the maximal number of phasefunction expansion
-        # coefficients found in all aerosols of this scene.
-        max_coef = 1
-        for atm in atm_elements
-            if atm isa AbstractAerosolType
-                if atm.optical_property.max_coefs > max_coef
-                    max_coef = atm.optical_property.max_coefs
-                end
-            end
-        end
-
-        # If there are no aerosols, but there is RayleighScattering, adjust here
-        if findanytype(atm_elements, RayleighScattering)
-            # Bump up to 3 coefficients
-            max_coef = max(max_coef, 3)
-        end
-
-        # Allocate matrix to hold phasefunction expansion coefficient
-        # for this spectral window.
-        # NOTE/TODO
-        # Currently, we only use one per band (no spectral variation)
-        # NOTE/TODO
-        # Expand this for polarized RT
-        if (length(keys(aerosol_tau)) > 0) | findanytype(atm_elements, RayleighScattering)
-
-            # Check if we are doing polarization or not
-            if RadType === ScalarRadiance
-                n_elem = 1
-            elseif RadType === VectorRadiance
-                n_elem = 6
-            end
-
-            total_coef = zeros(T, max_coef, n_elem, N_layer)
-            tmp_coef = zeros(T, max_coef, n_elem, N_layer)
-            tmp_coef_scalar = zeros(T, max_coef, 1, N_layer)
-        else
-            # No aerosols, no Rayleigh scattering => no need for coefficients
-            total_coef = nothing
-            tmp_coef = nothing
-            tmp_coef_scalar = nothing
-        end
-
-        # Allocate optical property object
-        this_opt_prop = EarthAtmosphereOpticalProperties(
-            swin,
-            gas_tau,
-            gas_derivatives,
-            aerosol_tau,
-            aerosol_omega,
-            rayleigh_tau,
-            rayleigh_deriv,
-            total_tau,
-            total_omega,
-            total_coef,
-            nair_dry,
-            nair_wet,
-            tmp_Nhi1,
-            tmp_Nhi2,
-            tmp_Nlay1,
-            tmp_Nlay2,
-            tmp_coef,
-            tmp_coef_scalar
+        # Create an empty EarthAtmosphereOpticalProperties object and push into dict
+        # (Note that we must supply the explicit number type T here, otherwise the
+        #  default will be Float64)
+        optical_properties[swin] = create_empty_EarthAtmosphereOpticalProperties(
+            swin, earth_scene, sv, RadType, T
         )
-
-        # push into dict
-        optical_properties[swin] = this_opt_prop
 
     end
 
