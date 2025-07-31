@@ -47,9 +47,9 @@ function ingest!(
     # do the following:
     elseif obj_field isa AbstractArray
         # Pre-compute what we want to insert
-        rhs = val |> obj_unit |> ustrip
-        # Fast loop to insert values
-        @turbo for i in eachindex(obj_field)
+        rhs = val |> obj_unit .|> ustrip
+        # Loop to insert values
+        for i in eachindex(obj_field)
             obj_field[i] = rhs
         end
     end
@@ -86,7 +86,7 @@ function ingest!(
     ustrip_val = ustrip(val)
 
     # Copy over, accounting for correct conversion factor
-    @turbo for i in eachindex(ustrip_val)
+    for i in eachindex(ustrip_val)
         obj_field[i] = ustrip_val[i] * uc
     end
 end
