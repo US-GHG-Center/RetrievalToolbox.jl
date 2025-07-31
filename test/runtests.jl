@@ -9,5 +9,8 @@ using Test
     @testset "Spectroscopy tests" begin
         include("spectroscopy_tests.jl")
     end
+    @testset "Atmosphere tests" begin
+        include("atmosphere_tests.jl")
+    end
 
 end

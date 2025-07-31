@@ -913,13 +913,7 @@ function list_example_atmospheres()
     fnames = filter(x -> endswith(x, ".csv"), readdir(fdir))
     anames = [replace(x, ".csv" => "") for x in fnames]
 
-    println("Following example atmospheres are available:")
-    for (i, aname) in enumerate(anames)
-        println(@sprintf "%5d: %s" i aname)
-    end
-
-    println("")
-    println("For example, call `create_example_atmosphere(\"$(anames[1])\")`")
+    return anames
 
 end
 
