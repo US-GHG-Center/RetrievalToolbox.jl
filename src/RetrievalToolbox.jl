@@ -2,6 +2,7 @@ module RetrievalToolbox
 
 import Base: length, show, iterate, convert
 
+using CSV
 using Dates
 using DocStringExtensions
 using HDF5

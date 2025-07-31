@@ -140,8 +140,35 @@ function create_ACOS_pressure_grid(
 
 end
 
+
 """
-$(SIGNATURES)
+$(TYPEDSIGNATURES)
+
+Calculates local gravity based on altitude levels. The optional argument `g` can be
+supplied if users want a latitude=dependent surface-level gravity. Otherwise the standard
+gravity is used. Note that `g` must be in compatible units of acceleration.
+"""
+function calculate_gravity_from_z!(atm::EarthAtmosphere; g=nothing)
+
+    if isnothing(g)
+        @debug "[ATMOS] Using standard gravity for calculations."
+        g_used = g0 # Use the standard g (not latitude-corrected)
+    else
+        g_used = g
+    end
+
+    for l in 1:atm.N_met_level
+
+        z = atm.altitude_levels[l] * atm.altitude_unit
+        glevel = g_used * (EARTH_RADIUS / (EARTH_RADIUS + z)) |> atm.gravity_unit
+        atm.gravity_levels[l] = glevel |> ustrip
+
+    end
+
+end
+
+"""
+$(TYPEDSIGNATURES)
 
 Calculates local gravity given some latitude and altitude
 
@@ -227,11 +254,13 @@ function calculate_altitude_and_gravity!(scene::EarthScene)
 
 end
 
+
 """
 $(TYPEDSIGNATURES)
 
-Calculates altitude and gravity levels for Earth-type atmospheres. Returns
-`altitude_levels` and `gravity_levels` in units of `m` and `m/s^2`, respectively!
+Calculates altitude and gravity levels for Earth-type atmospheres, in-place. For now, this
+function over-writes `altitude_levels` and `gravity_levels` in units of `m` and `m/s^2`
+respectively!
 
 # Details
 
@@ -250,7 +279,7 @@ function calculate_altitude_and_gravity_levels!(
     T_layers::AbstractVector,
     SH_layers::AbstractVector,
     p_surf::Number,
-    location::AbstractLocation
+    location::EarthLocation
     )
 
     Rd = GAS_CONSTANT / MM_DRY_AIR
@@ -784,7 +813,7 @@ function atmosphere_statevector_rollback!(
     =#
 
     if sve.unit != atm.temperature_unit
-        error("Unit for SVE $(sve) must be the same as atmosphere temperature profile " *
+        error("[ATMOS] Unit for SVE $(sve) must be the same as atmosphere temperature profile " *
               "($(sve.unit) vs. $(atm.temperature_unit))")
     end
 
@@ -863,15 +892,121 @@ function get_gas_from_name(atm::EarthAtmosphere, name::String)
     glist = filter(x -> x isa GasAbsorber && x.gas_name == name, atm.atm_elements)
 
     if length(glist) > 1
-        @warn "More than one gas found with name $(name)!"
+        @warn "[ATMOS] More than one gas found with name $(name)!"
         return nothing
     end
 
     if length(glist) == 0
-        @warn "No gas found with name $(name)!"
+        @warn "[ATMOS] No gas found with name $(name)!"
         return nothing
     end
 
     return glist[1]
 
+end
+
+
+function list_example_atmospheres()
+
+    fdir = joinpath(@__DIR__, "..", "data", "atmospheres")
+    @info fdir
+    fnames = filter(x -> endswith(x, ".csv"), readdir(fdir))
+    anames = [replace(x, ".csv" => "") for x in fnames]
+
+    println("Following example atmospheres are available:")
+    for (i, aname) in enumerate(anames)
+        println(@sprintf "%5d: %s" i aname)
+    end
+
+    println("")
+    println("For example, call `create_example_atmosphere(\"$(anames[1])\")`")
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Creates an `EarthAtmosphere` object based on some representative atmospheres that were
+extracted from NASA GMAO's MERRA2 reanalysis and Sourish Basu's CO2/CH4. Must provide the
+name of the example atmosphere `name` as well as the intended number of pressure levels
+for the retrieval grid, `Nlev`, to be filled out be the user later.
+"""
+function create_example_atmosphere(
+    name::String,
+    Nlev::Integer;
+    T::Type{<:Real}=Float64,
+    surface_pressure::Union{Float64, Nothing}=nothing,
+    altitude::Union{Float64, Nothing}=nothing
+    )
+
+    if !isnothing(surface_pressure) & !isnothing(altitude)
+        throw(ArgumentError(
+            "[ATMOS] Must not provide BOTH surface pressure AND altitude. Choose one."
+            ))
+    end
+
+    fname = joinpath(@__DIR__, "..", "data", "atmospheres", "$(name).csv")
+
+    if !isfile(fname)
+        throw(ErrorException(
+            "[ATMOS] Example atmosphere $(name) not found!"
+        ))
+    end
+
+    # Read the content of the example atmosphere file
+    @debug "[ATMOS] Opening atmosphere file at $(fname)"
+
+    # First read the header to obtain info on units etc.
+    units_list = nothing
+
+    open(fname, "r") do file
+        while !eof(file)
+            line = readline(file)
+            line[1] != '#' && break  # Get out if line does not start with #
+            if startswith(line, "# units:")
+                # Grab the units
+                units_list = uparse.(split(split(line, "units:")[end], ","))
+            end
+        end
+    end
+
+    # These are now our profiles, defined in layers
+    csv = CSV.File(fname, comment="#")
+    # Note that the units are in the same order as the csv columns, so we can make
+    # a helpful dict here that keeps the units easily accessible.
+    csv_units = Dict(csv.names[i] => units_list[i] for i in 1:csv.cols)
+
+    Nlev_met = length(csv)
+
+    # Create the empty atmosphere
+    atm = create_empty_EarthAtmosphere(
+        Nlev, # Number of retrieval pressure levels
+        Nlev_met, # Number of met pressure levels
+        T, # Number type
+        csv_units[:pressure], # Retrieval grid pressure unit
+        csv_units[:pressure], # Met grid pressure unit
+        csv_units[:temperature], # Temperature unit
+        csv_units[:specific_humidity], # Specific humidity unit
+        csv_units[:altitude], # Altitude unit
+        u"m/s^2" # Gravity unit
+    )
+
+    ingest!(atm, :met_pressure_levels,
+        csv.pressure * csv_units[:pressure])
+    ingest!(atm, :temperature_levels,
+        csv.temperature * csv_units[:temperature])
+    ingest!(atm, :specific_humidity_levels,
+        csv.specific_humidity * csv_units[:specific_humidity])
+    ingest!(atm, :altitude_levels,
+        csv.altitude * csv_units[:altitude])
+
+    # For this example atmosphere, use a simple approach to calculate gravity based
+    # on altitude (latitude is unknown yet, and probably not important)
+    calculate_gravity_from_z!(atm)
+
+    # Calculate layer quantities
+    calculate_layers!(atm)
+
+    return atm
 end
