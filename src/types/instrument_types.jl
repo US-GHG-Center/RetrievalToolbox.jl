@@ -1,11 +1,3 @@
-struct OCOInstrument <: AbstractInstrument
-
-end
-
-struct GeoCarbInstrument <: AbstractInstrument
-
-end
-
 struct TableISRF{T} <: AbstractISRF
 
     "Δλ array on which the ISRF is defined (Δλ or Δν, spectral sample)"
