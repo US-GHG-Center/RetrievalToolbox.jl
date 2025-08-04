@@ -102,6 +102,19 @@ function calculate_solar_irradiance!(
             rt.hires_solar.I
         )
 
+    elseif solar_model isa ListSolarModel
+
+        pwl_value_1d!(
+            solar_model.ww,
+            solar_model.irradiance,
+            swin.ww_grid,
+            rt.hires_solar.I
+        )
+
+    else
+
+        throw(error("Solar model type $(typeof(solar_model)) not implemented!"))
+
     end
 
     # Apply the solar scaler
@@ -109,6 +122,7 @@ function calculate_solar_irradiance!(
         rt.hires_solar.S[i,1] *= rt.solar_scaler[i]
     end
 
+    # Restore original solar model grid
     if solar_model.ww_unit isa Unitful.LengthUnits
         # Very cheeky way of moving back from λ * (1 + Doppler) -> λ
         @turbo for i in eachindex(solar_model.ww)

@@ -34,8 +34,6 @@ abstract type AbstractSpectralWindow end
 
 abstract type AbstractOpticalProperties end
 
-abstract type AbstractInstrument end
-
 abstract type AbstractISRF end
 
 abstract type AbstractRTMethod end
