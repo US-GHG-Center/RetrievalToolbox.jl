@@ -83,7 +83,7 @@ function ingest!(
     uc = one(eltype(val)) * unit(val[1]) |> obj_unit |> ustrip
 
     # Get the unit-stripped view to the "val" array
-    ustrip_val = ustrip(val)
+    ustrip_val = ustrip.(val)
 
     # Copy over, accounting for correct conversion factor
     for i in eachindex(ustrip_val)
