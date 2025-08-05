@@ -2,6 +2,7 @@ module RetrievalToolbox
 
 import Base: length, show, iterate, convert
 
+using AstroLib
 using CSV
 using Dates
 using DocStringExtensions

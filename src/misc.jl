@@ -387,10 +387,10 @@ function pwl_value_1d_axb!(xd, ad, bd, xi, yi)
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Calculates the trapezoidal-rule integral of f(x) where
 `x` are discrete x_i, and `y` are the corresponding f(x_i).
-
-$(TYPEDSIGNATURES)
 """
 function _trapz(x, y)
 
@@ -405,9 +405,9 @@ function _trapz(x, y)
 end
 
 """
-Returns `true` if `a` is found within `x`, does not allocate.
-
 $(TYPEDSIGNATURES)
+
+Returns `true` if `a` is found within `x`, does not allocate.
 """
 function findany(x::AbstractVector, a)
     @inbounds for i in eachindex(x)
@@ -418,9 +418,9 @@ end
 
 
 """
-Returns `true` if any element within `x` is of type `T`, does not allocate.
+$(TYPEDSIGNATURES)
 
-    $(TYPEDSIGNATURES)
+Returns `true` if any element within `x` is of type `T`, does not allocate.
 """
 function findanytype(x::AbstractVector, T)
     @inbounds for i in eachindex(x)
@@ -430,9 +430,9 @@ function findanytype(x::AbstractVector, T)
 end
 
 """
-Calculates specific humidity from H2O VMR
-
 $(TYPEDSIGNATURES)
+
+Calculates specific humidity from H2O VMR
 """
 function H2O_VMR_to_specific_humidity(
     h2o::Union{Number, Unitful.DimensionlessQuantity}
@@ -448,9 +448,9 @@ function H2O_VMR_to_specific_humidity(
 end
 
 """
-Calculates H2O VMR from specific humidity
-
 $(TYPEDSIGNATURES)
+
+Calculates H2O VMR from specific humidity
 """
 function specific_humidity_to_H2O_VMR(
     sh::Union{Number, Unitful.DimensionlessQuantity}
@@ -464,4 +464,16 @@ function specific_humidity_to_H2O_VMR(
     h2o  = q / ((1 - q) * MM_H2O_TO_AIR + q)
 
     return h2o
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the standard deviation of a Gaussian for a given full width at half the maximum
+value.
+"""
+function FWHM_to_sigma(FWHM::Number)
+
+    return FWHM / 2 / (sqrt(2 * log(2)))
+
 end

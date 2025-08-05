@@ -348,7 +348,56 @@ function calculate_solar_doppler_shift(
     time::DateTime,
     )
 
-    @warn "This is not yet implemented."
-    return 0.0
+    # Convert to Julian date
+    jd = jdcnv(time)
+
+    # Get Earth's heliocentric velocity vector (km/s)
+    # This gives Earth's orbital velocity around Sun
+    earth_vel = baryvel(jd)[1]  # Returns [vx, vy, vz] in km/s
+
+    # Get Sun's apparent position as seen from Earth
+    sunpos(jd)  # This gives solar coordinates
+
+    # Calculate Earth's rotational velocity at observer location
+    # Earth rotates 360° in sidereal day ≈ 23h 56m 4s
+    earth_radius_km = 6371.0
+    sidereal_day_sec = 86164.0905  # seconds
+
+    # Rotational velocity at latitude (km/s)
+    rot_speed = 2π * earth_radius_km * cos(deg2rad(loc.latitude)) / sidereal_day_sec
+
+    # Get Local Sidereal Time to determine rotational velocity direction
+    lst = ct2lst(loc.longitude, jd)
+
+    # Convert rotational velocity to vector components
+    # (This is simplified - more complex transformation needed for precision)
+    rot_vel_east = rot_speed  # velocity component toward East
+
+    # Get Sun's position vector (simplified)
+    sun_ra, sun_dec = sunpos(jd)
+
+    # Convert to Cartesian coordinates for dot product
+    sun_x = cos(deg2rad(sun_dec)) * cos(deg2rad(sun_ra))
+    sun_y = cos(deg2rad(sun_dec)) * sin(deg2rad(sun_ra))
+    sun_z = sin(deg2rad(sun_dec))
+    sun_unit = [sun_x, sun_y, sun_z]
+
+    # Project Earth's orbital velocity onto Sun direction
+    orbital_component = dot(earth_vel, sun_unit)
+
+    # Project rotational velocity (this is approximate)
+    # Full calculation would need proper coordinate transformations
+    rotational_component = rot_vel_east * cos(deg2rad(sun_ra - lst * 15))
+
+    # Total velocity toward Sun (km/s)
+    total_velocity = orbital_component + rotational_component
+
+    # Convert to Doppler shift (v/c)
+    c_km_s = 299792.458 # km/s
+    doppler_shift = total_velocity / c_km_s
+
+    # We return the negative, in our convention we must use the instrument view
+    # (i.e., the velocity towards Earth)
+    return -doppler_shift
 
 end
