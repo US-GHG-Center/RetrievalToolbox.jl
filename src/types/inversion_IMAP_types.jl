@@ -40,7 +40,7 @@ struct IMAPSolver <: AbstractSolver
         dispersions::Dict{<:AbstractSpectralWindow, <:AbstractDispersion},
         indices::Dict{<:AbstractSpectralWindow, <:AbstractVector},
         radiance::Radiance,
-        jacobians::Dict{AbstractStateVectorElement, <:Radiance},
+        jacobians::Dict{<:AbstractStateVectorElement, <:Radiance},
         measured::Dict{<:AbstractDispersion, <:AbstractVector},
         noise::Dict{<:AbstractDispersion, <:AbstractVector}
     )

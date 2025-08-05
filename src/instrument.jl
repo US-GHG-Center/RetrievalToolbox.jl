@@ -14,13 +14,12 @@ function apply_isrf_to_spectrum!(
     doppler_factor=0.0
     )
 
-    # In Julia, we must encapsulate certain calculations
-    # in functions for explicit/clear type inference. So
-    # all the heavy lifting of the "convolution" function
-    # is done inside this following call.
+    # In Julia, we must encapsulate certain calculations in functions for explicit/clear
+    # type inference. So all the heavy lifting of the "convolution" function is done
+    # inside this following call.
 
     # This is also the place where we must account for units
-    success = _apply_isrf_to_spectrum_lowlevel!(
+    success = _apply_tableisrf_to_spectrum_lowlevel!(
         inst_buf.low_res_output,
         ISRF.ww_delta_unit,
         ISRF.ww_delta,
@@ -48,7 +47,7 @@ spectrum comparable to that measured by an instrument.
 $(TYPEDSIGNATURES)
 
 """
-function _apply_isrf_to_spectrum_lowlevel!(
+function _apply_tableisrf_to_spectrum_lowlevel!(
     lores_data, # Vector - Output!
     ISRF_unit::Union{Unitful.LengthUnits, Unitful.WavenumberUnits}, # Length unit of the ISRF Δλ variable
     ISRF_ww_delta, # Array [delta ww, L1B index]
@@ -148,6 +147,103 @@ function _apply_isrf_to_spectrum_lowlevel!(
     end
 
     # Successful run!
+    return true
+
+end
+
+
+
+
+function apply_isrf_to_spectrum!(
+    inst_buf::InstrumentBuffer,
+    ISRF::GaussISRF,
+    disp::AbstractDispersion,
+    data::AbstractVector,
+    swin::AbstractSpectralWindow;
+    doppler_factor=0.0,
+    extend=4.0 # How many σ's to move away from the center for integration?
+    )
+
+    # Convert to σ here, so we can pass a number to the lowlevel function
+    # (if you include this code in the function itself, it produces a lot of
+    #  additional allocations.)
+    σ = FWHM_to_sigma(ISRF.FWHM) * ISRF.FWHM_unit |> swin.ww_unit |> ustrip
+
+    success = _apply_gaussisrf_to_spectrum_lowlevel!(
+        inst_buf.low_res_output,
+        σ,
+        extend,
+        swin.ww_unit,
+        swin.ww_grid,
+        data,
+        disp.ww_unit,
+        disp.ww,
+        disp.index,
+        doppler_factor,
+    )
+
+    return success
+
+end
+
+function _apply_gaussisrf_to_spectrum_lowlevel!(
+    lores_data, # Vector - Output!
+    σ::Number,
+    extend::Number,
+    hires_unit::Union{Unitful.LengthUnits, Unitful.WavenumberUnits},
+    hires_ww, # Vector, hi-res wavelength/wavenumber
+    hires_data, # Vector, hi-res spectrum
+    lores_unit::Union{Unitful.LengthUnits, Unitful.WavenumberUnits},
+    lores_ww, # Vector, Dispersion wavelength/wavenumber
+    lores_idx, # Vector, Dispersion index
+    doppler_factor,
+)
+
+    lores_data[:] .= 0
+
+    # Depending on λ/ν, we use a different effective Doppler formula
+    if hires_unit isa Unitful.LengthUnits
+        doppler_term = 1.0 / (1.0 + doppler_factor)
+    elseif hires_unit isa Unitful.WavenumberUnits
+        doppler_term = 1.0 + doppler_factor
+    end
+
+    unit_fac = 1.0 * hires_unit / lores_unit
+
+    for i in eachindex(lores_idx)
+
+        this_ww = unit_fac * lores_ww[i] / doppler_term # Create spectral value, include Doppler
+
+        idx_left = searchsortedfirst(hires_ww, this_ww - extend * σ)
+        idx_right = searchsortedlast(hires_ww, this_ww + extend * σ) + 1
+
+        running_sum = 0
+        running_sum_isrf = 0
+
+        for ii in idx_left:idx_right-1
+
+            ww_left = hires_ww[ii]
+            ww_right = hires_ww[ii + 1]
+
+            # Implementation of the trapezoidal rule for this integration
+            isrf_left = 1 / (σ * sqrt(2*pi)) * exp(-0.5 * (ww_left - lores_ww[i])^2 / σ^2)
+            isrf_right = 1 / (σ * sqrt(2*pi)) * exp(-0.5 * (ww_right - lores_ww[i])^2 / σ^2)
+
+            running_sum += 0.5 * (
+                hires_data[ii] * isrf_left + hires_data[ii+1] * isrf_right
+            ) * (ww_right - ww_left)
+
+            running_sum_isrf +=  0.5 * (
+                isrf_left + isrf_right
+            ) * (ww_right - ww_left)
+
+        end
+
+        lores_data[lores_idx[i]] = running_sum / running_sum_isrf
+
+    end
+
+    # Success
     return true
 
 end

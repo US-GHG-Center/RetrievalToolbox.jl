@@ -132,13 +132,14 @@ end
 
 
 """
-$(SIGNATURES)
+$(TYPEDSIGNATURES)
 
-Calculates the analytic dispersion polynomial Jacobian
+Calculates the analytic dispersion polynomial Jacobian for a `TableISRF` instrument
+response function.
 
 # Details
 
-Analytic computation of ∂I/dc_i, where `c_i` is the coefficient of the dispersion
+Analytic computation of ∂I/∂c_i, where `c_i` is the coefficient of the dispersion
 polynomial order `i`, i = 0 meaning a flat dispersion, i = 1 is a linearly varying one
 etc.
 """
@@ -180,18 +181,18 @@ function calculate_dispersion_polynomial_jacobian!(
             continue
         end
 
-        this_wl = disp.ww[i] * doppler_term
+        this_ww = disp.ww[i] * doppler_term
         this_l1b_idx = disp.index[i - 1]
 
         tmp1 = this_l1b_idx ^ sve.coefficient_order
 
         idx_first = searchsortedfirst(
             swin.ww_grid,
-            this_wl + unit_fac * ISRF.ww_delta[1, this_l1b_idx]
+            this_ww + unit_fac * ISRF.ww_delta[1, this_l1b_idx]
         )
         idx_last = searchsortedfirst(
             swin.ww_grid,
-            this_wl + unit_fac * ISRF.ww_delta[end, this_l1b_idx]
+            this_ww + unit_fac * ISRF.ww_delta[end, this_l1b_idx]
         )
 
         if idx_first <= 1
@@ -208,7 +209,7 @@ function calculate_dispersion_polynomial_jacobian!(
 
         @views inst_buf.tmp2[:] .= 0.0
         @views @. this_ww_delta[:] = (
-            unit_fac * ISRF.ww_delta[:, this_l1b_idx] + this_wl
+            unit_fac * ISRF.ww_delta[:, this_l1b_idx] + this_ww
         )
 
         this_relative_response = @view ISRF.relative_response[:, this_l1b_idx]
@@ -231,15 +232,143 @@ function calculate_dispersion_polynomial_jacobian!(
             inst_buf.tmp2[i] /= swin.ww_grid[idx_first + i + 1] - swin.ww_grid[idx_first + i]
         end
 
-        dISRF_dwavelength = @view inst_buf.tmp2[1:idx_last - idx_first]
+        dISRF_dww = @view inst_buf.tmp2[1:idx_last - idx_first]
         this_data = @view data[idx_first:idx_last - 1]
 
         # Not sure why the minus here is needed (it is!), maybe check the math
         # again at some point.
         output[this_l1b_idx] = -avx_dot(
-            dISRF_dwavelength,
+            dISRF_dww,
             this_data
         ) * tmp1 / sum(this_ISRF)
+
+    end
+
+    return true
+
+end
+
+function calculate_dispersion_polynomial_jacobian!(
+    output::Vector,
+    inst_buf::InstrumentBuffer,
+    sve::DispersionPolynomialSVE,
+    ISRF::GaussISRF,
+    disp::AbstractDispersion,
+    data,
+    swin::AbstractSpectralWindow;
+    doppler_factor=0.0,
+    extend=4.0
+    )
+
+    # Get the sigma of this ISRF in units of the spectral window
+    σ = FWHM_to_sigma(ISRF.FWHM) * ISRF.FWHM_unit |> swin.ww_unit |> ustrip
+
+    # Dispatch to lowlevel function to deal with type instability better
+    return _calculate_dispersion_polynomial_jacobian_gauss!(
+        output,
+        sve.coefficient_order,
+        σ,
+        swin.ww_unit,
+        swin.ww_grid,
+        disp.ww_unit,
+        disp.ww,
+        disp.index,
+        data, # this should be called radiance or jacobian really
+        doppler_factor,
+        extend
+    )
+
+
+end
+
+
+
+function _calculate_dispersion_polynomial_jacobian_gauss!(
+    output::Vector,
+    order,
+    σ,
+    hires_unit,
+    hires_ww,
+    lores_unit,
+    lores_ww,
+    lores_index,
+    data,
+    doppler_factor,
+    extend
+    )
+
+    @assert length(data) == length(hires_ww) (
+        "Hi-res vector and hires vector grid must be same size!"
+    )
+
+    # Zero-out the output
+    output[:] .= 0
+
+    # buffer for ILS integration
+    buffer = σ * extend
+    # Unit conversion factor
+    unit_fac = 1.0 * hires_unit / lores_unit
+    unit_fac_stripped = ustrip(unit_fac)
+
+    # Depending on λ/ν, we use a different effective Doppler formula
+    doppler_term = 1.0
+    if lores_unit isa Unitful.LengthUnits
+        doppler_term = 1.0 / (1.0 + doppler_factor)
+    elseif lores_unit isa Unitful.WavenumberUnits
+        doppler_term = 1.0 + doppler_factor
+    end
+
+    for i in eachindex(lores_ww)
+
+        if i == 1
+            continue
+        end
+
+
+        this_l1b_idx = lores_index[i - 1]
+        this_ww = unit_fac_stripped * lores_ww[i] / doppler_term
+
+        # Need this factor to calculate the Jacobian for this SVE
+        tmp_val = this_l1b_idx ^ order
+
+        idx_left = Int(searchsortedfirst(hires_ww, (this_ww - buffer)))
+        idx_right = Int(searchsortedlast(hires_ww, (this_ww + buffer)))
+
+        if idx_left < 1
+            continue
+        end
+        if idx_right > length(hires_ww)
+            continue
+        end
+
+        running_sum = 0.0
+        running_sum_isrf = 0.0
+
+        for ii in idx_left:idx_right - 1
+
+            ww_left = hires_ww[ii]
+            ww_right = hires_ww[ii + 1]
+
+            # Calculate dISRF / dwavelength - we can do this analytically
+            ISRF_val_left = 1 / (σ * sqrt(2*pi)) * exp(-0.5 * (ww_left - this_ww)^2 / σ^2)
+            ∂ISRF_val_left = ISRF_val_left * (ww_left - this_ww) / σ^2
+
+            ISRF_val_right = 1 / (σ * sqrt(2*pi)) * exp(-0.5 * (ww_right - this_ww)^2 / σ^2)
+            ∂ISRF_val_right = ISRF_val_right * (ww_right - this_ww) / σ^2
+
+            running_sum += 0.5 * (
+                ∂ISRF_val_left * data[ii] +
+                ∂ISRF_val_right * data[ii + 1]
+            ) * (ww_right - ww_left)
+
+            running_sum_isrf += 0.5 * (
+                ISRF_val_left +
+                ISRF_val_right
+            ) * (ww_right - ww_left)
+
+        end
+
+        output[this_l1b_idx + 1] = tmp_val * running_sum / running_sum_isrf
 
     end
 

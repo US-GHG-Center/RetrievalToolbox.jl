@@ -273,18 +273,15 @@ mutable struct ZeroLevelOffsetPolynomialSVE{
         ) where {T1, T2}
 
         #=
-        Dynamically created unit of 1/(Length^order)
-        This is a necessary step in the inner constructor to create a type
-        which will be consistent with the order of the polynomial that this
-        state vector element represents.
+        Dynamically created unit of 1/(Length^order) This is a necessary step in the inner
+        constructor to create a type which will be consistent with the order of the
+        polynomial that this state vector element represents.
 
-        NOTE
-        At the moment, for orders > 0, the resulting coefficient unit will be
-        "radiance unit / wavelength^order". So when using e.g. "ph/s/m^2/sr/µm"
-        and "µm", the unit of the SVE will be "ph/s/m^2/sr/µm^2". Right now,
-        there is no way of dictating when Unitful cancels units, so this behavior
-        cannot be changed such that the unit will be the "more intuitive"
-        "ph/s/m^2/sr/µm/µm".
+        NOTE At the moment, for orders > 0, the resulting coefficient unit will be
+        "radiance unit / wavelength^order". So when using e.g. "ph/s/m^2/sr/µm" and "µm",
+        the unit of the SVE will be "ph/s/m^2/sr/µm^2". Right now, there is no way of
+        dictating when Unitful cancels units, so this behavior cannot be changed such that
+        the unit will be the "more intuitive" "ph/s/m^2/sr/µm/µm".
         =#
 
         new_ww_unit = supply_unit^-order
@@ -456,7 +453,7 @@ mutable struct TemperatureOffsetSVE{T <: AbstractFloat} <: AbstractStateVectorEl
 end
 
 
-mutable struct SolarWavelengthShiftSVE{T} <: AbstractStateVectorElement
+mutable struct SolarSpectralShiftSVE{T} <: AbstractStateVectorElement
 
     spectral_window::AbstractSpectralWindow
     unit::Union{Unitful.LengthUnits, Unitful.WavenumberUnits}
@@ -465,7 +462,7 @@ mutable struct SolarWavelengthShiftSVE{T} <: AbstractStateVectorElement
     prior_covariance::T
     iterations::Vector{T}
 
-    function SolarWavelengthShiftSVE(
+    function SolarSpectralShiftSVE(
         swin::AbstractSpectralWindow,
         unit,
         fg::T,
