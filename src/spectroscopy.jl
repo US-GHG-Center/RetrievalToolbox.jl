@@ -466,7 +466,9 @@ $(TYPEDSIGNATURES)
 
 A wrapper function which retrieves the absorption cross_section for a vector of
 wavelengths, and corresponding (scalar) values of temperature, pressure, H2O broadening
-VMR. It reads the needed data from a 4D ABSCO object.
+VMR. It reads the needed data from a 3D ABSCO object. Note that H2O must be supplied, even
+though it is not used - this is to make the function interface compatible with the
+ABSCO 4D table.
 
 # Details
 

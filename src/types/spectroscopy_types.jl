@@ -87,8 +87,6 @@ struct ABSCOSpectroscopy3D{
     pressures::Vector{T3}
     "Pressure unit"
     pressures_unit::Unitful.PressureUnits
-    "Broadener volume mixing ratio (unit 1)"
-    broadener_vmrs::Vector{T3}
     "Cross section array, order: λ (or ν), T, p"
     cross_section::A
     "Cross section unit (usually cm^2/molecule)"
