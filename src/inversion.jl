@@ -271,6 +271,10 @@ function get_noise!(noise, s)
 end
 
 
+# This needs to be solved more elegantly
+get_wavenumber(s) = get_wavelength(s)
+get_wavenumber(s, swin) = get_wavelength(s, swin)
+
 function get_wavelength(
     s::AbstractSolver,
     swin::AbstractSpectralWindow;
