@@ -337,67 +337,98 @@ end
 
 
 """
-Calculates the solar Doppler shift factor for a given
-`EarthLocation` and `DateTime`.
-
 $(TYPEDSIGNATURES)
 
+Calculates the solar Doppler shift for a given `EarthLocation` and `DateTime`.
 """
 function calculate_solar_doppler_shift(
     loc::EarthLocation,
-    time::DateTime,
+    dtime::DateTime,
     )
 
     # Convert to Julian date
-    jd = jdcnv(time)
+    jd = jdcnv(dtime)
 
-    # Get Earth's heliocentric velocity vector (km/s)
-    # This gives Earth's orbital velocity around Sun
-    earth_vel = baryvel(jd)[1]  # Returns [vx, vy, vz] in km/s
+    # Get Earth's heliocentric velocity (km/s)
+    earth_vel = baryvel(jd)[1]
 
-    # Get Sun's apparent position as seen from Earth
-    sunpos(jd)  # This gives solar coordinates
-
-    # Calculate Earth's rotational velocity at observer location
-    # Earth rotates 360° in sidereal day ≈ 23h 56m 4s
-    earth_radius_km = 6371.0
-    sidereal_day_sec = 86164.0905  # seconds
-
-    # Rotational velocity at latitude (km/s)
-    rot_speed = 2π * earth_radius_km * cos(deg2rad(loc.latitude)) / sidereal_day_sec
-
-    # Get Local Sidereal Time to determine rotational velocity direction
-    lst = ct2lst(loc.longitude, jd)
-
-    # Convert rotational velocity to vector components
-    # (This is simplified - more complex transformation needed for precision)
-    rot_vel_east = rot_speed  # velocity component toward East
-
-    # Get Sun's position vector (simplified)
+    # Get Sun's apparent geocentric position
     sun_ra, sun_dec = sunpos(jd)
 
-    # Convert to Cartesian coordinates for dot product
-    sun_x = cos(deg2rad(sun_dec)) * cos(deg2rad(sun_ra))
-    sun_y = cos(deg2rad(sun_dec)) * sin(deg2rad(sun_ra))
-    sun_z = sin(deg2rad(sun_dec))
-    sun_unit = [sun_x, sun_y, sun_z]
+    # Convert Sun position to unit vector in equatorial coordinates
+    sun_unit_eq = [
+        cos(deg2rad(sun_dec)) * cos(deg2rad(sun_ra)),
+        cos(deg2rad(sun_dec)) * sin(deg2rad(sun_ra)),
+        sin(deg2rad(sun_dec))
+    ]
+
+    # Calculate Earth's rotational velocity vector at observer location
+    rot_velocity_vector = _earth_rotational_velocity(loc.longitude, loc.latitude, jd)
 
     # Project Earth's orbital velocity onto Sun direction
-    orbital_component = dot(earth_vel, sun_unit)
+    orbital_component = dot(earth_vel, sun_unit_eq)
 
-    # Project rotational velocity (this is approximate)
-    # Full calculation would need proper coordinate transformations
-    rotational_component = rot_vel_east * cos(deg2rad(sun_ra - lst * 15))
+    # Project rotational velocity onto Sun direction
+    rotational_component = dot(rot_velocity_vector, sun_unit_eq)
 
-    # Total velocity toward Sun (km/s)
+    # Total velocity component toward Sun
     total_velocity = orbital_component + rotational_component
 
-    # Convert to Doppler shift (v/c)
-    c_km_s = 299792.458 # km/s
-    doppler_shift = total_velocity / c_km_s
+    # Convert to Doppler shift
+    c_km_s = SPEED_OF_LIGHT |> u"km/s" |> ustrip
+    return -total_velocity / c_km_s
 
-    # We return the negative, in our convention we must use the instrument view
-    # (i.e., the velocity towards Earth)
-    return -doppler_shift
+end
 
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the rotational velocity of a given lon/lat/time triplet on Earth. This is a
+helper function needed to calculate the solar Doppler shift.
+"""
+function _earth_rotational_velocity(longitude, latitude, jd)
+
+    # Use more precise Earth model
+    a = EARTH_RADIUS |> u"km" |> ustrip # Equatorial radius (km)
+    f = 1/298.257223563  # Flattening
+    e2 = 2*f - f^2  # First eccentricity squared
+
+    # Calculate geocentric latitude and radius
+    lat_rad = deg2rad(latitude)
+    N = a / sqrt(1 - e2 * sin(lat_rad)^2)  # Prime vertical radius
+
+    # Geocentric coordinates
+    rho = N * cos(lat_rad)  # Distance from rotation axis
+    z = N * (1 - e2) * sin(lat_rad)  # Height above equatorial plane
+
+    # Earth's rotation rate (more precise)
+    omega = 7.292115146706979e-5  # rad/s (including relativistic corrections)
+
+    # Get more precise sidereal time including nutation
+    # (AstroLib.jl may have functions for this)
+    gast = ct2lst(0.0, jd)
+
+    # Local hour angle
+    hour_angle = (gast * 15.0 - longitude) * π/180
+
+    # Rotational velocity vector in ITRF coordinates
+    v_rot = omega * rho
+
+    # Transform to equatorial coordinates (J2000)
+    # This requires proper coordinate transformation matrices
+    # including precession, nutation, and polar motion
+
+    # Simplified transformation (for full precision, use proper matrices):
+    cos_h = cos(hour_angle)
+    sin_h = sin(hour_angle)
+    cos_lat = cos(lat_rad)
+    sin_lat = sin(lat_rad)
+
+    # Velocity components in equatorial system
+    v_x = -v_rot * sin_h
+    v_y = v_rot * cos_h * cos_lat
+    v_z = v_rot * cos_h * sin_lat
+
+    return [v_x, v_y, v_z]
 end

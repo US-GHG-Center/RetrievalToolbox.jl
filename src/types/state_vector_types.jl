@@ -452,7 +452,9 @@ mutable struct TemperatureOffsetSVE{T <: AbstractFloat} <: AbstractStateVectorEl
 
 end
 
-
+"""
+NOTE! This is not implemented yet anywhere!
+"""
 mutable struct SolarSpectralShiftSVE{T} <: AbstractStateVectorElement
 
     spectral_window::AbstractSpectralWindow
