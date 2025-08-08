@@ -110,7 +110,6 @@ function calculate_solar_irradiance!(
             swin.ww_grid,
             rt.hires_solar.I
         )
-
     else
 
         throw(error("Solar model type $(typeof(solar_model)) not implemented!"))
@@ -283,18 +282,21 @@ function TSISSolarModel(
     spectral_unit=:Wavelength
     )
 
-    irradiance = ncread(fname, "SSI")
+    # Open file
+    nc = NCDataset(fname, "r")
+
+    irradiance = nc["SSI"].var[:]
     # The TSIS file has units such as
     # W m-2 nm-1, so we need to add the caret
     # such that Unitful understands them
 
     # Read the irradiance unit from the NetCDF file
-    irradiance_u  = replace(ncgetatt(fname, "SSI", "units"), "-" => "^-", " " => "*")
+    irradiance_u  = replace(nc["SSI"].attrib["units"], "-" => "^-", " " => "*")
     irradiance_unit = uparse(irradiance_u)
 
     # Read the wavelength unit from the NetCDF file
-    wavelength = ncread(fname, "Vacuum Wavelength")
-    wavelength_unit = uparse(ncgetatt(fname, "Vacuum Wavelength", "units"))
+    wavelength = nc["Vacuum Wavelength"].var[:]
+    wavelength_unit = uparse(nc["Vacuum Wavelength"].attrib["units"])
 
     # Turn wavelength into microns
     ww = ustrip.(Ref(u"µm"), wavelength * wavelength_unit)
@@ -303,8 +305,8 @@ function TSISSolarModel(
     # Convert wavelength to µm
     irradiance = ustrip.(Ref(u"W/m^2/µm"), irradiance * irradiance_unit)
 
-
     if spectral_unit == :Wavelength
+
         # Nothing to do here
 
     elseif spectral_unit == :Wavenumber
@@ -323,6 +325,9 @@ function TSISSolarModel(
     else
         @error "Unknown parameter for spectral_unit: $(spectral_unit)"
     end
+
+    # Close netCDF file before returning
+    close(nc)
 
     # Create solar model object
     return TSISSolarModel(

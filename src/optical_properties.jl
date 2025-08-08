@@ -386,12 +386,12 @@ function calculate_earth_optical_properties!(
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Calculates wavelength and layer-resolved optical depths for gaseous
 absorbers defined in the atmosphere object **atm**, for wavelengths
 given in the spectral window object **swin**. The result is a Dict
 where each key corresponds to a gas embedded in **atm**.
-
-$(TYPEDSIGNATURES)
 
 # Details
 
@@ -436,15 +436,18 @@ function calculate_gas_optical_depth_profiles!(
     # Take out gas absorbers only, we don't want aerosols or others
     gases = [c for c in atm.atm_elements if c isa GasAbsorber]
 
-    # We must only consider gas absorbers, which lie within
-    # our spectral window. Note that this only impacts which
-    # gas properties we calculate, the arrays that hold them
-    # might still exist (even though they will be zero always).
+    # We must only consider gas absorbers, which lie within our spectral window. Note that
+    # this only impacts which gas properties we calculate, the arrays that hold them might
+    # still exist (even though they will be zero always).
 
     remove_idx = []
     for i in 1:length(gases)
-        if (minimum(gases[i].spectroscopy.ww) > maximum(swin.ww_grid)) |
-            (maximum(gases[i].spectroscopy.ww) < minimum(swin.ww_grid))
+
+        min_spec_ww = minimum(gases[i].spectroscopy.ww) * gases[i].spectroscopy.ww_unit
+        max_spec_ww = maximum(gases[i].spectroscopy.ww) * gases[i].spectroscopy.ww_unit
+
+        if (min_spec_ww > maximum(swin.ww_grid) * swin.ww_unit) |
+            (max_spec_ww < minimum(swin.ww_grid) * swin.ww_unit)
 
             push!(remove_idx, i)
             @debug "[OPT] Removing gas $(gases[i]) from optical property calculations."
@@ -454,10 +457,8 @@ function calculate_gas_optical_depth_profiles!(
     # Remove the references to the gases not in this window
     deleteat!(gases, remove_idx)
 
-
     @assert length(gases) > 0 "Need at least one gas in atmosphere"
     @assert N_sublayer > 0 "Number of sub-layers must be > 0"
-
 
     if return_dVMR
         for gas in keys(opt.gas_derivatives)
@@ -510,11 +511,10 @@ function calculate_gas_optical_depth_profiles!(
 
         @debug "[OPT] Checking if gas $(this_gas.gas_name) is matched with $(swin.window_name)."
         #=
-        Check if the retrieval wavelength grid is an exact
-        subset of the spectroscopy wavelength grid.
-        Note that this does not yet account for skips,
-        e.g. if the wavelength grid is the same as the spectroscopy one,
-        but only skips every n'th point.
+        Check if the retrieval wavelength grid is an exact subset of the spectroscopy
+        wavelength grid. Note that this does not yet account for skips, e.g. if the
+        wavelength grid is the same as the spectroscopy one, but only skips every n'th
+        point.
         =#
 
         # The unit stripping is required to ensure that both spectral window
@@ -601,8 +601,7 @@ function calculate_gas_optical_depth_profiles!(
 
             # Remember, the integration within the sublayer is evaluated
             # as INTEGRAL += (this_w * INTEGRAND)
-            for (i_sub, (this_p, this_w)) in enumerate(
-                zip(p_gauss_scaled, w_gauss_scaled))
+            for (this_p, this_w) in zip(p_gauss_scaled, w_gauss_scaled)
 
                 this_p_fac = (this_p - p_higher) / (p_lower - p_higher)
 
@@ -647,27 +646,29 @@ function calculate_gas_optical_depth_profiles!(
                     # zero out
                     @views @. opt.tmp_Nhi1[:] = 0.0
 
-                    get_absorption_coefficient_value_at!(
+                    # We must ensure that the p,T,H2O coordinates are supplied with units
+                    # - this is the most convenient way at the moment to handle possible
+                    # unit discrepancies between cross section data and our own.
+                    get_cross_section_value_at!(
                         opt.tmp_Nhi1, # Output!
                         spec,
                         wl,
                         spec_wl_idx_left[this_gas],
                         is_swin_matched_with_spec[this_gas],
-                        this_p,
-                        this_T,
-                        this_H2O,
+                        this_p * atm.pressure_unit,
+                        this_T * atm.temperature_unit,
+                        this_H2O, # This is always in VMR!
                     )
 
                     # At this point, opt.tmp_Nhi1 contains σ(p, T, q)
 
-                    # Calculate the correct unit conversion factor, which all
-                    # depends on the user-supplied units to the various quantities.
-                    # This will raise an error if units do not match!
+                    # Calculate the correct unit conversion factor, which all depends on
+                    # the user-supplied units to the various quantities. This will raise
+                    # an error if units do not match!
 
-                    # NOTE
-                    # We do not account for the gas VMR units here, since that is
-                    # used directly in the lines below.
-                    # Also, VMRs are ALWAYS assumed to by dry-air mixing ratios
+                    # NOTE We do not account for the gas VMR units here, since that is
+                    # used directly in the lines below. Also, VMRs are ALWAYS assumed to
+                    # be dry-air mixing ratios
                     unit_fac = 1.0 * (
                         spec.cross_section_unit * unit(NA) * atm.pressure_unit
                         / (atm.gravity_unit * unit(MM_DRY_AIR))
@@ -700,14 +701,14 @@ function calculate_gas_optical_depth_profiles!(
                         @views @. opt.tmp_Nhi2[:] = 0.0
 
                         # Perturb temperature
-                        get_absorption_coefficient_value_at!(
+                        get_cross_section_value_at!(
                             opt.tmp_Nhi2, # Output!
                             spec,
                             wl,
                             spec_wl_idx_left[this_gas],
                             is_swin_matched_with_spec[this_gas],
-                            this_p,
-                            this_T + T_perturb, # Add some small T perturbation
+                            this_p * atm.pressure_unit,
+                            (this_T + T_perturb) * atm.temperature_unit, # Add some small T perturbation
                             this_H2O,
                         )
 
