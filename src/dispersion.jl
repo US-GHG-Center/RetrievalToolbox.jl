@@ -130,7 +130,6 @@ function update_dispersion!(
 end
 
 
-
 """
 $(TYPEDSIGNATURES)
 
@@ -154,17 +153,46 @@ function calculate_dispersion_polynomial_jacobian!(
     disp = sve.dispersion
     swin = disp.spectral_window
 
-    @assert length(data) == length(swin.ww_grid) (
+    # Call low-level high performance function
+    return _calculate_dispersion_polynomial_jacobian_table!(
+        inst_buf,
+        sve.coefficient_order,
+        ISRF,
+        swin.ww_unit,
+        swin.ww_grid,
+        disp.ww_unit,
+        disp.ww,
+        disp.index,
+        data, # this should be called radiance or jacobian really
+        doppler_factor
+    )
+
+end
+
+function _calculate_dispersion_polynomial_jacobian_table!(
+    inst_buf::InstrumentBuffer,
+    order::Integer,
+    ISRF::TableISRF,
+    hires_unit,
+    hires_ww,
+    lores_unit,
+    lores_ww,
+    lores_index,
+    data,
+    doppler_factor
+)
+    @assert length(data) == length(hires_ww) (
         "Hi-res vector and hires vector grid must be same size!"
     )
 
+    output = inst_buf.low_res_output
     # Zero-out the output
-    inst_buf.low_res_output[:] .= 0
+    output[:] .= 0
 
     # Depending on λ/ν, we use a different effective Doppler formula
-    if disp.ww_unit isa Unitful.LengthUnits
+    if lores_unit isa Unitful.LengthUnits
         doppler_term = 1.0 / (1.0 + doppler_factor)
-    elseif disp.ww_unit isa Unitful.WavenumberUnits
+    elseif lores_unit isa Unitful.WavenumberUnits
         doppler_term = 1.0 + doppler_factor
     end
 
@@ -173,25 +201,25 @@ function calculate_dispersion_polynomial_jacobian!(
 
     # Calculate the unit conversion factor between ISRF wavelength and
     # spectral window wavelength
-    unit_fac = 1.0 * ISRF.ww_delta_unit / swin.ww_unit |> NoUnits
+    unit_fac = 1.0 * ISRF.ww_delta_unit / hires_unit |> NoUnits
 
-    for i in eachindex(disp.index)
+    for i in eachindex(lores_index)
 
         if i == 1
             continue
         end
 
-        this_ww = disp.ww[i] * doppler_term
-        this_l1b_idx = disp.index[i - 1]
+        this_ww = lores_ww[i] * doppler_term
+        this_l1b_idx = lores_index[i - 1]
 
-        tmp1 = this_l1b_idx ^ sve.coefficient_order
+        tmp1 = this_l1b_idx ^ order
 
         idx_first = searchsortedfirst(
-            swin.ww_grid,
+            hires_ww,
             this_ww + unit_fac * ISRF.ww_delta[1, this_l1b_idx]
         )
         idx_last = searchsortedfirst(
-            swin.ww_grid,
+            hires_ww,
             this_ww + unit_fac * ISRF.ww_delta[end, this_l1b_idx]
         )
 
@@ -199,7 +227,7 @@ function calculate_dispersion_polynomial_jacobian!(
             continue
         end
 
-        if idx_last > length(swin.ww_grid)
+        if idx_last > length(hires_ww)
             continue
         end
 
@@ -213,7 +241,7 @@ function calculate_dispersion_polynomial_jacobian!(
         )
 
         this_relative_response = @view ISRF.relative_response[:, this_l1b_idx]
-        this_hires_wl = @view swin.ww_grid[idx_first:idx_last]
+        this_hires_wl = @view hires_ww[idx_first:idx_last]
 
         # Interpolate ISRF to grid!
         pwl_value_1d!(
@@ -229,7 +257,7 @@ function calculate_dispersion_polynomial_jacobian!(
         # Calculate dISRF / dwavelength
         for i in 1:length(this_ISRF) - 1
             inst_buf.tmp2[i] = this_ISRF[i + 1] - this_ISRF[i]
-            inst_buf.tmp2[i] /= swin.ww_grid[idx_first + i + 1] - swin.ww_grid[idx_first + i]
+            inst_buf.tmp2[i] /= hires_ww[idx_first + i + 1] - hires_ww[idx_first + i]
         end
 
         dISRF_dww = @view inst_buf.tmp2[1:idx_last - idx_first]
@@ -237,7 +265,7 @@ function calculate_dispersion_polynomial_jacobian!(
 
         # Not sure why the minus here is needed (it is!), maybe check the math
         # again at some point.
-        inst_buf.low_res_output[this_l1b_idx] = -avx_dot(
+        output[this_l1b_idx] = -avx_dot(
             dISRF_dww,
             this_data
         ) * tmp1 / sum(this_ISRF)
