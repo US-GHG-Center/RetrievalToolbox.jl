@@ -249,23 +249,27 @@ function calculate_dispersion_polynomial_jacobian!(
 end
 
 function calculate_dispersion_polynomial_jacobian!(
-    output::Vector,
     inst_buf::InstrumentBuffer,
     sve::DispersionPolynomialSVE,
     ISRF::GaussISRF,
-    disp::AbstractDispersion,
-    data,
-    swin::AbstractSpectralWindow;
+    data;
     doppler_factor=0.0,
     extend=4.0
     )
+
+    # Zero out the output
+    inst_buf.low_res_output[:] .= 0
+
+    # Extract the correct dispersion object and spectral window from SVE
+    disp = sve.dispersion
+    swin = disp.spectral_window
 
     # Get the sigma of this ISRF in units of the spectral window
     σ = FWHM_to_sigma(ISRF.FWHM) * ISRF.FWHM_unit |> swin.ww_unit |> ustrip
 
     # Dispatch to lowlevel function to deal with type instability better
     return _calculate_dispersion_polynomial_jacobian_gauss!(
-        output,
+        inst_buf.low_res_output,
         sve.coefficient_order,
         σ,
         swin.ww_unit,
@@ -323,7 +327,6 @@ function _calculate_dispersion_polynomial_jacobian_gauss!(
         if i == 1
             continue
         end
-
 
         this_l1b_idx = lores_index[i - 1]
         this_ww = unit_fac_stripped * lores_ww[i] / doppler_term

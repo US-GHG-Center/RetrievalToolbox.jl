@@ -95,18 +95,26 @@ function solar_scaler_statevector_update!(
         return
     end
 
+    # The spectral window attached to this RT object
+    rt_swin = rt.optical_properties.spectral_window
 
-    idx_half = Int(floor(rt.optical_properties.spectral_window.N_hires // 2))
+    idx_half = Int(floor(rt_swin.N_hires // 2))
     # Bind to temp array
     delta_wl = rt.optical_properties.tmp_Nhi1
     @views delta_wl[:] .= 0.0
 
-    @views @. delta_wl[:] = rt.optical_properties.spectral_window.ww_grid[:] -
-            rt.optical_properties.spectral_window.ww_grid[idx_half]
+    @views @. delta_wl[:] = rt_swin.ww_grid[:] - rt_swin.ww_grid[idx_half]
 
     @views rt.solar_scaler[:] .= 0.0
 
+
+
     for (idx, sve) in StateVectorIterator(sv, SolarScalerPolynomialSVE)
+
+        # Must skip SVEs that DO NOT attach to the spectral window of this RT object!
+        if !(sve.swin === rt_swin)
+            continue
+        end
 
         c = sve.iterations[end]
         @turbo for i in eachindex(rt.solar_scaler)

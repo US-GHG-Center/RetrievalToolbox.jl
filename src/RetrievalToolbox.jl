@@ -11,7 +11,7 @@ using Interpolations
 using Lazy
 using LinearAlgebra
 using LoopVectorization
-using NetCDF
+using NCDatasets
 using Polynomials
 using PrettyTables
 using Printf

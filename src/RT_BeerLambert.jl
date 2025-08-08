@@ -641,10 +641,12 @@ function calculate_rt_jacobian!(
     sve::SolarScalerPolynomialSVE
     )
 
+
     # This calculation is not dependent on the observer type
     swin = rt.optical_properties.spectral_window
 
     if swin === sve.swin
+
         # Only perform the Jacobian calculation if this
         # SVE points to the RT spectral window!
 
@@ -667,6 +669,7 @@ function calculate_rt_jacobian!(
         jac.I[:] .= 0
 
     end
+
 
 end
 

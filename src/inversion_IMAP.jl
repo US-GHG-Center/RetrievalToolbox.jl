@@ -44,24 +44,8 @@ function next_iteration!(s::IMAPSolver; fm_kwargs=())
     # Compute change in state vector
     # (Rodgers 2000, eq. 5.9 on page 85)
 
-    # Compile the measurement vector for the windows
-    # Note that this requires the dispersion!
-    N = map(length, values(s.indices)) |> sum
-
-    #= Important note!
-        At the moment, we assume that all of our retrievals only
-        care about intensity in the end, meaning that our detectors count
-        photons, and not measure the polarization state. As such, the insrument's
-        polarization sensitivity must be accounted for by the user, and collapsed
-        into a ScalarRadiance object in the end.
-    =#
-    measured = zeros(N);
-    modelled = zeros(N);
-
-    for (swin, indices) in s.indices
-        @views measured[indices] = get_measured(s, swin)
-        @views modelled[s.indices[swin]] = get_modeled(s, swin)
-    end
+    measured = get_measured(s)
+    modelled = get_modeled(s)
 
     delta_sv = Shat * (K' * Se_inv) *
         (measured - modelled + (K * (sv_this - sv_ap)))
