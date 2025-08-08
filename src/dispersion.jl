@@ -144,22 +144,22 @@ polynomial order `i`, i = 0 meaning a flat dispersion, i = 1 is a linearly varyi
 etc.
 """
 function calculate_dispersion_polynomial_jacobian!(
-    output::Vector,
     inst_buf::InstrumentBuffer,
     sve::DispersionPolynomialSVE,
     ISRF::TableISRF,
-    disp::AbstractDispersion,
-    data::AbstractVector,
-    swin::AbstractSpectralWindow;
+    data::AbstractVector;
     doppler_factor=0.0
     )
+
+    disp = sve.dispersion
+    swin = disp.spectral_window
 
     @assert length(data) == length(swin.ww_grid) (
         "Hi-res vector and hires vector grid must be same size!"
     )
 
     # Zero-out the output
-    output[:] .= 0
+    inst_buf.low_res_output[:] .= 0
 
     # Depending on λ/ν, we use a different effective Doppler formula
     if disp.ww_unit isa Unitful.LengthUnits
@@ -237,7 +237,7 @@ function calculate_dispersion_polynomial_jacobian!(
 
         # Not sure why the minus here is needed (it is!), maybe check the math
         # again at some point.
-        output[this_l1b_idx] = -avx_dot(
+        inst_buf.low_res_output[this_l1b_idx] = -avx_dot(
             dISRF_dww,
             this_data
         ) * tmp1 / sum(this_ISRF)
