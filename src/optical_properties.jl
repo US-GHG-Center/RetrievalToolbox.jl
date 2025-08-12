@@ -413,6 +413,14 @@ function calculate_gas_optical_depth_profiles!(
     do_only_last_layer = false,
     )
 
+
+    # Checking for zero-value gravity!
+    if any(atm.gravity_levels .≈ 0)
+        @warn "Found a zero-valued gravity level! RESULTS WILL BE `Inf`!"
+        @warn "Make sure you called `calculate_altitude_and_gravity!` beforehand!"
+    end
+
+
     # N-point Gauss rule for the sub-layer integration.
     # Calculate the x_i and w_i only once,
     # and then cheaply scale them to the appropriate integration limits
