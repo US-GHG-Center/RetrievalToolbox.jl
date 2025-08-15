@@ -1,8 +1,10 @@
 """
-    Evaluates a polynomial surface at all spectral points indicated by the attached
-    spectral window. This function is very quick if the surface needs to be evaluated for
-    all points in the spectral window, as opposed to calling `evalute_surface_at_idx!`
-    repeatedly.
+$(TYPEDSIGNATURES)
+
+Evaluates a polynomial surface at all spectral points indicated by the attached
+spectral window. This function is very quick if the surface needs to be evaluated for
+all points in the spectral window, as opposed to calling `evalute_surface_at_idx!`
+repeatedly.
 """
 function evaluate_surface!(
     out::AbstractVector,
@@ -60,12 +62,10 @@ end
 
 
 """
-
-Calculates surface reflectivity due to a Lambertian
-surface and stores it in-place into vector `R`.
-
 $(TYPEDSIGNATURES)
 
+Calculates surface reflectivity due to a Lambertian surface and stores it in-place into
+vector `R`.
 """
 function calculate_surface_reflectivity!(
     R::AbstractVector,

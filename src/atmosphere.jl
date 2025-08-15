@@ -7,13 +7,13 @@ levels, meteorological grid levels, array type `T` as well as units for the prof
 function create_empty_EarthAtmosphere(
     Nlev::Integer,
     Nlev_met::Integer,
-    T::Type{<:Real},
-    pressure_unit::Unitful.PressureUnits,
-    met_pressure_unit::Unitful.PressureUnits,
-    temperature_unit::Unitful.Units{U, Unitful.𝚯, nothing} where U,
-    specific_humidity_unit::Unitful.DimensionlessUnits,
-    altitude_unit::Unitful.LengthUnits,
-    gravity_unit::Unitful.AccelerationUnits
+    T::Type{<:Real};
+    pressure_unit::Unitful.PressureUnits=u"Pa",
+    met_pressure_unit::Unitful.PressureUnits=u"Pa",
+    temperature_unit::Unitful.Units{U, Unitful.𝚯, nothing} where U=u"K",
+    specific_humidity_unit::Unitful.DimensionlessUnits=u"kg/kg",
+    altitude_unit::Unitful.LengthUnits=u"km",
+    gravity_unit::Unitful.AccelerationUnits=u"m/s^2"
     )
 
     # Create an empty vector for atmosphere elements
