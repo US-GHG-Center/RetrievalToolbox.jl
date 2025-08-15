@@ -71,7 +71,7 @@ using RetrievalToolbox
 
 ## Learning
 
-We are working on finalizing a set of tutorials for new users that introduce the basic concepts of RetrievalToolbox. Once ready, they will be linked here.
+A few tutorials (work in progress) can be found [here](https://petersomkuti.github.io/RetrievalToolbox-Tutorials/).
 
 ## Citing RetrievalToolbox
 
