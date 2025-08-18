@@ -49,7 +49,8 @@ struct SpectralWindow{
         # Check ww array to be covering [ww_min, ww_max]
         @assert ww_min > ww_grid[1] "First element of hires array must be > min! " *
             "($(ww_min) must be > $(ww_grid[1]))"
-        @assert ww_max < ww_grid[end] "Last element of hires array must be > max!"
+        @assert ww_max < ww_grid[end] "Last element of hires array must be > max!" *
+            "($(ww_max) must be > $(ww_grid[end]))"
 
         # ww should be sorted
         @assert issorted(ww_grid) "Hires array must be sorted!"

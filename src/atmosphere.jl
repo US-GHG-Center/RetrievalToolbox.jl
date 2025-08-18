@@ -977,13 +977,13 @@ function create_example_atmosphere(
     atm = create_empty_EarthAtmosphere(
         Nlev, # Number of retrieval pressure levels
         Nlev_met, # Number of met pressure levels
-        T, # Number type
-        csv_units[:pressure], # Retrieval grid pressure unit
-        csv_units[:pressure], # Met grid pressure unit
-        csv_units[:temperature], # Temperature unit
-        csv_units[:specific_humidity], # Specific humidity unit
-        csv_units[:altitude], # Altitude unit
-        u"m/s^2" # Gravity unit
+        T; # Number type
+        pressure_unit=csv_units[:pressure], # Retrieval grid pressure unit
+        met_pressure_unit=csv_units[:pressure], # Met grid pressure unit
+        temperature_unit=csv_units[:temperature], # Temperature unit
+        specific_humidity_unit=csv_units[:specific_humidity], # Specific humidity unit
+        altitude_unit=csv_units[:altitude], # Altitude unit
+        gravity_unit=u"m/s^2" # Gravity unit
     )
 
     ingest!(atm, :met_pressure_levels,

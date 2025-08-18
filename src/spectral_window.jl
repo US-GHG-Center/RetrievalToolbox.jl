@@ -11,7 +11,18 @@ function get_scattering_index(swin::BinnedSpectralWindow)
 end
 
 
+"""
+$(TYPEDSIGNATURES)
 
+Procudes a `SpectralWindow` object given a name, min and max window edges, as well as a
+spectral reference, a window buffer length, spectral units and a reference ABSCO object.
+The resuling spectral grid will match the underlying ABSCO grid, such that optical
+property calculations can be performed without having to do any spectral interpolation of
+the spectroscopy.
+
+Note: This function currently extends the high-res grid by a few points to make the total
+high-res grid divisible by 4 to allow for some low-level optimization.
+"""
 function spectralwindow_from_ABSCO(
     name,
     ww_min::AbstractFloat,
@@ -46,7 +57,10 @@ function spectralwindow_from_ABSCO(
     # of the ABSCO itself.
     ww_stop = min(ww_stop, length(absco.ww))
 
-    ww = absco.ww[ww_start:skip:ww_stop]
+    # We have to perform a unit conversion here!
+    ww_unit_fac = 1.0 * absco.ww_unit |> ww_unit |> ustrip
+
+    ww = absco.ww[ww_start:skip:ww_stop] * ww_unit_fac
 
     return SpectralWindow(
         name,

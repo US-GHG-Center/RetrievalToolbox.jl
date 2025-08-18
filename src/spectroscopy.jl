@@ -215,13 +215,21 @@ function load_ABSCOAER_spectroscopy(
         @error "Problem with cross section unit - I do not understand the supplied unit!"
     end
 
+    # Reverse array order to be increasing in wavelength
+    if spectral_unit == :Wavelength
+        reverse!(ww)
+    end
+
     # For now, we only understand broadening due to water vapor - but only if available!
     # Remember - we have to flip the cross section table also, so that it follows our
     # convention with the first element being the lowest-pressure one.
-
     if "H2O_VMR" in NCDatasets.listVar(nc.ncid)
         broadener_vmrs = nc["H2O_VMR"].var[:]
+
         cross_section = nc["Cross_Section"].var[:,end:-1:1,:,:]
+        if spectral_unit == :Wavelength
+            reverse!(cross_section, dims=1)
+        end
         close(nc)
 
         return ABSCOAERSpectroscopy4D(
@@ -242,6 +250,9 @@ function load_ABSCOAER_spectroscopy(
     else
 
         cross_section = nc["Cross_Section"].var[end:-1:1,:,:]
+        if spectral_unit == :Wavelength
+            reverse!(cross_section, dims=1)
+        end
         close(nc)
 
         return ABSCOAERSpectroscopy3D(
