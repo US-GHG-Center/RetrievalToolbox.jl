@@ -226,9 +226,12 @@ function load_ABSCOAER_spectroscopy(
     if "H2O_VMR" in NCDatasets.listVar(nc.ncid)
         broadener_vmrs = nc["H2O_VMR"].var[:]
 
+        # In the netCDF file, the CS is stored in order of: H2O, pressure, temp, spectral
+        # (Remember to flip in pressure direction!)
         cross_section = nc["Cross_Section"].var[:,end:-1:1,:,:]
         if spectral_unit == :Wavelength
-            reverse!(cross_section, dims=1)
+            @debug "[SPEC] Reversing spectral grid to be increasing in wavelength!"
+            reverse!(cross_section, dims=4)
         end
         close(nc)
 
@@ -249,9 +252,12 @@ function load_ABSCOAER_spectroscopy(
 
     else
 
+        # In the netCDF file, the CS is stored in order of: pressure, temp, spectral
+        # (Remember to flip in pressure direction!)
         cross_section = nc["Cross_Section"].var[end:-1:1,:,:]
         if spectral_unit == :Wavelength
-            reverse!(cross_section, dims=1)
+            @debug "[SPEC] Reversing spectral grid to be increasing in wavelength!"
+            reverse!(cross_section, dims=3)
         end
         close(nc)
 
