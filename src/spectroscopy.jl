@@ -228,7 +228,15 @@ function load_ABSCOAER_spectroscopy(
 
         # In the netCDF file, the CS is stored in order of: H2O, pressure, temp, spectral
         # (Remember to flip in pressure direction!)
-        cross_section = nc["Cross_Section"].var[:,end:-1:1,:,:]
+        if distributed
+            # Create a SharedArray
+            cross_section = SharedArray{eltype(nc["Cross_Section"].var)}(
+                size(nc["Cross_Section"])...)
+            # .. fill with values (we know this is 4D)
+            cross_section[:,:,:,:] = nc["Cross_Section"].var[:,end:-1:1,:,:]
+        else
+            cross_section = nc["Cross_Section"].var[:,end:-1:1,:,:]
+        end
         if spectral_unit == :Wavelength
             @debug "[SPEC] Reversing spectral grid to be increasing in wavelength!"
             reverse!(cross_section, dims=4)
@@ -254,7 +262,16 @@ function load_ABSCOAER_spectroscopy(
 
         # In the netCDF file, the CS is stored in order of: pressure, temp, spectral
         # (Remember to flip in pressure direction!)
-        cross_section = nc["Cross_Section"].var[end:-1:1,:,:]
+        if distributed
+            # Create a SharedArray
+            cross_section = SharedArray{eltype(nc["Cross_Section"].var)}(
+                size(nc["Cross_Section"])...)
+            # .. fill with values (we know this is 3D)
+            cross_section[:,:,:] = nc["Cross_Section"].var[end:-1:1,:,:]
+        else
+            cross_section = nc["Cross_Section"].var[end:-1:1,:,:]
+        end
+
         if spectral_unit == :Wavelength
             @debug "[SPEC] Reversing spectral grid to be increasing in wavelength!"
             reverse!(cross_section, dims=3)
