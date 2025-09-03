@@ -71,17 +71,16 @@ function EarthAtmosphereBuffer(
 
     # Create an empty EarthAtmosphere
     # This is shared between ALL spectral windows
-
     atmosphere = create_empty_EarthAtmosphere(
         N_level,
         N_met_level,
         T,
-        u"Pa",
-        u"Pa",
-        u"K",
-        u"kg/kg",
-        u"m",
-        u"m/s^2"
+        pressure_unit=u"Pa",
+        met_pressure_unit=u"Pa",
+        temperature_unit=u"K",
+        specific_humidity_unit=u"kg/kg",
+        altitude_unit=u"m",
+        gravity_unit=u"m/s^2"
     )
 
     # Atmosphere elements into `atmosphere` object

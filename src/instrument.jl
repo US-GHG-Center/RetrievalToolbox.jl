@@ -111,8 +111,8 @@ function _apply_tableisrf_to_spectrum_lowlevel!(
 
         if (idx_first >= idx_max) || (idx_last >= idx_max)
             @error "[INST] Sorry - idx_first larger than idx_max or last larger then max"
-            @debug "[INST] Sample $(i) at $(this_ww), idx_first: $(idx_first), idx_max: $(idx_max)"
-            @debug "[INST] Sample $(i) at $(this_ww), idx_last: $(idx_last), idx_max: $(idx_max)"
+            @error "[INST] Sample $(i) at $(this_ww), idx_first: $(idx_first), idx_max: $(idx_max)"
+            @error "[INST] Sample $(i) at $(this_ww), idx_last: $(idx_last), idx_max: $(idx_max)"
             @error "[INST] Try increasing the buffer of the spectral window!"
             return false
         end
