@@ -122,7 +122,7 @@ end
 """
 Creates the ACOS-type pressure grid on 20 levels
 
-$(SIGNATURES)
+$(TYPEDSIGNATURES)
 
 """
 function create_ACOS_pressure_grid(
@@ -918,27 +918,9 @@ function list_example_atmospheres()
 end
 
 
-"""
-$(TYPEDSIGNATURES)
-
-Creates an `EarthAtmosphere` object based on some representative atmospheres that were
-extracted from NASA GMAO's MERRA2 reanalysis and Sourish Basu's CO2/CH4. Must provide the
-name of the example atmosphere `name` as well as the intended number of pressure levels
-for the retrieval grid, `Nlev`, to be filled out be the user later.
-"""
-function create_example_atmosphere(
-    name::String,
-    Nlev::Integer;
-    T::Type{<:Real}=Float64,
-    surface_pressure::Union{Float64, Nothing}=nothing,
-    altitude::Union{Float64, Nothing}=nothing
-    )
-
-    if !isnothing(surface_pressure) & !isnothing(altitude)
-        throw(ArgumentError(
-            "[ATMOS] Must not provide BOTH surface pressure AND altitude. Choose one."
-            ))
-    end
+function _read_example_contents(
+    name::String
+)
 
     fname = joinpath(@__DIR__, "..", "data", "atmospheres", "$(name).csv")
 
@@ -970,6 +952,38 @@ function create_example_atmosphere(
     # Note that the units are in the same order as the csv columns, so we can make
     # a helpful dict here that keeps the units easily accessible.
     csv_units = Dict(csv.names[i] => units_list[i] for i in 1:csv.cols)
+
+    return csv, csv_units
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Creates an `EarthAtmosphere` object based on some representative atmospheres that were
+extracted from NASA GMAO's MERRA2 reanalysis and Sourish Basu's CO2/CH4. Must provide the
+name of the example atmosphere `name` as well as the intended number of pressure levels
+for the retrieval grid, `Nlev`, to be filled out be the user later.
+
+Optional arguments are `surface_pressure` or `altitude` (must choose one or none, never
+both) to adjust the model atmosphere accordingly.
+"""
+function create_example_atmosphere(
+    name::String,
+    Nlev::Integer;
+    T::Type{<:Real}=Float64,
+    surface_pressure::Union{Float64, Nothing}=nothing,
+    altitude::Union{Float64, Nothing}=nothing
+    )
+
+    if !isnothing(surface_pressure) & !isnothing(altitude)
+        throw(ArgumentError(
+            "[ATMOS] Must not provide BOTH surface pressure AND altitude. Choose one."
+            ))
+    end
+
+    csv, csv_units = _read_example_contents(name)
 
     Nlev_met = length(csv)
 
@@ -1003,4 +1017,60 @@ function create_example_atmosphere(
     calculate_layers!(atm)
 
     return atm
+end
+
+"""
+
+"""
+function create_example_gas_profile(
+    name::String,
+    gas_name::String,
+    spec::AbstractSpectroscopy,
+    plevels::Vector{<:Unitful.Pressure}
+    )
+
+    # Read the contents of the example atmosphere
+    csv, csv_units = _read_example_contents(name)
+
+    # Is the wanted gas name present?
+    # (example atmosphere gases are always lower-case)
+    gas_present = false
+
+    gas_symbol = Symbol(lowercase(gas_name))
+
+    # Special case: user wants H2O, which is related to humidity q
+    if (gas_symbol in csv.names) | (gas_symbol == :h2o)
+        gas_present = true
+    end
+
+    # Get the native pressure levels
+    example_pressure = csv.lookup[:pressure].column * csv_units[:pressure]
+
+    if gas_symbol == :h2o
+        q = csv[:specific_humidity] * csv_units[:specific_humidity]
+        example_gas_column = specific_humidity_to_H2O_VMR.(q)
+        column_units = Unitful.NoUnits
+    else
+        # Reference to gas column at native pressure levels
+        example_gas_column = csv.lookup[gas_symbol].column
+        column_units = csv_units[gas_symbol]
+    end
+    # Create interpolation object
+    itp = linear_interpolation(example_pressure, example_gas_column,
+        extrapolation_bc = Flat())
+
+    # Sampled gas profile at user-specified pressure levels
+    # (unit conversion is done here, if needed)
+    sampled_gas_profile = itp.(plevels)
+
+    # Create the new gas object
+    gas = GasAbsorber(
+        gas_name,
+        spec,
+        sampled_gas_profile,
+        column_units
+        )
+
+    return gas
+
 end

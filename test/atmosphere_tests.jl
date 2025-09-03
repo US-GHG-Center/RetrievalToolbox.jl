@@ -8,6 +8,7 @@
     # We will do the following tests for ALL atmospheres!
     for atmos in atmos_names
 
+        # Create empty atmosphere with default unit types
         atm = create_example_atmosphere(atmos, 10)
         # Make sure the type is right
         @test atm isa EarthAtmosphere
