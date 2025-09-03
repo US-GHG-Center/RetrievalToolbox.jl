@@ -34,7 +34,13 @@ function next_iteration!(s::IMAPSolver; fm_kwargs=())
 
     K = create_K_from_solver(s)
     Shat_inv = Sa_inv + K' * (Se_inv * K)
-    Shat = inv(Shat_inv)
+    Shat = try
+        inv(Shat_inv)
+    catch e
+        # Inversion fails (this might happen due to bad Jacobians)
+        @error "$(e)"
+        return false
+    end
 
     # Current and last state vector as "proper" vector
     sv_ap = get_prior_value(s.state_vector)
