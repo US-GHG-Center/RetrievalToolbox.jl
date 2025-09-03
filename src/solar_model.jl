@@ -79,6 +79,16 @@ function calculate_solar_irradiance!(
         y = y * solar_scaler
     =#
 
+
+    # Scale factor to account for unit differences! This must be applied before the
+    # `pwl_value` operation, and then we revert!
+
+    unit_fac = 1.0 * solar_model.ww_unit / swin.ww_unit |> upreferred
+    @turbo for i in eachindex(solar_model.ww)
+        solar_model.ww[i] *= unit_fac
+    end
+
+
     if solar_model isa OCOHDFSolarModel
         # Sample the solar spectrum at our Doppler-influenced
         # retrieval wavelength grid
@@ -111,10 +121,19 @@ function calculate_solar_irradiance!(
             rt.hires_solar.I
         )
     else
-
+        # Revert solar model spectral grid unit before throwing.
+        @turbo for i in eachindex(solar_model.ww)
+            solar_model.ww[i] /= unit_fac
+        end
         throw(error("Solar model type $(typeof(solar_model)) not implemented!"))
 
     end
+
+    # Revert solar model spectral grid unit..
+    @turbo for i in eachindex(solar_model.ww)
+        solar_model.ww[i] /= unit_fac
+    end
+
 
     # Apply the solar scaler
     @turbo for i in eachindex(rt.hires_solar.I)

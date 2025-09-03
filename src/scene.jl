@@ -28,7 +28,7 @@ function surfaces_statevector_update!(
     # Update BRDF kernels, if applicable
     for (idx, sve) in StateVectorIterator(SV, BRDFPolynomialSVE)
         # Is this the correct spectral window and is the surface a BRDF kernel?
-        if (sve.swin in keys(scene.surfaces)) & 
+        if (sve.swin in keys(scene.surfaces)) &
             (scene.surfaces[sve.swin] isa BRDFSurface)
 
             # Loop through the kernels
@@ -69,4 +69,38 @@ function get_surface(
         return scene.surfaces[swin.original_window]
     end
 
+end
+
+
+
+function calculate_solar_angles(longitude, latitude, datetime)
+    # Convert DateTime to Julian Date
+    jd = jdcnv(datetime)
+
+    # Calculate solar position
+    # sunpos returns [apparent_ra, apparent_dec, true_ra, true_dec, apparent_longitude]
+    ra, dec = sunpos(jd)
+
+    # Calculate hour angle and other parameters needed for zenith/azimuth
+    # You'll need to convert to local solar time
+    lst = ct2lst(longitude, jd)  # Local Sidereal Time
+
+    # Calculate zenith and azimuth angles
+    zenith, azimuth = eq2hor(ra, dec, jd, latitude, longitude)
+
+    return zenith, azimuth
+end
+
+function update_solar_angles!(scene::EarthScene)
+
+    loc = scene.location
+
+    # Calculate!
+    sza, saa = calculate_solar_angles(loc.longitude, loc.latitude, scene.time)
+
+    # Update!
+    scene.solar_zenith = sza
+    scene.solar_azimuth = saa
+
+    return nothing
 end
