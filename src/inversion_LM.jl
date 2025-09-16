@@ -153,17 +153,17 @@ function next_iteration!(
         elseif (R > 0.0001) & (R < 0.25) & (s.gamma < 1e4)
             # Non-linear regime -> Increase γ to make step size smaller
             s.gamma *= 10
-            @info "R: $(R), γ: $(s.gamma)"
+            @debug "R: $(R), γ: $(s.gamma)"
         elseif (R > 0.25) & (R < 0.75)
             # No change
-            @info "R: $(R), γ: $(s.gamma)"
+            @debug "R: $(R), γ: $(s.gamma)"
         elseif R > 0.75
             # Linear regime -> Reduce γ to move closer to Gauss-Newton
             s.gamma /= 2
-            @info "R: $(R), γ: $(s.gamma)"
+            @debug "R: $(R), γ: $(s.gamma)"
         else
-            @info "No update to γ .. just keep iterating .."
-            @info "R: $(R), γ: $(s.gamma)"
+            @debug "No update to γ .. just keep iterating .."
+            @debug "R: $(R), γ: $(s.gamma)"
         end
 
     end # End if (iteration > 1)
