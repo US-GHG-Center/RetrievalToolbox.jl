@@ -918,11 +918,17 @@ function list_example_atmospheres()
 end
 
 
-function _read_example_contents(
-    name::String
-)
+function _read_example_contents(name::String; is_example=true)
 
-    fname = joinpath(@__DIR__, "..", "data", "atmospheres", "$(name).csv")
+    if is_example
+        # When reading an example, we look into the internal directory of wherever
+        # our code is stored
+        fname = joinpath(@__DIR__, "..", "data", "atmospheres", "$(name).csv")
+    else
+        # Otherwise, we believe the user wants to read a file, so we will treat
+        # `name` as an actual filename
+        fname = name
+    end
 
     if !isfile(fname)
         throw(ErrorException(
@@ -974,7 +980,8 @@ function create_example_atmosphere(
     Nlev::Integer;
     T::Type{<:Real}=Float64,
     surface_pressure::Union{Float64, Nothing}=nothing,
-    altitude::Union{Float64, Nothing}=nothing
+    altitude::Union{Float64, Nothing}=nothing,
+    is_example=true
     )
 
     if !isnothing(surface_pressure) & !isnothing(altitude)
@@ -983,7 +990,7 @@ function create_example_atmosphere(
             ))
     end
 
-    csv, csv_units = _read_example_contents(name)
+    csv, csv_units = _read_example_contents(name; is_example=is_example)
 
     Nlev_met = length(csv)
 
@@ -1026,11 +1033,12 @@ function create_example_gas_profile(
     name::String,
     gas_name::String,
     spec::AbstractSpectroscopy,
-    plevels::Vector{<:Unitful.Pressure}
+    plevels::Vector{<:Unitful.Pressure};
+    is_example=true
     )
 
     # Read the contents of the example atmosphere
-    csv, csv_units = _read_example_contents(name)
+    csv, csv_units = _read_example_contents(name; is_example=is_example)
 
     # Is the wanted gas name present?
     # (example atmosphere gases are always lower-case)

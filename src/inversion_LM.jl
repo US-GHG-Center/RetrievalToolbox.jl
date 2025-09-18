@@ -86,7 +86,7 @@ function next_iteration!(
             # Non-linear regime, and divergent step -> iincrease γ
             s.gamma *= 10
             s.divergent_steps += 1
-            @info "Divergent step! R: $(R), γ: $(s.gamma)"
+            @debug "Divergent step! R: $(R), γ: $(s.gamma)"
 
             # Remove the constfunction values that we pushed in, as well as the
             # values we stored during the evaluation of the last iteration, which
