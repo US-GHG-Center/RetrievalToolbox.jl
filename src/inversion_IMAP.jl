@@ -82,7 +82,7 @@ $(TYPEDSIGNATURES)
 function check_convergence(s::IMAPSolver; verbose=false)
 
     # Need at least one iteration to check for convergence
-    if length(s.state_vector.state_vector_elements[1].iterations) == 1
+    if get_iteration_count(s) == 1
         return false
     end
 
@@ -113,8 +113,9 @@ function check_convergence(s::IMAPSolver; verbose=false)
     if verbose
         @info "[INV] Δσ² = $(dsigma_square) ($(length(s.state_vector) * s.dsigma_scale))"
     end
-     # Scale by user-defined value (dsigma_scale) and see if it meets
-    # our convergence criterion.
+
+    # Scale by user-defined value (dsigma_scale) and see if it meets our convergence
+    # criterion.
     return dsigma_square < length(s.state_vector) * s.dsigma_scale
 
 end
@@ -145,21 +146,39 @@ function calculate_OE_quantities(s::IMAPSolver)
 
     # Grab inverse of prior covariance needed for Kᵀ Se⁻¹ K + Sa⁻¹
     Sa_inv = inv(s.prior_covariance)
+
     # Instrument noise covariance
     Se = create_Se_from_solver(s)
     Se_inv = inv(Se)
     # Create jacobian matrix
     K = create_K_from_solver(s)
+
     # Calculate inverse of posterior covariance matrix
     Shat_inv = Sa_inv + K' * (Se_inv * K)
-    Shat = inv(Shat_inv)
+
+    Shat = try
+        inv(Shat_inv)
+    catch
+        @error "[INV] Could not invert posterior covariance matrix."
+        return nothing
+    end
+
+    if any(diag(Shat) .< 0)
+        # Return if diag(Shat) has negative values, which, by definition should not
+        # happen. Ergo, the linear algebra went wrong somewhere, so we can exit here
+        # and let the user know something went wrong.
+        @error "[INV] Negative values in posterior covariance diagonal."
+        return nothing
+    end
+
+
     # Calculate gain matrix
     G = Shat * K' * Se_inv
     # Calculate averaging kernel matrix
     AK = G * K
 
-    # State vector "error" (uncertainty) taken straight
-    # from the diagonal elements of Shat.
+    # State vector "error" (uncertainty) taken straight from the diagonal elements of
+    # Shat. This could throw an error if Shat has negative diagonal entries.
     SV_ucert = sqrt.(diag(Shat))
 
     # Uncertainty due to (random) instrument noise
