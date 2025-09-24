@@ -102,6 +102,25 @@ function calculate_rayleigh_sigma(
 
 end
 
+
+#=
+    NOTE
+    ====
+
+    Below functions are "doubling up" a little and define Rayleigh calculations for both
+    wavelength and wavenumbers. This is mostly for performance reasons; it guarantees
+    type stability for the wavenumber of wavelength quantity. One could write one function
+    only that checks the type inside the function, but this would make the function
+    likely slower. So for the sake of performance, we have wrapper functions for both
+    wavelength and wavenumber spectral units. HOWEVER there is only *one* function that
+    actually implements the Rayleigh coefficient calculations, so there is one place
+    where mistakes can occur there..
+
+=#
+
+
+
+
 function create_rayleigh_coefs(
     wn::Unitful.Wavenumber,
     polarized::Bool
@@ -113,8 +132,7 @@ function create_rayleigh_coefs(
         coef = zeros(3, 1)
     end
 
-    wl = 1 / wn |> u"µm"
-    create_rayleigh_coefs!(coef, wl, polarized)
+    create_rayleigh_coefs!(coef, wn, polarized)
 
     return coef
 
@@ -137,6 +155,19 @@ function create_rayleigh_coefs(
     return coef
 
 end
+
+
+function create_rayleigh_coefs!(
+    coef::Matrix,
+    wn::Unitful.Wavenumber,
+    polarized::Bool
+    )
+
+    wl = 1 / wn |> u"µm"
+    create_rayleigh_coefs!(coef, wl, polarized)
+
+end
+
 
 """
 $(TYPEDSIGNATURES)
