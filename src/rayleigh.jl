@@ -53,6 +53,17 @@ function calculate_rayleigh_depolf(wl::Unitful.Length)
 end
 
 
+function calculate_rayleigh_sigma(wn::Unitful.Wavenumber)
+
+    # Convert to wavelength
+    wn = 1 / wn |> u"µm"
+    # Calculate in wavelength space
+    return calculate_rayleigh_sigma(wn)
+
+end
+
+
+
 function calculate_rayleigh_sigma(
     wl::Unitful.Length # Wavelength
     )
