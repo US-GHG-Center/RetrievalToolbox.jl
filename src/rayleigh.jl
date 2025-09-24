@@ -102,6 +102,24 @@ function calculate_rayleigh_sigma(
 
 end
 
+function create_rayleigh_coefs(
+    wn::Unitful.Wavenumber,
+    polarized::Bool
+)
+
+    if polarized
+        coef = zeros(3, 6)
+    else
+        coef = zeros(3, 1)
+    end
+
+    wl = 1 / wn |> u"µm"
+    create_rayleigh_coefs!(coef, wl, polarized)
+
+    return coef
+
+end
+
 
 function create_rayleigh_coefs(
     wl::Unitful.Length,
