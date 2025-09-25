@@ -3,6 +3,7 @@ $(TYPEDSIGNATURES)
 
 Creates an empty `EarthAtmosphere` object with the specified number of retrieval grid
 levels, meteorological grid levels, array type `T` as well as units for the profiles.
+This function takes optional arguments to define the units for the various profiles.
 """
 function create_empty_EarthAtmosphere(
     Nlev::Integer,
@@ -66,9 +67,9 @@ end
 
 
 """
-Creates the 'classic' University of Leicester-type pressure grid
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Creates the 'classic' University of Leicester-type pressure grid
 
 # Details
 
@@ -120,10 +121,9 @@ function create_UoL_pressure_grid(
 end
 
 """
-Creates the ACOS-type pressure grid on 20 levels
-
 $(TYPEDSIGNATURES)
 
+Creates the ACOS-type pressure grid on 20 levels
 """
 function create_ACOS_pressure_grid(
     psurf::Unitful.Pressure
@@ -170,14 +170,16 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculates local gravity given some latitude and altitude
+Calculates local gravity given some latitude and altitude. Note that the altitude can be
+be a simple number, in which the input is assumed to be in meters. If you supply a
+`Unitful` quantity, appropriate unit conversions are done. In either case, this function
+will return a `Unitful` quantity that will reduce to acceleration [m s⁻²].
 
 # Details
 
 This code was taken from MS3 / the CSU simulator suite, with heritage related to the OCO-1
 retrieval algorithm written at JPL. See https://github.com/nasa/RtRetrievalFramework at
 `./lib/implementation/altitude_hydrostatic.cc`.
-
 """
 function JPL_gravity(
     latitude::Number,
