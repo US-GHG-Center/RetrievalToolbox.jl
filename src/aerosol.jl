@@ -1,11 +1,8 @@
-
-
-
 """
+$(TYPEDSIGNATURES)
+
 Reads a pair of MIE and MOM text files to create an appropriate aerosol property
 object.
-
-$(TYPEDSIGNATURES)
 
 # Details
 We expect the format of the Colorado State University MIE and MOM files. TODO Add more
@@ -132,7 +129,10 @@ function read_mie_mom_file(
 end
 
 """
-    Calculates the needed Ångstrom scaling to obtain optical depth from
+$(TYPEDSIGNATURES)
+
+Calculates the needed Ångstrom scaling to obtain optical depth at a given spectral point
+`ww` (wavelength or wavenumber).
 """
 function calculate_angstrom_scaling(
     aer::AbstractAerosolType,
@@ -148,6 +148,12 @@ function calculate_angstrom_scaling(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the needed Ångstrom scaling to obtain optical depth at a given spectral point
+`ww` (wavelength or wavenumber).
+"""
 function calculate_angstrom_scaling(
     prop::MieMomAerosolProperty,
     ww::Number,
@@ -184,6 +190,12 @@ function calculate_angstrom_scaling(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the aerosol extinction optical depth at all spectral points given the
+reference extinction optical depth supplied via `ref_tau_ext`.
+"""
 function calculate_aerosol_tau_at_all_ww!(
     opt::EarthAtmosphereOpticalProperties,
     aer::AbstractAerosolType,
@@ -198,6 +210,12 @@ function calculate_aerosol_tau_at_all_ww!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the aerosol extinction optical depth at all spectral points given the
+reference extinction optical depth supplied via `ref_tau_ext`.
+"""
 function calculate_aerosol_tau_at_all_ww!(
     opt::EarthAtmosphereOpticalProperties,
     aer::AbstractAerosolType,
@@ -336,11 +354,13 @@ end
 
 
 """
-    Calculates and sets the linearized inputs for XRTM for aerosol optical depth. Keep in
-    mind that this function will be called for every spectral point in the hires
-    calculation! Note that this function calculates the inputs needed for ∂I/∂AOD,
-    and not ∂I/∂log(AOD). Appropriate transformation of the resulting weighting function
-    is performed elsewhere.
+$(TYPEDSIGNATURES)
+
+Calculates and sets the linearized inputs for XRTM for aerosol optical depth. Keep in
+mind that this function will be called for every spectral point in the hires
+calculation! Note that this function calculates the inputs needed for ∂I/∂AOD,
+and not ∂I/∂log(AOD). Appropriate transformation of the resulting weighting function
+is performed elsewhere.
 """
 function set_XRTM_wf!(
     xrtm,
@@ -485,6 +505,11 @@ function set_XRTM_wf!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Dummy function needed to speedily calculate a term for the linearized coefficient input.
+"""
 function _coef_dummy!(
     lcoef,
     this_aer_coef,
@@ -817,5 +842,3 @@ function set_XRTM_wf!(
         end
     end
 end
-
-
