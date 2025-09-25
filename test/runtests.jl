@@ -1,5 +1,6 @@
 using RetrievalToolbox
 using Test
+using Unitful
 
 @testset "RetrievalToolbox tests" begin
 
