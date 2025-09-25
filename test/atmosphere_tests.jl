@@ -20,3 +20,18 @@
     end
 
 end
+
+
+@testset "Gravity" begin
+
+    # See if gravity functions work
+    gn = JPL_gravity(0.0, 0.0u"m")
+    @test abs(gn - 9.7803267715u"m/s^2" |> u"m/s^2" |> ustrip) < 1e-3
+
+    gn_pole = JPL_gravity(89.0, 0.0u"m")
+    @test gn_pole < gn
+
+    gn_higher = JPL_gravity(0.0, 4000.0u"m")
+    @test gn > gn_higher
+
+end
