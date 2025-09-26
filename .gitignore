@@ -13,3 +13,4 @@ Manifest.toml
 .git_backup
 launch.json
 settings.json
+data/SIF/Fluorescence*.csv
