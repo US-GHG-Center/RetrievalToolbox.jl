@@ -25,13 +25,53 @@ end
 @testset "Gravity" begin
 
     # See if gravity functions work
-    gn = JPL_gravity(0.0, 0.0u"m")
-    @test abs(gn - 9.7803267715u"m/s^2" |> u"m/s^2" |> ustrip) < 1e-3
 
+    gn = JPL_gravity(0.0, 0.0u"m")
+    # Check unit
+    @test gn isa Unitful.Acceleration
+    # Check that the result is what we expect it to be (roughly)
+    @test abs(gn - 9.7803267715u"m/s^2" |> u"m/s^2" |> ustrip) < 1e-3
+    # Gravity needs to be smaller poleward
     gn_pole = JPL_gravity(89.0, 0.0u"m")
     @test gn_pole < gn
-
+    # Gravity needs to be smaller when higher up
     gn_higher = JPL_gravity(0.0, 4000.0u"m")
     @test gn > gn_higher
+
+end
+
+
+@testset "Pressure schemes" begin
+
+    plevels = create_UoL_pressure_grid(1000.0u"hPa", 123.0u"hPa")
+    # Make sure they are in correct order
+    @test all(diff(plevels) .> 0u"Pa")
+
+    plevels = create_ACOS_pressure_grid(1001.0u"hPa")
+    # Make sure they are in correct order
+    @test all(diff(plevels) .> 0u"Pa")
+
+end
+
+@testset "Atmosphere object" begin
+
+    # Try creating an empty atmosphere
+    atm = create_empty_EarthAtmosphere(6, 11, Float64)
+
+    # Fill met p with values
+    met_p = [1., 10., 50., 100., 300., 400., 500., 600., 800., 900., 1000.] * u"hPa"
+    ingest!(atm, :met_pressure_levels, met_p)
+
+    # Calculate z from p using simple barometric formula
+    # (discouraged otherwise!)
+    met_z = @. 44330.0u"m" * (1.0 - met_p / met_p[end])
+    ingest!(atm, :altitude_levels, met_z)
+
+    # Calculate g from z!
+    calculate_gravity_from_z!(atm)
+
+    # Add some very simple temperature profile
+    met_t = LinRange(210.0u"K", 250u"K", atm.N_met_level)
+    ingest!(atm, :temperature_levels, met_t)
 
 end
