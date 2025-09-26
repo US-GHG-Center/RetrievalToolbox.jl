@@ -90,11 +90,6 @@ function create_UoL_pressure_grid(
     @assert p_surf > p_tropo "Surface pressure ($(p_surf)) must be > " *
         "tropopause pressure ($(p_tropo))."
 
-    # Convert to Pa here, but only if it has units,
-    # this way we can either supply this function with
-    # arbitrary pressure units, or directly with just
-    # `p_surf` and `p_tropo` in Pa.
-
     p_levels = zeros(typeof(p_surf), N_total)
 
     p_levels[1] = 10.0u"Pa"
@@ -104,7 +99,7 @@ function create_UoL_pressure_grid(
     p_levels[5] = 8000.0u"Pa"
 
     if p_tropo <= 8000u"Pa"
-        @debug "[ATMOS] Tropopause pressure < 8000 Pa"
+        @debug "[ATMOS] Tropopause pressure < 8000 Pa. Ignoring."
         p_levels[6] = 11500.0u"Pa"
         p_levels[7] = 15000.0u"Pa"
     else
