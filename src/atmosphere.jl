@@ -902,7 +902,12 @@ function get_gas_from_name(atm::EarthAtmosphere, name::String)
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
+Lists all available example atmospheres that can be loaded with
+`create_example_atmosphere`.
+"""
 function list_example_atmospheres()
 
     fdir = joinpath(@__DIR__, "..", "data", "atmospheres")
@@ -914,6 +919,11 @@ function list_example_atmospheres()
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Reads the contents of an example atmosphere file. (for internal use only)
+"""
 function _read_example_contents(name::String; is_example=true)
 
     if is_example
@@ -1023,7 +1033,11 @@ function create_example_atmosphere(
 end
 
 """
+$(TYPEDSIGNATURES)
 
+Creates a gas profile from an example atmosphere, and attaches it to a supplied
+spectroscopy object `spec`. Pressure levels must also be given, which have to match the
+retrieval pressure levels.
 """
 function create_example_gas_profile(
     name::String,
