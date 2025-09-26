@@ -906,7 +906,6 @@ end
 function list_example_atmospheres()
 
     fdir = joinpath(@__DIR__, "..", "data", "atmospheres")
-    @info fdir
     fnames = filter(x -> endswith(x, ".csv"), readdir(fdir))
     anames = [replace(x, ".csv" => "") for x in fnames]
 
