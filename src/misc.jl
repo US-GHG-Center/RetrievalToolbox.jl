@@ -408,6 +408,16 @@ end
 $(TYPEDSIGNATURES)
 
 Returns `true` if `a` is found within `x`, does not allocate.
+
+# Examples
+```jldoctest
+julia> findany(["a", "b", "c", "d"], "b")
+true
+```
+```jldoctest
+julia> findany([1,2,3,4,5], 10)
+false
+```
 """
 function findany(x::AbstractVector, a)
     @inbounds for i in eachindex(x)
