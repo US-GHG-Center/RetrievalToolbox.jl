@@ -1,8 +1,7 @@
 """
+$(TYPEDSIGNATURES)
+
 Returns the name of this aerosol width state vector element as a string.
-
-$(SIGNATURES)
-
 """
 function get_name(sve::AerosolHeightSVE)
     if sve.log
@@ -13,9 +12,9 @@ function get_name(sve::AerosolHeightSVE)
 end
 
 """
-Pretty printing for AerosolHeightSVE types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for `AerosolHeightSVE` types
 """
 function show(io::IO, ::MIME"text/plain", sve::AerosolHeightSVE)
 
@@ -28,9 +27,9 @@ function show(io::IO, ::MIME"text/plain", sve::AerosolHeightSVE)
 end
 
 """
-Brief pretty printing for AerosolHeightSVE
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for `AerosolHeightSVE`
 """
 function show(io::IO, sve::AerosolHeightSVE)
 
@@ -39,5 +38,17 @@ function show(io::IO, sve::AerosolHeightSVE)
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns whether the Jacobian related to `AerosolHeightSVE` types should be calculate
+before convolution happens. Returns `true`.
+"""
 calculate_jacobian_before_isrf(sve::AerosolHeightSVE) = true
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns whether this SVE (`sve`) is an aerosol-related SVE. Returns `true`.
+"""
 is_aerosol_SVE(sve::AerosolHeightSVE) = true

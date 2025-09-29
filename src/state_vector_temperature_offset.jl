@@ -1,7 +1,7 @@
 """
 Returns the name of this temperature offset state vector element as a string.
 
-$(SIGNATURES)
+$(TYPEDSIGNATURES)
 
 """
 function get_name(sve::TemperatureOffsetSVE)
@@ -9,7 +9,7 @@ function get_name(sve::TemperatureOffsetSVE)
 end
 
 """
-Pretty printing for TemperatureOffsetSVE types
+Pretty printing for `TemperatureOffsetSVE` types
 
 $(SIGNATURES)
 """
@@ -24,7 +24,7 @@ function show(io::IO, ::MIME"text/plain", sve::TemperatureOffsetSVE)
 end
 
 """
-Brief pretty printing for TemperatureOffsetSVE
+Brief pretty printing for `TemperatureOffsetSVE`
 
 $(SIGNATURES)
 """
@@ -34,9 +34,10 @@ function show(io::IO, sve::TemperatureOffsetSVE)
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
-function calculate_jacobian_before_isrf(sve::TemperatureOffsetSVE)
-
-    return true
-
-end
+Returns whether the Jacobian related to `TemperatureOffsetSVE` types should be calculated
+before convolution happens. Returns `true`.
+"""
+calculate_jacobian_before_isrf(sve::TemperatureOffsetSVE) = true

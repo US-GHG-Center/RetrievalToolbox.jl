@@ -1,7 +1,7 @@
 """
-Returns the name of this ZeroLevelOffset state vector element as a string.
+Returns the name of this `ZeroLevelOffsetSVE` state vector element as a string.
 
-$(SIGNATURES)
+$(TYPEDSIGNATURES)
 
 """
 function get_name(sve::ZeroLevelOffsetPolynomialSVE)
@@ -36,19 +36,22 @@ function show(io::IO, sve::ZeroLevelOffsetPolynomialSVE)
 
 end
 
-function calculate_jacobian_before_isrf(sve::ZeroLevelOffsetPolynomialSVE)
+"""
+$(TYPEDSIGNATURES)
 
-    # Partial derivative of forward model w.r.t. ZLO
-    # does not need calculation before ISRF application.
-    return false
+Returns whether the Jacobian related to `ZeroLevelOffsetPolynomialSVE` types should be
+calculated before convolution happens. Returns `false` since the partial derivative
+calculation does not need the resulting radiance itself.
+"""
+calculate_jacobian_before_isrf(sve::ZeroLevelOffsetPolynomialSVE) = false
 
-end
 
 """
 $(TYPEDSIGNATURES)
 
 Calculates the per-sample zero-level offset as given by the state vector element
-`sve` and indexed by the dispersion `dispersion`.
+`sve` and indexed by the dispersion `dispersion`. This function is called by
+`apply_radiance_correction!` and likely does not need to be done by the user.
 """
 function calculate_zlo!(
     output::AbstractVector,
@@ -76,10 +79,12 @@ function calculate_zlo!(
         ustrip(dispersion.ww_unit, swin.ww_reference * swin.ww_unit)
     ) .^ sve.coefficient_order
 
+    sve_value = get_current_value(sve)
+
     @turbo for (i, idx) in enumerate(indices)
 
         # Calculate c_i * (ww - ww_reference)^o (with unit)
-        this_value = get_current_value(sve) * ww_delta[i]
+        this_value = sve_value * ww_delta[i]
 
         # Back convert to required units, and add to radiance
         output[idx] += this_value * this_unit_conversion
@@ -98,7 +103,7 @@ Calculates the Jacobian for a `ZeroLevelOffsetPolynomialSVE`
 The ZLO radiance offset at wavelength of spectral sample `s` (``λ_s``) is generally
 calculated as (and analogously for wavenumbers, ``ν_s``)
 ```math
-\\sum_i c_i \\cdot (λ_s - λ_\\text{ref})^i
+\\sum_{i=0}^{O-1} c_i \\cdot (λ_s - λ_\\text{ref})^i
 ```
 where i runs from 0 up to O - 1, where O is the order of the polynomial. See also
 `apply_radiance_correction!` for this SVE type.
@@ -109,6 +114,11 @@ The partial derivative of the radiance ``I`` with respect to the polynomial coef
 ∂I/∂c_i = (λ_s - λ_\\text{ref})^i.
 ```
 
+The reference spectral point (``λ_\\text{ref}`` or ``ν_\\text{ref}``) is given by the
+spectral window object that is attached to the `sve` as `sve.swin.ww_reference`. Unit
+differences between the `rt_buf` RT buffer and the unit of this `sve` are explicitly
+taken into account, so this `sve` may have any compatible radiance units as long as the
+converstion to the `rt_buf.radiance_unit` is valid.
 """
 function calculate_jacobian!(
     rt_buf::AbstractRTBuffer,

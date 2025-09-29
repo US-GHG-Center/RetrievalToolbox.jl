@@ -1,8 +1,7 @@
 """
+$(TYPEDSIGNATURES)
+
 Returns the name of this surface albedo state vector element as a string.
-
-$(SIGNATURES)
-
 """
 function get_name(sve::BRDFPolynomialSVE)
     BRDF_type_short = get_short_name(sve.BRDF_type)
@@ -13,9 +12,9 @@ end
 
 
 """
-Pretty printing for SurfaceAlbedoPolynomialSVE types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for `BRDFPolynomialSVE` types
 """
 function show(io::IO, ::MIME"text/plain", sve::BRDFPolynomialSVE)
 
@@ -29,9 +28,9 @@ function show(io::IO, ::MIME"text/plain", sve::BRDFPolynomialSVE)
 end
 
 """
-Brief pretty printing for SurfaceAlbedoPolynomialSVE
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for `BRDFPolynomialSVE`
 """
 function show(io::IO, sve::BRDFPolynomialSVE)
 
@@ -40,13 +39,9 @@ function show(io::IO, sve::BRDFPolynomialSVE)
 end
 
 """
-Returns whether the Jacobian related to BRDFPolynomialSVE
-types should be calculate before convolution happens.
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Returns whether the Jacobian related to `BRDFPolynomialSVE` types should be calculate
+before convolution happens. Returns `true`.
 """
-function calculate_jacobian_before_isrf(sve::BRDFPolynomialSVE)
-
-    return true
-
-end
+calculate_jacobian_before_isrf(sve::BRDFPolynomialSVE) = true

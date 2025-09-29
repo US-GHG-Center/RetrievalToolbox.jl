@@ -1,8 +1,7 @@
 """
+$(TYPEDSIGNATURES)
+
 Returns the name of this dispersion state vector element as a string.
-
-$(SIGNATURES)
-
 """
 function get_name(sve::GasLevelScalingFactorSVE)
     return "GasLevelScalingFactorSVE $(sve.gas.gas_name) " *
@@ -10,9 +9,9 @@ function get_name(sve::GasLevelScalingFactorSVE)
 end
 
 """
-Pretty printing for DispersionPolynomialSVE types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for `DispersionPolynomialSVE` types
 """
 function show(io::IO, ::MIME"text/plain", sve::GasLevelScalingFactorSVE)
 
@@ -27,9 +26,9 @@ function show(io::IO, ::MIME"text/plain", sve::GasLevelScalingFactorSVE)
 end
 
 """
-Brief pretty printing for DispersionPolynomialSVE
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for `GasLevelScalingFactorSVE`.
 """
 function show(io::IO, sve::GasLevelScalingFactorSVE)
 
@@ -37,8 +36,10 @@ function show(io::IO, sve::GasLevelScalingFactorSVE)
 
 end
 
-function calculate_jacobian_before_isrf(sve::GasLevelScalingFactorSVE)
+"""
+$(TYPEDSIGNATURES)
 
-    return true
-
-end
+Returns whether the Jacobian related to `GasLevelScalingFactorSVE` types should be
+calculated before convolution happens. Returns `true`.
+"""
+calculate_jacobian_before_isrf(sve::GasLevelScalingFactorSVE) = true

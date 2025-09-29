@@ -1,7 +1,7 @@
 """
 Returns the name of this surface pressure vector element as a string.
 
-$(SIGNATURES)
+$(TYPEDSIGNATURES)
 
 """
 function get_name(sve::SurfacePressureSVE)
@@ -9,7 +9,7 @@ function get_name(sve::SurfacePressureSVE)
 end
 
 """
-Pretty printing for SurfacePressureSVE types
+Pretty printing for `SurfacePressureSVE` types
 
 $(SIGNATURES)
 """
@@ -24,7 +24,7 @@ function show(io::IO, ::MIME"text/plain", sve::SurfacePressureSVE)
 end
 
 """
-Brief pretty printing for SurfacePressureSVE
+Brief pretty printing for `SurfacePressureSVE`
 
 $(SIGNATURES)
 """
@@ -34,9 +34,10 @@ function show(io::IO, sve::SurfacePressureSVE)
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
-function calculate_jacobian_before_isrf(sve::SurfacePressureSVE)
-
-    return true
-
-end
+Returns whether the Jacobian related to `SurfacePressureSVE` types should be calculated
+before convolution happens. Returns `true`.
+"""
+calculate_jacobian_before_isrf(sve::SurfacePressureSVE) = true

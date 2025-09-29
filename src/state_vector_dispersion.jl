@@ -1,8 +1,7 @@
 """
+$(TYPEDSIGNATURES)
+
 Returns the name of this dispersion state vector element as a string.
-
-$(SIGNATURES)
-
 """
 function get_name(sve::DispersionPolynomialSVE)
     return "DispersionPolynomialSVE ($(sve.coefficient_order)) " *
@@ -10,9 +9,9 @@ function get_name(sve::DispersionPolynomialSVE)
 end
 
 """
-Pretty printing for DispersionPolynomialSVE types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for `DispersionPolynomialSVE` types
 """
 function show(io::IO, ::MIME"text/plain", sve::DispersionPolynomialSVE)
 
@@ -25,9 +24,9 @@ function show(io::IO, ::MIME"text/plain", sve::DispersionPolynomialSVE)
 end
 
 """
-Brief pretty printing for DispersionPolynomialSVE
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for `DispersionPolynomialSVE`
 """
 function show(io::IO, sve::DispersionPolynomialSVE)
 
@@ -36,13 +35,9 @@ function show(io::IO, sve::DispersionPolynomialSVE)
 end
 
 """
-Returns whether the Jacobian related to DispersionPolynomialSVE
-types should be calculate before convolution happens.
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Returns whether the Jacobian related to `DispersionPolynomialSVE`
+types should be calculate before convolution happens. Returns `false`.
 """
-function calculate_jacobian_before_isrf(sve::DispersionPolynomialSVE)
-
-    return false
-
-end
+calculate_jacobian_before_isrf(sve::DispersionPolynomialSVE) = false

@@ -46,7 +46,20 @@ irrad_ph = u"ph/s/m^2/µm"
 
 Unitful.register(@__MODULE__)
 
+# Function to filter out methods that are of no interest in the documentatiton
+function DocFilter(f)
 
+    fname = String(nameof(f))
+
+    # No need to list `show` functions for printing
+    fname == "show" && return false
+    # No need to show internals (_do_this_and_that)
+    startswith(fname, "_") && return false
+
+    # Otherwise simply return true!
+    return true
+
+end
 
 
 function __init__()
