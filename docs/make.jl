@@ -2,9 +2,18 @@ using Documenter, RetrievalToolbox
 const RE = RetrievalToolbox
 
 
+DocMeta.setdocmeta!(
+    RetrievalToolbox,
+    :DocTestSetup,
+    :(using RetrievalToolbox);
+    recursive=true
+)
+
 makedocs(
     sitename="RetrievalToolbox.jl",
     remotes=nothing,
+    #modules=[RetrievalToolbox],
+    doctest=true,
     pages = [
         "Main" => "index.md",
         "Design" => joinpath("design", "design.md"),
@@ -17,9 +26,11 @@ makedocs(
         "Functions" =>
             [
                 "State Vector Functions" => joinpath("functions", "state_vector_functions.md"),
+                "Atmosphere Functions" => joinpath("functions", "atmosphere_functions.md")
             ],
         "Types" =>
             [
+                "Atmosphere Types" => joinpath("types", "atmosphere_types.md"),
                 "Buffer Types" => joinpath("types", "buffer_types.md"),
                 "State Vector Types" => joinpath("types", "state_vector_types.md"),
             ],
