@@ -38,6 +38,17 @@ function show(io::IO, sve::AerosolOpticalDepthSVE)
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
+Returns whether the Jacobian related to `AerosolOpticalDepthSVE` types should be calculate
+before convolution happens. Returns `true`.
+"""
 calculate_jacobian_before_isrf(sve::AerosolOpticalDepthSVE) = true
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns whether this SVE (`sve`) is an aerosol-related SVE. Returns `true`.
+"""
 is_aerosol_SVE(sve::AerosolOpticalDepthSVE) = true

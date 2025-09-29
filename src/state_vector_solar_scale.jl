@@ -1,8 +1,7 @@
 """
+$(TYPEDSIGNATURES)
+
 Returns the name of this solar scaler polynomial state vector element as a string.
-
-$(SIGNATURES)
-
 """
 function get_name(sve::SolarScalerPolynomialSVE)
     return "SolarScalerPolynomialSVE ($(sve.coefficient_order))" *
@@ -11,9 +10,9 @@ end
 
 
 """
-Pretty printing for SolarScalerPolynomialSVE types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for `SolarScalerPolynomialSVE` types
 """
 function show(io::IO, ::MIME"text/plain", sve::SolarScalerPolynomialSVE)
 
@@ -27,9 +26,9 @@ function show(io::IO, ::MIME"text/plain", sve::SolarScalerPolynomialSVE)
 end
 
 """
-Brief pretty printing for SolarScalerPolynomialSVE
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for `SolarScalerPolynomialSVE`
 """
 function show(io::IO, sve::SolarScalerPolynomialSVE)
 
@@ -38,13 +37,9 @@ function show(io::IO, sve::SolarScalerPolynomialSVE)
 end
 
 """
-Returns whether the Jacobian related to SolarScalerPolynomialSVE
-types should be calculate before convolution happens.
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Returns whether the Jacobian related to `SolarScalerPolynomialSVE` types should be
+calculated before convolution happens. Returns `true`.
 """
-function calculate_jacobian_before_isrf(sve::SolarScalerPolynomialSVE)
-
-    return true
-
-end
+calculate_jacobian_before_isrf(sve::SolarScalerPolynomialSVE) = true

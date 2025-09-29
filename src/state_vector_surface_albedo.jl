@@ -1,8 +1,7 @@
 """
+$(TYPEDSIGNATURES)
+
 Returns the name of this surface albedo state vector element as a string.
-
-$(SIGNATURES)
-
 """
 function get_name(sve::SurfaceAlbedoPolynomialSVE)
     return "SurfaceAlbedoPolynomialSVE ($(sve.coefficient_order)) " *
@@ -12,9 +11,9 @@ end
 
 
 """
-Pretty printing for SurfaceAlbedoPolynomialSVE types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for `SurfaceAlbedoPolynomialSVE` types
 """
 function show(io::IO, ::MIME"text/plain", sve::SurfaceAlbedoPolynomialSVE)
 
@@ -28,9 +27,9 @@ function show(io::IO, ::MIME"text/plain", sve::SurfaceAlbedoPolynomialSVE)
 end
 
 """
-Brief pretty printing for SurfaceAlbedoPolynomialSVE
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for `SurfaceAlbedoPolynomialSVE`
 """
 function show(io::IO, sve::SurfaceAlbedoPolynomialSVE)
 
@@ -39,13 +38,9 @@ function show(io::IO, sve::SurfaceAlbedoPolynomialSVE)
 end
 
 """
-Returns whether the Jacobian related to SurfaceAlbedoPolynomialSVE
-types should be calculate before convolution happens.
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Returns whether the Jacobian related to `SurfaceAlbedoPolynomialSVE` types should be
+calculated before convolution happens. Returns `true`.
 """
-function calculate_jacobian_before_isrf(sve::SurfaceAlbedoPolynomialSVE)
-
-    return true
-
-end
+calculate_jacobian_before_isrf(sve::SurfaceAlbedoPolynomialSVE) = true

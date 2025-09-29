@@ -1,8 +1,7 @@
 """
+$(TYPEDSIGNATURES)
+
 Returns the name of this ILS stretch state vector element as a string.
-
-$(SIGNATURES)
-
 """
 function get_name(sve::ILSStretchPolynomialSVE)
     return "ILSStretchPolynomialSVE ($(sve.coefficient_order)) " *
@@ -10,9 +9,9 @@ function get_name(sve::ILSStretchPolynomialSVE)
 end
 
 """
-Pretty printing for ILSStretchPolynomialSVE type
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for `ILSStretchPolynomialSVE` type
 """
 function show(io::IO, ::MIME"text/plain", sve::ILSStretchPolynomialSVE)
 
@@ -26,9 +25,9 @@ function show(io::IO, ::MIME"text/plain", sve::ILSStretchPolynomialSVE)
 end
 
 """
-Brief pretty printing for ILSStretchPolynomialSVE
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for `ILSStretchPolynomialSVE`
 """
 function show(io::IO, sve::ILSStretchPolynomialSVE)
 
@@ -37,13 +36,9 @@ function show(io::IO, sve::ILSStretchPolynomialSVE)
 end
 
 """
-Returns whether the Jacobian related to ILSStretchPolynomialSVE
-types should be calculate before convolution happens.
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Returns whether the Jacobian related to `ILSStretchPolynomialSVE` types should be calculated
+before convolution happens. Returns `false`.
 """
-function calculate_jacobian_before_isrf(sve::ILSStretchPolynomialSVE)
-
-    return false
-
-end
+calculate_jacobian_before_isrf(sve::ILSStretchPolynomialSVE) = false

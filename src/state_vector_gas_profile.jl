@@ -1,17 +1,16 @@
 """
+$(TYPEDSIGNATURES)
+
 Returns the name of this dispersion state vector element as a string.
-
-$(SIGNATURES)
-
 """
 function get_name(sve::GasVMRProfileSVE)
     return "GasVMRProfileSVE $(sve.gas.gas_name) ($(sve.level))"
 end
 
 """
-Pretty printing for GasVMRProfileSVE types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for GasVMRProfileSVE types
 """
 function show(io::IO, ::MIME"text/plain", sve::GasVMRProfileSVE)
 
@@ -25,9 +24,9 @@ function show(io::IO, ::MIME"text/plain", sve::GasVMRProfileSVE)
 end
 
 """
-Brief pretty printing for GasVMRProfileSVE
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for GasVMRProfileSVE
 """
 function show(io::IO, sve::GasVMRProfileSVE)
 
@@ -36,6 +35,8 @@ function show(io::IO, sve::GasVMRProfileSVE)
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Returns `N` different `GasVMRProfileSVE` state vector elements, one for each level of
 the retrieval atmosphere.
 """
@@ -60,17 +61,18 @@ function GasVMRProfileSVE(
 
 end
 
-"""
 
 """
-function calculate_jacobian_before_isrf(sve::GasVMRProfileSVE)
+$(TYPEDSIGNATURES)
 
-    return true
-
-end
-
+Returns whether the Jacobian related to `GasVMRProfileSVE` types should be
+calculated before convolution happens. Returns `true`.
+"""
+calculate_jacobian_before_isrf(sve::GasVMRProfileSVE) = true
 
 """
+$(TYPEDSIGNATURES)
+
 Returns the positional indices of state vector elements that are a `GasVMRProfileSVE` and
 belong to a `GasAbsorber` `gas`. This allows easy retrieval of the VMR profile SVEs for
 some gas
