@@ -141,21 +141,24 @@ $(TYPEDSIGNATURES)
 
 Calculates local gravity based on altitude levels. The optional argument `g` can be
 supplied if users want a latitude=dependent surface-level gravity. Otherwise the standard
-gravity is used. Note that `g` must be in compatible units of acceleration.
-"""
-function calculate_gravity_from_z!(atm::EarthAtmosphere; g=nothing)
+gravity g0 (9.80655 ms⁻²) is used. Note that `g` must be in compatible units of
+acceleration.
 
-    if isnothing(g)
-        @debug "[ATMOS] Using standard gravity for calculations."
-        g_used = g0 # Use the standard g (not latitude-corrected)
-    else
-        g_used = g
-    end
+# Details
+
+The gravity ``g'(z)`` at altitude ``z`` is calculated as
+
+``g'(z) = g \\cdot (\\frac{R_e}{R_e + z})^2``
+
+where ``R_e`` is the (mean) Earth radius and ``g`` is the assumed gravity at the surface.
+
+"""
+function calculate_gravity_from_z!(atm::EarthAtmosphere; g::Unitful.Acceleration=g0)
 
     for l in 1:atm.N_met_level
 
         z = atm.altitude_levels[l] * atm.altitude_unit
-        glevel = g_used * (EARTH_RADIUS / (EARTH_RADIUS + z)) |> atm.gravity_unit
+        glevel = g * (EARTH_RADIUS / (EARTH_RADIUS + z))^2 |> atm.gravity_unit
         atm.gravity_levels[l] = glevel |> ustrip
 
     end
