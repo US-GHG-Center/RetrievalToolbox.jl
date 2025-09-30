@@ -12,10 +12,8 @@ function show(io::IO, ::MIME"text/plain", SV::RetrievalStateVector)
               for (i, sve) in enumerate(SV.state_vector_elements)]...
                  )),
         alignment=[:l, :r, :r, :l], title="State Vector (current)",
-        #show_header=false,
-        #hlines=[0,], vlines=[1,],
         show_column_labels=false,
-        display_size=(150, 100)
+        display_size=(150, 200)
     )
 
     # "old" way
@@ -50,12 +48,15 @@ $(TYPEDSIGNATURES)
 
 Return the length of the state vector
 """
-function length(SV::RetrievalStateVector)
+Base.length(SV::RetrievalStateVector) = length(SV.state_vector_elements)
 
-    return length(SV.state_vector_elements)
 
-end
+"""
+$(TYPEDSIGNATURES)
 
+For using indexing on `RetrievalStateVector` objects.
+"""
+Base.getindex(SV::AbstractStateVector, idx::Int) = SV.state_vector_elements[idx]
 
 
 function get_posterior_ucert(q::OEQuantities, SVE::AbstractStateVectorElement)
@@ -150,6 +151,8 @@ struct StateVectorIterator{T1<:RetrievalStateVector, T2<:AbstractStateVectorElem
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Implementation of `Base.iterate` to iterate over all
 state vector elements in a state vector, but only consider
 the type given in `StateVectorIterator`.
@@ -160,9 +163,6 @@ is of type `sve_type`.
 Very useful, when wanting to loop over state vector elements
 of a certain type or type union only. Note that this is
 thus not equivalent to iterating with `enumerate`.
-
-$(TYPEDSIGNATURES)
-
 
 # Usage
 
@@ -185,7 +185,6 @@ for (idx, sve) enumerate(my_sv.state_vector_elements)
     end
 end
 ```
-
 """
 function Base.iterate(s::StateVectorIterator, i::Int=1)
 
