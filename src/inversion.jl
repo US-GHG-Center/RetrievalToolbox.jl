@@ -475,7 +475,7 @@ Note that this function does not check for convergence.
 
 """
 function print_posterior(q::OEQuantities)
-
+    println("NNEEEWWW")
     sv = q.state_vector
 
     if !isnothing(q)
@@ -492,19 +492,16 @@ function print_posterior(q::OEQuantities)
                     diag(q.AK)
                 )
             ),
-            header=(["Name", "Units", "Value",
-                     "Uncertainty", "Uncertainty", "Uncertainty",
-                     "AK"],
-                    ["", "", "",
-                     "(total)", "(smoothing)", "(noise)",
-                     ""]),
-            #hlines=[:header],
-            #vlines=[2,],
-            display_size=(300, 100),
-            #show_row_number=true,
+            column_labels=[
+                ["Name", "Units", "Value",
+                 "Uncertainty", "Uncertainty", "Uncertainty",
+                 "AK"],
+                ["", "", "",
+                 "(total)", "(smoothing)", "(noise)",
+                 ""]
+            ],
+            display_size=(300, 200),
             title="Posterior state vector",
-            crop=:none,
-            linebreaks=false,
         )
     else
         @error "No OEQuantities available."
