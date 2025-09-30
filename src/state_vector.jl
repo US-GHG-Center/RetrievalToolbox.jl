@@ -11,8 +11,11 @@ function show(io::IO, ::MIME"text/plain", SV::RetrievalStateVector)
             ["#$(i)", get_name(sve), get_current_value(sve), get_unit(sve)]
               for (i, sve) in enumerate(SV.state_vector_elements)]...
                  )),
-        show_header=false, alignment=[:l, :r, :r, :l], title="State Vector (current)",
-        hlines=[0,], vlines=[1,], display_size=(150, 100)
+        alignment=[:l, :r, :r, :l], title="State Vector (current)",
+        #show_header=false,
+        #hlines=[0,], vlines=[1,],
+        show_column_labels=false,
+        display_size=(150, 100)
     )
 
     # "old" way
