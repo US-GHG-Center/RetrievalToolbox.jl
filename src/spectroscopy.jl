@@ -302,15 +302,31 @@ end
 $(TYPEDSIGNATURES)
 
 Given two wavelength or wavenumber arrays ww1 and ww2, this function computes the indices
-that sort ww2 into ww1. This provides the same functionality to a broadcast searchsorted
+that sort ww2 into ww1. This function is not exported.
+
+# Details
+
+This provides the same functionality to a broadcast searchsorted
 (think: searchsorted.(Ref(ww1), ww2)), however faster if both ww1 and ww2 are sorted. This
 is used to e.g. find the indices of the spectral window wavelength relative to
 spectroscopy wavelengths. For example, for inputs ww1 = [100., 110., 120., 140., 145.],
 ww2 = [105., 111., 142.], the function will return [1,2,4], signifying that ww2[1] can be
 inserted between ww1[1] and ww1[2].
 
-NOTE! This function does *not* check if ww1 and ww2 are sorted and will return meaningless
+**NOTE!** This function does **not** check if ww1 and ww2 are sorted and will return meaningless
 results if either ww1 or ww2 are not sorted!
+
+# Example
+```jldoctest
+ww1 = [100., 110., 120., 140., 145.]
+ww2 =  [105., 111., 142.]
+RetrievalToolbox._find_ww_indices(ww1, ww2)
+# output
+3-element Vector{Int64}:
+ 1
+ 2
+ 4
+```
 """
 function _find_ww_indices(ww1, ww2)
 

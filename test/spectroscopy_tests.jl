@@ -1,12 +1,11 @@
 @testset "Spectroscopy utils" begin
 
-    ##
-    ww1 = rand(100); sort!(ww1);
-    ww2 = rand(10); sort!(ww2);
+    ww1 = rand(100); sort!(ww1)
+    ww2 = rand(10); sort!(ww2)
+    ## Remove all elements of ww2 that are lower than the smallest element of ww1
+    ww2 = ww2[ww2 .> ww1[1]]
+
     result = searchsortedfirst.(Ref(ww1), ww2) .- 1
-    # Difference between the methods, searchsorted also deals with cases when
-    # the lowest value of ww2 is smaller than the lowest value of ww1.
-    result[result .== 0] .= 1
     @test all(RetrievalToolbox._find_ww_indices(ww1, ww2) .== result)
 
 end
