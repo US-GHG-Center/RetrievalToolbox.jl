@@ -9,7 +9,28 @@ function get_nstokes(rt::AbstractRTMethod)
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
+Sets all high-res radiance and high-res jacobians to zero.
+"""
+function clear!(rt::BeerLambertRTMethod)
+
+    # Radiances can be accessed like 2D arrays
+    rt.hires_radiance[:,:] .= 0
+
+    # Jacobians are dictionaries StateVectorElement -> Radiance
+    for (k,v) in rt.hires_jacobians
+        v[:,:] .= 0
+    end
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Sets all high-res radiance and high-res jacobians to zero.
+"""
 function clear!(rt::MonochromaticRTMethod)
 
     # Radiances can be accessed like 2D arrays
