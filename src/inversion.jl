@@ -475,7 +475,7 @@ Note that this function does not check for convergence.
 
 """
 function print_posterior(q::OEQuantities)
-    println("NNEEEWWW")
+
     sv = q.state_vector
 
     if !isnothing(q)
