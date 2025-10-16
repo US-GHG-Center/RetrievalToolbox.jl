@@ -2,10 +2,8 @@
 This script produces the waveform file from the data published in Magney et al. 2019,
 https://doi.org/10.1029/2019JG005029
 
-NOTE: some samples have been removed since they contained missing data, so the data files
-so there is some minor change in the source files involved here. The changes, however, are
-all performed on-line here, so the underlying files are the same as found on the data
-repository at https://doi.org/10.22002/D1.1226
+The underlying files are the same as found on the data repository at
+https://doi.org/10.22002/D1.1226
 
 Users of RetrievalToolbox should have no need to run this script, since the output is
 already incorporated statically into the code. Those who still want to re-produce the
