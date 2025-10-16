@@ -1,6 +1,6 @@
 module RetrievalToolbox
 
-import Base: length, show, iterate, convert
+import Base: length, show, iterate, convert, getindex
 
 using AstroLib
 using CSV
