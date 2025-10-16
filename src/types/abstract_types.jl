@@ -4,6 +4,7 @@ abstract type ABSCOSpectroscopy <: AbstractSpectroscopy end
 abstract type AbstractAtmosphereElement end
 abstract type AbstractAerosolType <: AbstractAtmosphereElement end
 abstract type AbstractRayleighScattering <: AbstractAtmosphereElement end
+abstract type AbstractSIFRadiance <: AbstractAtmosphereElement end
 
 abstract type AbstractBuffer end
 abstract type AbstractAtmosphereBuffer <: AbstractBuffer end
