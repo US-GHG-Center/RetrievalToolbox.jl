@@ -7,19 +7,22 @@ struct InstrumentBuffer{T<:AbstractFloat}
 end
 
 """
+$(TYPEDFIELDS)
 
-    $(TYPEDFIELDS)
+An RT buffer type for scalar radiances, representing, for example, an instrument that is
+capable of detecting total intensity only, which is what most remote sensing instruments
+do. Note that this is *different* from the instrument having polarization sensitivity.
 
-    # Notes
-    Note that the `radiance_unit` field is a `Union` of some arbitrary unit and a generic
-    number type. This is to allow e.g. DOAS-type retrievals, where the measured radiance 
-    is considered as a ratio of some sort, and thus does not have a physical unit. Users
-    are meant to then supply `u"1"` as the `radiance_unit`. **Warning:** if users supply
-    any number, such as `radiance_unit=4.5`, expect that to act as a scaling factor by
-    which state vector elements will be scaled, as to bring a radiance-valued state vector
-    element (for example, `ZeroLevelOffsetPolynomialSVE`) to the same unit as the RT
-    Buffer. 
+# Notes
 
+The `radiance_unit` field is a `Union` of some arbitrary unit and a generic
+number type. This is to allow e.g. DOAS-type retrievals, where the measured radiance
+is considered as a ratio of some sort, and thus does not have a physical unit. Users
+are meant to then supply `u"1"` as the `radiance_unit`. **Warning:** if users supply
+any number, such as `radiance_unit=4.5`, expect that to act as a scaling factor by
+which state vector elements will be scaled, as to bring a radiance-valued state vector
+element (for example, `ZeroLevelOffsetPolynomialSVE`) to the same unit as the RT
+Buffer. It is advised to not do so.
 """
 struct ScalarRTBuffer{T1<:AbstractFloat, T2<:Integer} <: AbstractRTBuffer
 
@@ -34,6 +37,14 @@ struct ScalarRTBuffer{T1<:AbstractFloat, T2<:Integer} <: AbstractRTBuffer
 
 end
 
+"""
+$(TYPEDFIELDS)
+
+An RT buffer type for vector radiances, representing an instrument that is
+capable of detecting the polarization state of light. Chances are *this is not what you
+need*, since almost all known remote sensing devices measure intensity only - even if they
+have some polarization sensitivity.
+"""
 struct VectorRTBuffer{T1<:AbstractFloat, T2<:Integer} <: AbstractRTBuffer
 
     dispersion::Dict{<:AbstractSpectralWindow,<:AbstractDispersion}
@@ -48,17 +59,23 @@ struct VectorRTBuffer{T1<:AbstractFloat, T2<:Integer} <: AbstractRTBuffer
 end
 
 """
-A buffer for use in EarthAtmosphere type simulations and/or retrievals.
-
 $(TYPEDFIELDS)
 
+A buffer for use in `EarthAtmosphere` type simulations and/or retrievals, containing other
+buffers as well as the `EarthScene` to describe the location and the atmospheric state.
+
 # Details
+
+This buffer is needed to represent a full single-scene modeled measurement at one time and
+location. It is highly recommended to not instantiate this buffer object manually, but to
+use the corresponding `EarthAtmosphereBuffer` function that helps produce this. Manually
+creating this object carries the risk of some of the dictionaries having incorrect keys.
 
 """
 struct EarthAtmosphereBuffer <: AbstractAtmosphereBuffer
 
-    """A vector of type `AbstractSpectralWindow` to hold all
-       spectral windows used in this buffer"""
+    """A vector of type `AbstractSpectralWindow` to hold all spectral windows used in this
+       buffer"""
     spectral_window::Vector{<:AbstractSpectralWindow}
     "An `EarthScene`"
     scene::EarthScene
@@ -70,36 +87,4 @@ struct EarthAtmosphereBuffer <: AbstractAtmosphereBuffer
     rt_buf::AbstractRTBuffer
     "A convolution buffer object to help with the ISRF application"
     inst_buf::InstrumentBuffer
-end
-
-"""
-we haven't really used this one much so far..
-"""
-struct OEBuffer{T<:AbstractFloat}
-
-    K::Matrix{T} # Jacobian
-    Se::Diagonal{T} # Error covariance
-    Sa::Matrix{T} # Prior covariance
-    Shat::Matrix{T} # Posterior covariance
-    G::Matrix{T} # Gain matrix
-    AK::Matrix{T} # Averaging kernel matrix
-
-    function OEBuffer(N_spec, N_sv, ::Type{T}) where T
-
-        # For now, we only support diagonal error covaraince matrices
-        Se = Diagonal{T}(undef, N_spec)
-        @views Se[:,:] .= 0
-
-        return new{T}(
-            zeros(T, N_spec, N_sv), # K
-            Se, # Se
-            zeros(T, N_sv, N_sv), # Sa
-            zeros(T, N_sv, N_sv), # Shat
-            zeros(T, N_sv, N_spec), # G
-            zeros(T, N_sv, N_sv), # AK
-        )
-
-    end
-
-
 end
