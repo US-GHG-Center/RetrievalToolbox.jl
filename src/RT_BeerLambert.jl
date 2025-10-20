@@ -86,7 +86,6 @@ function calculate_radiances_and_jacobians!(
     # @views total_column_od[:] = sum(rt.optical_properties.total_tau, dims=2)[:,1]
     # but non-allocating, and overwriting the contents of total_column_od
     avx_sum_along_columns!(total_column_od, rt.optical_properties.total_tau)
-    rt.hires_radiance.I[:] = total_column_od[:]
 
     # At this point, rt.hires_radiance would be calculated in units
     # rt.scene.solar_model.unit / u"sr"
@@ -119,6 +118,41 @@ function calculate_radiances_and_jacobians!(
     will take place, so
     cosd(10.0) == cosd(10.0u"°") != cosd(10.0u"rad")
     =#
+
+    # Check whether SIF radiance is in the atmospheric elements, and add it to the total
+    # TOA signal as it propagates updwards and also undergoes extinction.
+
+    swin = rt.optical_properties.spectral_window
+    for atm in rt.scene.atmosphere.atm_elements
+        if atm isa AbstractSIFRadiance
+
+            # `tmp_Nhi1` was used for surface reflectance, but is no longer needed
+            this_SIF_rad = rt.optical_properties.tmp_Nhi1
+
+            # Calculate the SIF radiance and store in `this_sif_rad`
+            get_SIF_radiance!(
+                this_SIF_rad,
+                atm, # The SIFRadiance object
+                swin.ww_grid,
+                swin.ww_unit
+            )
+
+            # Convert into the same radiance units as `rt.radiance_unit` with this factor
+            SIF_rad_unit_fac = 1.0 * rt.radiance_unit / atm.radiance_unit
+
+            @turbo for i in eachindex(swin.ww_grid)
+
+                # Isotropic SIF radiance, along the path "surface to observer", counting
+                # extinction due to total optical depth.
+                rt.hires_radiance.I[i] += this_SIF_rad[i] * SIF_rad_unit_fac * exp(
+                    -total_column_od[i] / cosd(rt.scene.observer.viewing_zenith)
+                )
+
+            end
+
+        end
+    end
+
 
 
     #=
@@ -831,7 +865,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculates the `GasLevelScalingFactorSVE` Jacobian for a `BeerLambertRTMethod` RT object
+Calculates the `TemperatureOffsetSVE` Jacobian for a `BeerLambertRTMethod` RT object
 and an `UplookingGroundObserver` observer.
 """
 function calculate_rt_jacobian!(
@@ -870,6 +904,89 @@ function calculate_rt_jacobian!(
         jac.I[i] = -rt.hires_radiance.I[i] * (
             (1.0 / cosd(rt.scene.solar_zenith))
         ) * dTau_dT_sum[i] / unit_fac
+
+    end
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `SIFRadianceSVE` Jacobian for a `BeerLambertRTMethod` RT object
+and an `UplookingGroundObserver` observer.
+"""
+function calculate_rt_jacobian!(
+    jac::Radiance,
+    rt::BeerLambertRTMethod,
+    sve::SIFRadianceSVE
+)
+
+    calculate_rt_jacobian!(
+        jac,
+        rt,
+        sve,
+        rt.scene.observer
+    )
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `SIFRadianceSVE` Jacobian for a `BeerLambertRTMethod` RT object
+and an `UplookingGroundObserver` observer.
+"""
+function calculate_rt_jacobian!(
+    jac::Radiance,
+    rt::BeerLambertRTMethod,
+    sve::SIFRadianceSVE,
+    observer::UplookingGroundObserver
+)
+
+    # Do nothing, SIF is emitted upwards, so can't be seen in up-looking view
+    return nothing
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the `SIFRadianceSVE` Jacobian for a `BeerLambertRTMethod` RT object
+and an `UplookingGroundObserver` observer.
+"""
+function calculate_rt_jacobian!(
+    jac::Radiance,
+    rt::BeerLambertRTMethod,
+    sve::SIFRadianceSVE,
+    observer::SatelliteObserver
+)
+
+    this_SIF_rad = rt.optical_properties.tmp_Nhi1
+    # Total column optical depth
+    total_column_od = rt.optical_properties.tmp_Nhi2
+    @views total_column_od[:] .= 0.0
+    avx_sum_along_columns!(total_column_od, rt.optical_properties.total_tau)
+
+    swin = rt.optical_properties.spectral_window
+
+    SIF_rad_unit_fac = 1.0 * rt.radiance_unit / sve.SIF.radiance_unit
+
+    get_SIF_radiance!(
+        this_SIF_rad,
+        sve.SIF,
+        swin.ww_grid,
+        swin.ww_unit
+    )
+
+
+    # SIF radiance only has scalar component here
+    @turbo for i in axes(jac.S, 1)
+
+        # Isotropic SIF radiance, along the path "surface to observer", counting
+        # extinction due to total optical depth.
+        jac.S[i,1] = this_SIF_rad[i] * SIF_rad_unit_fac * exp(
+            -total_column_od[i] / cosd(rt.scene.observer.viewing_zenith)) /
+            sve.SIF.radiance_at_reference
 
     end
 
