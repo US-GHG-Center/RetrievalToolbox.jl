@@ -151,7 +151,7 @@ include("types/scene_types.jl")
 include("types/instrument_types.jl")
 include("types/radiance_types.jl")
 include("types/RT_types.jl")
-include("types/SIFradiance_types.jl")
+include("types/SIF_types.jl")
 
 include("types/inversion_types.jl")
 
@@ -181,6 +181,7 @@ include("state_vector_aerosol_od.jl")
 include("state_vector_aerosol_height.jl")
 include("state_vector_aerosol_width.jl")
 include("state_vector_brdf_polynomial.jl")
+include("state_vector_sif_radiance.jl")
 
 include("state_vector.jl")
 
@@ -202,6 +203,7 @@ include("instrument.jl")
 include("radiance.jl")
 include("RT.jl")
 include("radiance_correction.jl")
+include("SIFRadiance.jl")
 
 include("inversion.jl")
 

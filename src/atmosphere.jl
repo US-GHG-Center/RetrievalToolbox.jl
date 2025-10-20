@@ -426,6 +426,24 @@ function atmosphere_element_statevector_rollback!(
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Updates atmospheric element `atm_element` if a `SIFRaidnaceSVE` is present.
+"""
+function atmosphere_element_statevector_update!(
+    atm_element::SIFRadiance,
+    sve::SIFRadianceSVE
+)
+
+    if atm_element === sve.SIF
+        # Set SIF radiance according to SVE
+        atm_element.radiance_at_reference = sve.iterations[end]
+
+    end
+
+end
+
 
 """
 $(TYPEDSIGNATURES)

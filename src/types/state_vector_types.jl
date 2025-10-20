@@ -1,8 +1,8 @@
 """
+$(TYPEDFIELDS)
+
 A type to hold a collection of state vector elements
 for use in a retrieval.
-
-$(TYPEDFIELDS)
 """
 struct RetrievalStateVector <: AbstractStateVector
 
@@ -11,10 +11,10 @@ struct RetrievalStateVector <: AbstractStateVector
 end
 
 """
+$(TYPEDFIELDS)
+
 A type to hold a collection of state vector elements
 for use in forward model runs (TOA spectrum simulations).
-
-$(TYPEDFIELDS)
 """
 struct ForwardModelStateVector <: AbstractStateVector end
 
@@ -40,11 +40,11 @@ mutable struct GasVMRProfileSVE{T} <: AbstractStateVectorElement
 end
 
 """
+$(TYPEDFIELDS)
+
 A type to represent a state vector element which scales a gas profile sub-column at the
 retrieval grid by its current value. `start_level` must be lower value (higher up in the
 atmosphere) than the `end_level`.
-
-$(TYPEDFIELDS)
 """
 mutable struct GasLevelScalingFactorSVE{T} <: AbstractStateVectorElement
 
@@ -96,9 +96,9 @@ end
 
 
 """
-State vector type for Lambertian surface albedo polynomials
-
 $(TYPEDFIELDS)
+
+State vector type for Lambertian surface albedo polynomials
 """
 mutable struct SurfaceAlbedoPolynomialSVE{
     T1<:AbstractFloat,
@@ -161,9 +161,9 @@ mutable struct SurfaceAlbedoPolynomialSVE{
 end
 
 """
-State vector type for BRDF amplitude polynomials
-
 $(TYPEDFIELDS)
+
+State vector type for BRDF amplitude polynomials
 """
 mutable struct BRDFPolynomialSVE{
     T1<:AbstractFloat,
@@ -234,9 +234,9 @@ end
 
 
 """
-State vector type for zero level offset polynomials
-
 $(TYPEDFIELDS)
+
+State vector type for zero level offset polynomials
 """
 mutable struct ZeroLevelOffsetPolynomialSVE{
     T1<:AbstractFloat,
@@ -299,10 +299,10 @@ end
 
 
 """
+$(TYPEDFIELDS)
+
 State vector type for scaling the solar continuum via a wavelength-dependent
 polynomial.
-
-$(TYPEDFIELDS)
 """
 mutable struct SolarScalerPolynomialSVE{T<:AbstractFloat} <: AbstractStateVectorElement
 
@@ -338,9 +338,9 @@ mutable struct SolarScalerPolynomialSVE{T<:AbstractFloat} <: AbstractStateVector
 end
 
 """
-State factor type for dispersion polynomial coefficient retrieval
-
 $(TYPEDFIELDS)
+
+State factor type for dispersion polynomial coefficient retrieval
 """
 mutable struct DispersionPolynomialSVE{
     T<:AbstractFloat
@@ -398,9 +398,9 @@ mutable struct ILSStretchPolynomialSVE{T <: AbstractFloat} <: AbstractStateVecto
 end
 
 """
-State factor type for surface pressure retrieval
-
 $(TYPEDFIELDS)
+
+State factor type for surface pressure retrieval
 """
 mutable struct SurfacePressureSVE{T <: AbstractFloat} <: AbstractStateVectorElement
 
@@ -426,9 +426,9 @@ mutable struct SurfacePressureSVE{T <: AbstractFloat} <: AbstractStateVectorElem
 end
 
 """
-State factor type for temperature profile (constant) offset
-
 $(TYPEDFIELDS)
+
+State factor type for temperature profile (constant) offset
 """
 mutable struct TemperatureOffsetSVE{T <: AbstractFloat} <: AbstractStateVectorElement
 
@@ -451,6 +451,35 @@ mutable struct TemperatureOffsetSVE{T <: AbstractFloat} <: AbstractStateVectorEl
     end
 
 end
+
+"""
+$(TYPEDFIELDS)
+
+State factor type for SIF radiance. This controls the `radiance_at_reference` field of the
+`SIF` object that is referenced here.
+"""
+mutable struct SIFRadianceSVE{T <: AbstractFloat} <: AbstractStateVectorElement
+
+    SIF::AbstractSIFRadiance
+    unit::Unitful.Units
+    first_guess::T
+    prior_value::T
+    prior_covariance::T
+    iterations::Vector{T}
+
+    function SIFRadianceSVE(
+        SIF::AbstractSIFRadiance,
+        fg::T,
+        prior::T,
+        prior_cov::T
+    ) where {T}
+
+        return new{T}(SIF, SIF.radiance_unit, fg, prior, prior_cov, [fg])
+
+    end
+
+end
+
 
 """
 NOTE! This is not implemented yet anywhere!
