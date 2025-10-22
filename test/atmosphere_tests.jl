@@ -75,3 +75,31 @@ end
     ingest!(atm, :temperature_levels, met_t)
 
 end
+
+
+@testset "SIF" begin
+
+    # Try creating a SIF object
+    sif = SIFRadiance(
+        1.0e-7,
+        u"W/m^2/sr/µm",
+        750.0,
+        u"nm"
+    )
+
+    # Get some SIF radiance value at arbitrary wavelength
+    get_SIF_radiance(
+        sif,
+        0.755u"µm"
+    )
+
+    # Get some SIF radiance value at arbitrary wavenumber
+    get_SIF_radiance(
+        sif,
+        13000.0u"cm^-1"
+    )
+
+    # Make sure SIF is zero far away from expected emission range
+    @test get_SIF_radiance(sif, 0.01u"µm") ≈ 0.
+    @test get_SIF_radiance(sif, 10.0u"µm") ≈ 0.
+end
