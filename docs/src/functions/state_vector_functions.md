@@ -64,6 +64,14 @@ Order = [:function]
 Filter = DocFilter
 ```
 
+## SIF Radiance
+```@autodocs
+Modules = [RetrievalToolbox]
+Pages = ["state_vector_sif_radiance.jl"]
+Order = [:function]
+Filter = DocFilter
+```
+
 ## Solar Scaler Polynomial
 ```@autodocs
 Modules = [RetrievalToolbox]
@@ -81,7 +89,6 @@ Filter = DocFilter
 ```
 
 ## Surface Pressure
-
 ```@autodocs
 Modules = [RetrievalToolbox]
 Pages = ["state_vector_surface_pressure.jl"]
@@ -90,7 +97,6 @@ Filter = DocFilter
 ```
 
 ## Temperature Offset
-
 ```@autodocs
 Modules = [RetrievalToolbox]
 Pages = ["state_vector_temperature_offset.jl"]
@@ -99,7 +105,6 @@ Filter = DocFilter
 ```
 
 ## Zero Level Offset Polynomial
-
 ```@autodocs
 Modules = [RetrievalToolbox]
 Pages = ["state_vector_zero_level_offset.jl"]
