@@ -8,7 +8,7 @@ The concept of an atmospheric state supported by RetrievalToolbox is one that in
 
 Each profile has its own physical unit with denoted by `_unit`, so e.g. the altitude levels are stored in `.altitude_levels`, and the corresponding unit field is `.altitude_unit`. The type definition restricts the possible units to those that make sense physically, so users can use `u"km"` or `u"m"` as their physical units for the altitude profile, but not e.g. `u"Pa"`, as that is not a valid length-type unit.
 
-When users write a retrieval algorithm that performs retrievals on many scenes, it is generally adviced to not create new atmosphere objects as that tends to fill up memory quite fast. Instead, use the [`ingest!`](@ref) function to copy values into the atmosphere object, over-writing existing values. As with most objects in RetrievalToolbox, users must be cautious as it is always possible to change values inside the object.
+When users write a retrieval algorithm that performs retrievals on many scenes, it is generally advised to not create new atmosphere objects as that tends to fill up memory quite fast. Instead, use the [`ingest!`](@ref) function to copy values into the atmosphere object, over-writing existing values. As with most objects in RetrievalToolbox, users must be cautious as it is always possible to change values inside the object.
 
 ```@docs
 RE.EarthAtmosphere
