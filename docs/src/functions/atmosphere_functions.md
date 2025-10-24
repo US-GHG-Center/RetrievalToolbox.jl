@@ -17,22 +17,26 @@ There are notable exceptions, for which this concept does not work - at least no
 
 Instead, RetrievalToolbox expects users to to call a function `atmosphere_element_statevector_rollback!` towards the end of their forward model implementation, which re-sets particular atmospheric components to their initial state. Therefore, when a new forward model evaluation is performed, the call to `atmosphere_element_statevector_update!` will modify those components correctly to the desired state as given by the state vector elements.
 
+!!! warning
+    **Important!** There is no mechanism to check if the *update* and *rollback* functions have been called in a forward model. It is fully up to users to ensure that those calls are made in the forward model in the appropriate places.
+
+
 To summarize, users should make a call to `atmosphere_element_statevector_update!` towards the beginning of their forward model, and then another call to `atmosphere_element_statevector_rollback!` towards the end.
 
 ```julia
 # My forward model
 
 # [...]
-for atm in buf.scene.atmosphere.atm_elements
-    RE.atmosphere_element_statevector_update!(atm, SV)
+for atm_e in atm.atm_elements
+    RE.atmosphere_element_statevector_update!(atm_e, SV)
 end
 
 # [...]
 # calculate radiances, Jacobians etc.
 # [...]
 
-for atm in buf.scene.atmosphere.atm_elements
-    RE.atmosphere_element_statevector_rollback!(atm, SV)
+for atm_e in atm.atm_elements
+    RE.atmosphere_element_statevector_rollback!(atm_e, SV)
 end
 
 # [...]
@@ -41,6 +45,9 @@ end
 
 !!! tip
     Users also must ensure that `atmosphere_element_statevector_update!` is called *after* iterations are complete if they want to e.g. calculate some atmospheric quantity corresponding to the final state inferred by the retrieval.
+
+
+Note that the code snipped shows explicit loops over all atmosphere elements `atm_e` of some atmosphere `atm`.
 
 
 ## List of atmosphere functions
