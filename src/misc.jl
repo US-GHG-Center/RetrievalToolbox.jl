@@ -389,8 +389,8 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculates the trapezoidal-rule integral of f(x) where
-`x` are discrete x_i, and `y` are the corresponding f(x_i).
+Calculates the trapezoidal-rule integral of f(x) where `x` are discrete x_i, and `y` are
+the corresponding f(x_i).
 """
 function _trapz(x, y)
 
