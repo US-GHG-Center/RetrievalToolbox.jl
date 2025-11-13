@@ -49,6 +49,6 @@ makedocs(
 
 deploydocs(;
     repo = "github.com/US-GHG-Center/RetrievalToolbox.jl.git",
-    versions = ["stable" => "v^", "v#.#", "dev" => "main"],
+    versions = ["stable" => "v^", "v#.#", "main" => "main", "dev" => "dev"],
     push_preview = false,
 )
