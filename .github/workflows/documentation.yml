@@ -7,7 +7,16 @@ on:
     paths:
         - docs/**
     tags: '*'
+
   pull_request:
+
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run on'
+        required: true
+        default: 'main'
+        type: string
 
 jobs:
   build:
