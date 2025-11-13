@@ -151,7 +151,7 @@ include("types/scene_types.jl")
 include("types/instrument_types.jl")
 include("types/radiance_types.jl")
 include("types/RT_types.jl")
-include("types/SIF_types.jl")
+include("types/sif_types.jl")
 
 include("types/inversion_types.jl")
 
