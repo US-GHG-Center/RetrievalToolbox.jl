@@ -6,7 +6,7 @@ Type to hold surface-leaving SIF radiance
 mutable struct SIFRadiance{T} <: AbstractSIFRadiance
 
     radiance_at_reference :: T
-    radiance_unit
+    radiance_unit :: Unitful.Units
 
     ww_reference :: T
     ww_unit :: Union{Unitful.WavenumberUnits, Unitful.LengthUnits}
@@ -52,7 +52,7 @@ function SIFRadiance(
     radiance_at_reference,
     radiance_unit,
     ww_reference,
-    ww_unit::Union{Unitful.LengthUnits,Unitful.WavenumberUnits}
+    ww_unit::Union{Unitful.WavenumberUnits, Unitful.LengthUnits}
 )
 
     # Load the reference waveform
