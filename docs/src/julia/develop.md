@@ -16,7 +16,7 @@ Let the following be the task at hand:
     We want to write a function which calculates the total, isotropic solar-induced fluorescence (SIF) emission into the half hemisphere (towards the sky). The function will take a `SIFRadiance` type as argument, and simply produce the integral over the spectral dimensions and the positive half space.
 
 
-We start off by creating a `SIFradiance` object and just inspect the spectrally resolved isotropic radiance that it represents. Using the function `get_SIF_radiance`, we can simply obtain that emitted radiance for some given wavelength (or wavenumber).
+We start off by creating a `SIFRadiance` object and just inspect the spectrally resolved isotropic radiance that it represents. Using the function `get_SIF_radiance`, we can simply obtain that emitted radiance for some given wavelength (or wavenumber).
 
 ```@example sif
 using RetrievalToolbox; const RE = RetrievalToolbox
@@ -101,7 +101,7 @@ In the example above, our function would be accessible via `MyNewModule.SIF_radi
 To summarize, we can easily add new functions that make use of existing RetrievalToolbox functions and thus extend the overall capability of the software library to meet our own specific needs. In this example, we do not need to change anything within RetrievalToolbox itself, we simple make use of the existing functions. Further, we can create new modules that provide our new function if we need to use them for many projects.
 
 
-### Example 2: A new user type that is part of the existing RetrievalToolbox type hierarchy
+### Example 2: A new user type that will become part of the existing RetrievalToolbox type hierarchy
 
 A step up in complexity is the introduction of a new user type. For example, if some form of atmospheric constituent or atmospheric element is needed that is currently not supported in RetrievalToolbox.
 
@@ -158,7 +158,7 @@ With both these defined, we can create a new SIF object, which we shall call `ne
 new_sif = MySIFRadiance(u"W/m^2/sr/μm", u"nm");
 ```
 
-Now, RetrievalToolbox provides a `get_SIF_radiance` function that we used earlier evaluate the SIF radiance at some wavelength or wavenumber. Let's try to use it here to get the SIF at 725 nm:
+Now, RetrievalToolbox provides a `get_SIF_radiance` function that we used earlier evaluate the SIF radiance at some wavelength or wavenumber. Let's try to use it here to get the SIF radiance (of `new_sif`, which is an object of our new type `MySIFRadiance`) at 725 nm:
 
 ```@repl sif
 RE.get_SIF_radiance(new_sif, 725.0u"nm")
@@ -189,7 +189,7 @@ Now that we have created a function that accepts our new SIF type `MySIFRadiance
 RE.get_SIF_radiance(new_sif, 725.0u"nm")
 ```
 
-Further, any uses of `SIF_integral` that are invoked with objects of the new SIF type `MySIFRadiance` will themselves make calls to the correct `get_SIF_radiance`. **This is an important part of the exercise!** We did not have to make any adjustments to `SIF_integral` at all, since we kept the same function signature in our new implementation of `get_SIF_radiance`.
+Further, any uses of `SIF_integral` that are invoked with objects of the new SIF type `MySIFRadiance` will themselves make calls to the correct `get_SIF_radiance`. **This is an important part of this example!** We did not have to make any adjustments to `SIF_integral` at all, since we kept the same function signature in our new implementation of `get_SIF_radiance`. Julia recognizes, that we call `SIF_integral` with a new argument type (that being `MySIFRadiance`) and re-compiles the function.
 
 ```@example sif
 SIF_integral(new_sif)
