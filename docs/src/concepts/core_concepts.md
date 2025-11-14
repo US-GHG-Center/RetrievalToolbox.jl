@@ -1,4 +1,4 @@
-# Core Algorithm Concepts
+# [Core Algorithm Concepts](@id core_concepts)
 
 !!! note
     Within the RetrievalToolbox algorithm tools, an attempt is made to keep notation consistent as well as stick to more modern terminology. This approach occasionally overrides more antiquated terms, so various sections in the documentation will emphasize when a possible clash is expected.

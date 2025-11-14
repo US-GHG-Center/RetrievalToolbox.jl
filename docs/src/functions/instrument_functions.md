@@ -10,7 +10,7 @@ provide ways of doing so, assuming the high-resolution radiances and Jacobians h
 calculated already.
 
 Note that some of the functions below may refer to quantities whose meaning should be
-understood in detail, for further reading consult [`Core Algorithm Concepts`](@ref),
+understood in detail, for further reading consult [Core Algorithm Concepts](@ref core_concepts),
 especially the section on *Pixels, Spectral Samples and Dispersion*.
 
 ## List of instrument functions
