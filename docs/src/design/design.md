@@ -1,4 +1,4 @@
-# Toolkit design philosophy
+# Design
 
 ## Namespace
 
@@ -161,7 +161,7 @@ Note that `swin.λ_grid` or `swin.wavelength_grid` do not perform a calculation 
 Since types with some spectral dimension must also have a corresponding unit field, `ww_unit`, the `getproperty` function is able to check whether the requested spectral unit is appropriate. Trying to access `swin.wavenumber_grid` or `swin.ν_grid` will fail:
 
 ```@repl swin
-swin.wavenumber_grid # or swin.ν
+swin.wavenumber_grid # or swin.ν_grid
 ```
 
 Benchmarks have shown there is no significant performance drawback due to the use of the new `getproperty` functions.
@@ -192,5 +192,3 @@ When users write top-level retrieval scripts for some specific scenario, it is u
 ### Lack of an instrument type
 
 ### Custom ingestion of needed inputs
-
-## Extend the toolkit with your own types and functions
