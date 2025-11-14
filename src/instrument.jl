@@ -6,16 +6,16 @@ intended to be the high-resolution model radiance or Jacobian. The output is sto
 `inst_buf.low_res_output`. Returns `true` if the calculation did not encounter any errors.
 
 ## Details
-Application of the ISRF is in accordance with standard literature. The radiance ``I[i]``
-at instrument-level on a particular spectral sample `i` at wavelength ``\\lambda_i`` is
+Application of the ISRF is in accordance with standard literature. The radiance ``I[s]``
+at instrument-level on a particular spectral sample ``s`` at wavelength ``\\lambda_s`` is
 given by
 
-``I[i] = \\int I_\\mathrm{model}(\\lambda_i - \\Delta\\lambda) \\cdot
-\\mathrm{ISRF}_i(\\Delta\\lambda) \\; d\\lambda``
+``I[s] = \\int I_\\mathrm{model}(\\lambda_s - \\Delta\\lambda) \\cdot
+\\mathrm{ISRF}_s(\\Delta\\lambda) \\; d\\lambda``
 
-where ``\\mathrm{ISRF}_i`` is the pre-calculated ISRF evaluated at the relative wavelength
-``\\Delta\\lambda``. This implementation replaces the integral by a fast numerical
-integration via the trapezoid rule.
+where ``\\mathrm{ISRF}_s`` is the pre-calculated ISRF (of sample ``s``) evaluated at the
+relative wavelength ``\\Delta\\lambda``. This implementation replaces the integral by a
+fast numerical integration via the trapezoid rule.
 
 The output is stored in `inst_buf.low_res_output`.
 
@@ -186,11 +186,11 @@ the integration limits are on both sides. The output is stored in
 
 ## Details
 
-Application of the ISRF is in accordance with standard literature. The radiance ``I[i]``
-at instrument-level on a particular spectral sample `i` at wavelength ``\\lambda_i`` is
+Application of the ISRF is in accordance with standard literature. The radiance ``I[s]``
+at instrument-level on a particular spectral sample ``s`` at wavelength ``\\lambda_s`` is
 given by
 
-``I[i] = \\int I_\\mathrm{model}(\\lambda_i - \\Delta\\lambda) \\cdot
+``I[s] = \\int I_\\mathrm{model}(\\lambda_s - \\Delta\\lambda) \\cdot
 \\mathrm{ISRF}(\\Delta\\lambda) \\; d\\lambda``
 
 where ``\\mathrm{ISRF}`` is the Gaussian ISRF evaluated at the relative wavelength
