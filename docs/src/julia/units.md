@@ -1,4 +1,4 @@
-# Working with Unitful.jl units
+# [Working with Unitful.jl units](@id working_with_units)
 
 ## Introduction
 

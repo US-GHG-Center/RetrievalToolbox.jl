@@ -1,4 +1,4 @@
-# Working with Dictionaries
+# [Working with Dictionaries](@id working_with_dicts)
 
 ## Introduction
 
