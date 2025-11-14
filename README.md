@@ -69,9 +69,9 @@ using RetrievalToolbox
 (instead of `#define DO_NOT_ADD_SFI_SS 0`). This has the effect that for certain RT solvers, such as the `eig_bvp` or `two_stream` ones, the contributions from single-scattering **are not automatically computed and added** to the total radiance fields and their derivatives. This is the wanted behavior for some applications, such as retrievals from NASA's OCO instruments, where you may want to compute the single-scatter contributions with a vector RT call, but the diffuse (MS) contributions with a scalar RT call. **Be aware that this is a compile-time choice** at the moment, so switching between `#define DO_NOT_ADD_SFI_SS 0` and `#define DO_NOT_ADD_SFI_SS 1` requires re-compiling. Alternatively, you can keep two copies of the code with the two different variants for this variable, and point RetrievalToolbox to a different path when you run it via changing `XRTM_PATH`.
 
 
-## Learning
+## Documentation and Learning
 
-A few tutorials (work in progress) can be found [here](https://petersomkuti.github.io/RetrievalToolbox-Tutorials/).
+The main documentation, built with [Documenter.jl](https://documenter.juliadocs.org/stable/) is part of the repository under `docs/`, and the corresponding HTML render can be found [here][docs-dev-url]. A few tutorials (work in progress) can be found [here](https://petersomkuti.github.io/RetrievalToolbox-Tutorials/).
 
 ## Citing RetrievalToolbox
 
