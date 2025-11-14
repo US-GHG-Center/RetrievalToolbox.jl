@@ -1,9 +1,32 @@
 """
 
 $(TYPEDSIGNATURES)
+Applies the `TableISRF`-type instrument response function on some vector `data`, usually
+intended to be the high-resolution model radiance or Jacobian. The output is stored in
+`inst_buf.low_res_output`. Returns `true` if the calculation did not encounter any errors.
+
+## Details
+Application of the ISRF is in accordance with standard literature. The radiance ``I[i]``
+at instrument-level on a particular spectral sample `i` at wavelength ``\\lambda_i`` is
+given by
+
+``I[i] = \\int I_\\mathrm{model}(\\lambda_i - \\Delta\\lambda) \\cdot
+\\mathrm{ISRF}_i(\\Delta\\lambda) \\; d\\lambda``
+
+where ``\\mathrm{ISRF}_i`` is the pre-calculated ISRF evaluated at the relative wavelength
+``\\Delta\\lambda``. This implementation replaces the integral by a fast numerical
+integration via the trapezoid rule.
+
+The output is stored in `inst_buf.low_res_output`.
 
 ## Instrument Doppler shift
 
+This function can take the `doppler_factor` argument, which is needed to compute the
+appropriate Doppler shift caused by the relative motion between, for example, the
+measurement footprint on the ground (for downlooking instruments) and the instrument along
+the line of sight. The Doppler factor is ``v / c`` where ``c`` is the speed of light. This
+function does not derive the appropriate Doppler shift, it is up to users to perform the
+appropriate calculation.
 """
 function apply_isrf_to_spectrum!(
     inst_buf::InstrumentBuffer,
@@ -40,11 +63,10 @@ function apply_isrf_to_spectrum!(
 end
 
 """
-Low-level function to performantly apply an instrument ISRF
-to a high-resolution model spectrum, in order to obtain a
-spectrum comparable to that measured by an instrument.
-
 $(TYPEDSIGNATURES)
+
+Low-level function to performantly apply an instrument ISRF to a high-resolution model
+spectrum, in order to obtain a spectrum comparable to that measured by an instrument.
 
 """
 function _apply_tableisrf_to_spectrum_lowlevel!(
@@ -153,7 +175,37 @@ end
 
 
 
+"""
+$(TYPEDSIGNATURES)
 
+Applies the `GaussISRF`-type instrument response function on some vector `data`, usually
+intended to be the high-resolution model radiance or Jacobian. Integration limits are
+given by the `extend` keyword, it defines how many ``\\sigma`` (derived fom `ISRF.FWHM`)
+the integration limits are on both sides. The output is stored in
+`inst_buf.low_res_output`. Returns `true` if the calculation did not encounter any errors.
+
+## Details
+
+Application of the ISRF is in accordance with standard literature. The radiance ``I[i]``
+at instrument-level on a particular spectral sample `i` at wavelength ``\\lambda_i`` is
+given by
+
+``I[i] = \\int I_\\mathrm{model}(\\lambda_i - \\Delta\\lambda) \\cdot
+\\mathrm{ISRF}(\\Delta\\lambda) \\; d\\lambda``
+
+where ``\\mathrm{ISRF}`` is the Gaussian ISRF evaluated at the relative wavelength
+``\\Delta\\lambda``. This implementation replaces the integral by a fast numerical
+integration.
+
+## Instrument Doppler shift
+
+This function can take the `doppler_factor` argument, which is needed to compute the
+appropriate Doppler shift caused by the relative motion between, for example, the
+measurement footprint on the ground (for downlooking instruments) and the instrument along
+the line of sight. The Doppler factor is ``v / c`` where ``c`` is the speed of light. This
+function does not derive the appropriate Doppler shift, it is up to users to perform the
+appropriate calculation.
+"""
 function apply_isrf_to_spectrum!(
     inst_buf::InstrumentBuffer,
     ISRF::GaussISRF,
@@ -226,8 +278,10 @@ function _apply_gaussisrf_to_spectrum_lowlevel!(
             ww_right = hires_ww[ii + 1]
 
             # Implementation of the trapezoidal rule for this integration
-            isrf_left = 1 / (σ * sqrt(2*pi)) * exp(-0.5 * (ww_left - lores_ww[i])^2 / σ^2)
-            isrf_right = 1 / (σ * sqrt(2*pi)) * exp(-0.5 * (ww_right - lores_ww[i])^2 / σ^2)
+            isrf_left = 1 / (σ * sqrt(2*pi)) *
+                exp(-0.5 * (ww_left - lores_ww[i])^2 / σ^2)
+            isrf_right = 1 / (σ * sqrt(2*pi)) *
+                exp(-0.5 * (ww_right - lores_ww[i])^2 / σ^2)
 
             running_sum += 0.5 * (
                 hires_data[ii] * isrf_left + hires_data[ii+1] * isrf_right
