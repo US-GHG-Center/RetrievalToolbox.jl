@@ -5,6 +5,18 @@ RetrievalToolbox is a library for building trace gas retrieval algorithms and re
 
 RetrievalToolbox was developed at the Earth System Science Interdisciplinary Center (ESSIC) at the University of Maryland College Park, and at NASA Goddard Space Flight Center.
 
+
+## Documentation and Learning
+
+The main documentation, built with [Documenter.jl](https://documenter.juliadocs.org/stable/) is part of the repository under `docs/`, and the corresponding HTML render can be found [here][docs-dev-url]. A few tutorials (work in progress) can be found [here](https://petersomkuti.github.io/RetrievalToolbox-Tutorials/).
+
+Looking at working examples is also highly instructive:
+
+ * [EMIT retrieval demo for AGU2025 (New Orleans, USA, 2025)](https://github.com/PeterSomkuti/EMIT-retrieval/)
+ * [Demo for IWGGMS21 (Takamatsu, Japan, 2025)](https://github.com/US-GHG-Center/IWGGMS21-Demo)
+
+_Users are very welcome to submit their working set-ups to be listed here!_
+
 ## Installation
 
 The library can be installed directly from Julia by typing (via http)
@@ -67,11 +79,6 @@ using RetrievalToolbox
 #define DO_NOT_ADD_SFI_SS 1
 ```
 (instead of `#define DO_NOT_ADD_SFI_SS 0`). This has the effect that for certain RT solvers, such as the `eig_bvp` or `two_stream` ones, the contributions from single-scattering **are not automatically computed and added** to the total radiance fields and their derivatives. This is the wanted behavior for some applications, such as retrievals from NASA's OCO instruments, where you may want to compute the single-scatter contributions with a vector RT call, but the diffuse (MS) contributions with a scalar RT call. **Be aware that this is a compile-time choice** at the moment, so switching between `#define DO_NOT_ADD_SFI_SS 0` and `#define DO_NOT_ADD_SFI_SS 1` requires re-compiling. Alternatively, you can keep two copies of the code with the two different variants for this variable, and point RetrievalToolbox to a different path when you run it via changing `XRTM_PATH`.
-
-
-## Documentation and Learning
-
-The main documentation, built with [Documenter.jl](https://documenter.juliadocs.org/stable/) is part of the repository under `docs/`, and the corresponding HTML render can be found [here][docs-dev-url]. A few tutorials (work in progress) can be found [here](https://petersomkuti.github.io/RetrievalToolbox-Tutorials/).
 
 ## Citing RetrievalToolbox
 
