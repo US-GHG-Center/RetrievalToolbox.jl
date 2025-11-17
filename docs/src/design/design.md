@@ -80,17 +80,21 @@ To summarize: RetrievalToolbox makes extensive use of Julia's type system such t
     The Julia type system allows for flexibility in creating program code that looks the same for a variety of object types. Further, users can more easily extend existing code with their own types without necessarily having to change the underlying routines, but by providing their own user code.
 
 
-## Buffers for performance
+## Buffers for performance and convenience
 
 Julia is a garbage-collected language (more detailed info [here](https://docs.julialang.org/en/v1/devdocs/gc/)), meaning that users do not have explicit control over how and when objects are de-allocated from memory. When users write functions that allocate (by creating vectors and arrays, for example), the memory is not immediately freed when the function is completed. The garbage collector (GC) is triggered at some point when the memory usage reaches some level. The GC then traces through the objects in memory and removes those that are no longer used.
 
-The big advantage of GC-based languages is of course that manual memory management is no longer needed, and users do not have to keep track of correct allocation and de-allocation of objects, and memory safety issues are also less common. The major downside is that without manual memory management, users could (un)willingly write code that very inefficiently allocates a lot of memory. When those allocations happen in certain places (loops mostly), memory will fill up quickly and trigger GC sweeps very often. The paradigm within Julia is usually: allocate arrays and vectors beforehand, and perform calculations on these pre-allocated objects.
+The big advantage of GC-based languages is of course that manual memory management is no longer needed, and users do not have to keep track of correct allocation and de-allocation of objects, and memory safety issues are also less common. The major downside is that without manual memory management, users could (un)willingly write code that very inefficiently allocates a lot of memory. When those allocations happen in certain places (loops mostly), memory will fill up quickly and trigger GC sweeps very often. The paradigm within Julia is usually: allocate big arrays and vectors beforehand, and perform calculations on these pre-allocated objects.
 
 Early versions of RetrievalToolbox did not make use of much pre-allocation, and most calls to functions would create new objects. This has proven to be not a feasible solution. While convenient for top-level scripting, the many allocations needed made it impossible to run faster retrievals where the forward model run was much less than a second (e.g. physics-based SIF retrievals or other non-scattering applications).
 
-Thus, we make use of pre-allocated objects, which we call buffers here.
+Thus, we make use of pre-allocated objects, and some of them are collected into objects that we call **buffers**. Types that belong into this category are found in `src/types/buffer_types.jl`. Some users might be familiar with LAPACK's `WORK` arrays to hold temporary results, which have to be managed by the user. Buffers in RetrievalToolbox are conceptually the same.
 
+The simplest buffer at the moment is the `InstrumentBuffer` type, which is simply a collection of three vectors that are meant to be used as as temporary vectors for instrument model-related operations such as the application of the instrument spectral response function ([`RetrievalToolbox.apply_isrf_to_spectrum!`](@ref)) which requires an `InstrumentBuffer`. In most retrieval applications, users will likely want to process many scenes per invocation of their program. Buffers are intended to be *re-used*, so they can be created once and then used over and over. Functions in RetrievalToolbox which use buffers ensure that the contents of the buffers are "cleared out" (generally set to zero). Users do not have to worry about what values are inside buffers before calling functions that use them.
 
+Currently, the top-level buffer is the `EarthAtmosphereBuffer` which itself includes buffers and other objects with pre-allocated elements. For most applications, users will want to create an `EarthAtmosphereBuffer` to represent a collection of easily accessed objects.
+
+Buffers are represented by their own types, listed here: [Buffer Types](@ref buffer_types).
 
 ### Order of instantiation in a retrieval algorithm
 

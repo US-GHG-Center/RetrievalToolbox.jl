@@ -14,6 +14,7 @@ Looking at working examples is also highly instructive:
 
  * [EMIT retrieval demo for AGU2025 (New Orleans, USA, 2025)](https://github.com/PeterSomkuti/EMIT-retrieval/)
  * [Demo for IWGGMS21 (Takamatsu, Japan, 2025)](https://github.com/US-GHG-Center/IWGGMS21-Demo)
+ * [Implementation of the ACOS algorithm](https://github.com/PeterSomkuti/ACOS-Goddard/)
 
 _Users are very welcome to submit their working set-ups to be listed here!_
 

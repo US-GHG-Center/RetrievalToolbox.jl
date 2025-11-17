@@ -34,7 +34,9 @@ makedocs(
             [
                 "Atmosphere Types" => joinpath("types", "atmosphere_types.md"),
                 "Buffer Types" => joinpath("types", "buffer_types.md"),
+                "Radiative Transfer Method Types" => joinpath("types", "RT_types.md"),
                 "State Vector Types" => joinpath("types", "state_vector_types.md"),
+                "Surface Types" => joinpath("types", "surface_types.md"),
             ],
         "Working with Julia" =>
             [
