@@ -19,6 +19,7 @@ makedocs(
         "Design" => joinpath("design", "design.md"),
         "Concepts" =>
             [
+                "Fundamentals" => joinpath("concepts", "fundamentals.md"),
                 "Core Concepts" => joinpath("concepts", "core_concepts.md"),
                 "Radiance" => joinpath("concepts", "radiance.md"),
                 "Scattering Phasefunction" => joinpath("concepts" , "phasefunction.md"),
@@ -26,7 +27,8 @@ makedocs(
         "Functions" =>
             [
                 "State Vector Functions" => joinpath("functions", "state_vector_functions.md"),
-                "Atmosphere Functions" => joinpath("functions", "atmosphere_functions.md")
+                "Atmosphere Functions" => joinpath("functions", "atmosphere_functions.md"),
+                "Instrument Functions" => joinpath("functions", "instrument_functions.md")
             ],
         "Types" =>
             [
