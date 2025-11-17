@@ -1,4 +1,4 @@
-# How to develop or extend RetrievalToolbox
+# [How to develop or extend RetrievalToolbox](@id develop_RetrievalToolbox)
 
 Thanks to Julia's approach to user-defined types and functions that act on or use those types, it is very straightforward to extend the capabilities of RetrievalToolbox to users' own needs, without having to alter the RetrievalToolbox library itself.
 

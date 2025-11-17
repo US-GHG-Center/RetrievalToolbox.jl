@@ -28,9 +28,8 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Helper function to populate an **EarthAtmosphereBuffer**, which also includes an
-**EarthAtmosphere** and the corresponding **OpticalProperties** with correctly sized
-arrays.
+Helper function to populate an `EarthAtmosphereBuffer`, which also includes an
+`EarthAtmosphere` and the corresponding `OpticalProperties` with correctly sized arrays.
 
 # Details
 
@@ -38,17 +37,17 @@ TODO: a lot of documentation needs to go here.
 
 """
 function EarthAtmosphereBuffer(
-    sv,
+    sv::AbstractStateVector,
     spectral_windows,
-    surface_types,
+    surface_types::Vector{Tuple},
     atmospheric_elements,
-    solar_models,
+    solar_models::Dict{<:AbstractSpectralWindow,<:AbstractSolarModel},
     RT_models::Vector{Symbol},
     RadType::Type{<:Radiance},
-    rt_buf,
+    rt_buf::AbstractRTBuffer,
     inst_buf,
-    N_level,
-    N_met_level,
+    N_level::Integer,
+    N_met_level::Integer,
     T::Type{<:AbstractFloat}
     )
 

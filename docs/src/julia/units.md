@@ -107,7 +107,7 @@ struct GasAbsorber{T} <: AbstractAtmosphereElement where T
 end
 ```
 
-Note that above, we can not just demand that the user instantiate the object with a `Unitful` type, but we can also make sure that the assigned unit makes sense for this particular object. Volume mixing ratios should be dimensionless (or dimension 1), and `Unitful` provides a type that represents all the explicit types. There are many other types that fall into the same category, we can use e.g. `Unitful.LengthUnits` if we want to force any type of length unit.
+Note that above, we can not only demand that the user instantiate the object with a `Unitful` type, but we can also make sure that the assigned unit makes sense for this particular object. Volume mixing ratios should be dimensionless (or dimension 1), and `Unitful` provides a type that represents all the explicit types. There are many other types that fall into the same category, we can use e.g. `Unitful.LengthUnits` if we want to force any type of length unit.
 
 Of course now, users and code maintainers must use explicitly use the unit information and make sure that possible unit conversions are taken into account when they need to be. For dimensionless units, the situation is straightforward, since applying the `NoUnits` function will convert the dimensionless quantity into parts.
 

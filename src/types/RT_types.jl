@@ -5,6 +5,12 @@ struct NoRTMethod <: AbstractRTMethod
 
 end
 
+"""
+$(TYPEDFIELDS)
+
+Generic monochromatic radiative transfer method to be used with external libraries, such
+as XRTM.
+"""
 struct MonochromaticRTMethod{
     U <: AbstractOpticalProperties,
     V <: AbstractSolarModel,
@@ -48,6 +54,12 @@ struct MonochromaticRTMethod{
 
 end
 
+"""
+$(TYPEDFIELDS)
+
+Analytic radiative transfer method for non-scattering atmospheres according to the
+Beer-Lambert-Bouguer law.
+"""
 struct BeerLambertRTMethod <: AbstractRTMethod
 
     "`AtmosphereScene` for which the RT is to be computed"
@@ -74,6 +86,12 @@ struct BeerLambertRTMethod <: AbstractRTMethod
 
 end
 
+"""
+$(TYPEDFIELDS)
+
+Low-Streams Interpolation method as published by O'Dell 2010
+(https://doi.org/10.1029/2009JD012803).
+"""
 struct LSIRTMethod <: AbstractRTMethod
 
     "Options dictonary to control hi-res RT settings"
