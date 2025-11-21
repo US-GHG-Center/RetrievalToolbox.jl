@@ -6,3 +6,8 @@ The [`Design`](@ref) section lays out the design philosophy of the software and 
 
 To users that are (relatively) new to Julia, we have also integrated a few documents that explains various concepts of Julia that are often used in RetrievalToolbox, such as the usage of dictionaries (see [here](@ref working_with_dicts)), which may differ from other programming and scripting languages, or how physical units are considered (see [here](@ref working_with_units)).
 
+
+In the current version of the software library, the following are not (yet) supported:
+
+* True infra-red radiative transfer that includes thermal emission
+* Limb soundings
