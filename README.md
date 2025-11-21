@@ -59,6 +59,8 @@ Now you have to edit `make.inc` to work seamlessly with your environment. Usuall
 3. `F77= ` and `F90= ` set your (GNU) Fortran77 and Fortran90 compilers. `F77=gfortran` and `F90=gfortran` should work.
 4. Set your LAPACK library location. On MacOS, this likely needs to be set to `-framework Accelerate`, and on Linux machines, you will likely have many options, including various OpenBLAS options, or Intel's MKL.
 
+**On recent versions of MacOS, `gcc` invokes the Clang compiler rather than the GNU compiler suite.** Apple Clang does not work with the `-fopenmp` flag, and thus building XRTM will not work. We recommend downloading GCC (and gfortran) via [`homebrew`](https://brew.sh), by typing `brew install gcc`. To then call this freshly installed GCC compiler, one needs to add the version number, i.e. `gcc-15`. Use `gcc-15`, `g++-15` etc. to edit the Makefile.
+
 Once those are set, simply type `make` to build the XRTM library. Note that you will have to make more substantial changes if you want to compile with e.g. Intel's compiler suite. If you do not have a LaTeX distribution with `pdflatex` on the computer, the build process will exit with an error message, but that only concerns the compilation of the documentation which is part of the makefile; by that point the library will have been built successfully and is ready to use.
 
 RetrievalToolbox looks in a particular place to find the XRTM Julia interface file (which is part of XRTM), and it is determined by the environment variable `XRTM_PATH`, which should point to the main source tree that you just cloned. So in an interactive environment, you should, for example, start a Julia session with
