@@ -39,7 +39,7 @@ TODO: a lot of documentation needs to go here.
 function EarthAtmosphereBuffer(
     sv::AbstractStateVector,
     spectral_windows,
-    surface_types::Vector{Tuple},
+    surface_types::Vector{<:Tuple},
     atmospheric_elements,
     solar_models::Dict{<:AbstractSpectralWindow,<:AbstractSolarModel},
     RT_models::Vector{Symbol},
