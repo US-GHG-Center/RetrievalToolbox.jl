@@ -16,7 +16,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Pretty printing for Beer-Lambert RT
+Pretty printing for EarthAtmosphereBuffer
 """
 function show(io::IO, buf::EarthAtmosphereBuffer)
     # Just print this for now
@@ -30,11 +30,13 @@ $(TYPEDSIGNATURES)
 
 Helper function to populate an `EarthAtmosphereBuffer`, which also includes an
 `EarthAtmosphere` and the corresponding `OpticalProperties` with correctly sized arrays.
+Ensure that the state vector `sv` is the same that was used to generate the RT buffer
+`rt_buf`!
 
 # Details
 
-TODO: a lot of documentation needs to go here.
-
+Please see the on-line documentation (via the Github page) for a more detailed explanation
+on the use of this function.
 """
 function EarthAtmosphereBuffer(
     sv::AbstractStateVector,
@@ -288,12 +290,12 @@ function EarthAtmosphereBuffer(
 end
 
 """
+$(TYPEDSIGNATURES)
+
 Calculates the indices of an `EarthAtmosphereBuffer`/`AbstractRTBuffer` type to assign
 forward model output (radiances) from specific spectral windows to a retrieval-wide array
 of radiances. The order in which those are concatenated into the RT buffer is determined
 by the order in the `buf.spectral_window` vector.
-
-$(TYPEDSIGNATURES)
 """
 function calculate_indices!(buf::EarthAtmosphereBuffer)
 
