@@ -1,5 +1,6 @@
 # RetrievalToolbox
 [![docs-dev](https://img.shields.io/badge/docs-dev-blue.svg)][docs-dev-url]
+[![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 RetrievalToolbox is a library for building trace gas retrieval algorithms and related applications written in pure [Julia](https://julialang.org). The library is currently in an early release stage, and feature-breaking updates might happen - although we attempt to keep those to a minimum. For the time being, we recommend to fork this repository into your own GitHub organization and integrate updates from here as to not break your own application.
 
@@ -8,13 +9,13 @@ RetrievalToolbox was developed at the Earth System Science Interdisciplinary Cen
 
 ## Documentation and Learning
 
-The main documentation, built with [Documenter.jl](https://documenter.juliadocs.org/stable/) is part of the repository under `docs/`, and the corresponding HTML render can be found [here][docs-dev-url]. A few tutorials (work in progress) can be found [here](https://petersomkuti.github.io/RetrievalToolbox-Tutorials/).
+The main documentation, built with [Documenter.jl](https://documenter.juliadocs.org/stable/) is part of the repository under `docs/`, and the corresponding HTML render can be found [here][docs-dev-url]. Learning materials (tutorials) can be found [here](https://petersomkuti.github.io/RetrievalToolbox-Tutorials/).
 
 Looking at working examples is also highly instructive:
 
  * [EMIT retrieval demo for AGU2025 (New Orleans, USA, 2025)](https://github.com/PeterSomkuti/EMIT-retrieval/)
  * [Demo for IWGGMS21 (Takamatsu, Japan, 2025)](https://github.com/US-GHG-Center/IWGGMS21-Demo)
- * [Implementation of the ACOS algorithm](https://github.com/PeterSomkuti/ACOS-Goddard/)
+ * [Implementation of NASA's ACOS algorithm](https://github.com/PeterSomkuti/ACOS-Goddard/)
 
 _Users are very welcome to submit their working set-ups to be listed here!_
 
@@ -89,7 +90,7 @@ We will be working in the future to submit an entry to the Journal of Open Sourc
 
 RetrievalToolbox was heavily influenced by the hard work of numerous scientists in different labs and institutions in various countries. Some of those algorithms have been under development for over a decade and a proven track record of reliability. Prominent and publicly available alternatives are
 
-- NASA's RtRetrievalFramework (https://github.com/NASA/RtRetrievalFramework)
+- NASA's RtRetrievalFramework (https://github.com/NASA/RtRetrievalFramework) and ReFRACtor (https://github.com/ReFRACtor)
 - SRON's RemoteC (https://bitbucket.org/sron_earth/remotec_general/src/main/)
 
 
