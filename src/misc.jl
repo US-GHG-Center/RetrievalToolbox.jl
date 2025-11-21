@@ -10,6 +10,7 @@ function _field_unit_conversion(x::Symbol)
     return Symbol(replace(String(x), "_layers" => "", "_levels" => "") * "_unit")
 
 end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -91,13 +92,23 @@ function ingest!(
     end
 end
 
+"""
+$(TYPEDSIGNATURES)
 
+For an array `x`, returns the difference between the largest and smallest element
+`maximum(x) - minimum(x)`.
+"""
 function maxmin(x::AbstractArray)
     return maximum(x) - minimum(x)
 end
 
+"""
+$(TYPEDSIGNATURES)
 
-function check_for_not_finite(x)
+For an array `x`, returns `true` if any element is not finite (as per `isfinite`), or
+`false` if all elements are finite.
+"""
+function check_for_not_finite(x::AbstractArray)
 
     for i in eachindex(x)
         if !isfinite(x[i])

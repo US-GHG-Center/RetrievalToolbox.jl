@@ -6,10 +6,10 @@
 =#
 
 """
-
-
 $(TYPEDSIGNATURES)
 
+Computes the King factor according to Tomasi et al. 2005,
+`https://doi.org/10.1364/AO.44.003320`. Requires `wl_input` as a length-valued input.
 """
 function King_factor(wl_input::Unitful.Length)
 
@@ -43,8 +43,7 @@ end
 
 function calculate_rayleigh_depolf(wl::Unitful.Length)
 
-    # Wavelength here can be any unit, since
-    # the King_factor function takes care of the
+    # Wavelength here can be any unit, since the King_factor function takes care of the
     # conversion.
     F = King_factor(wl)
     depol_r = (6.0 * F - 6.0) / (7.0 * F + 3.0)

@@ -448,8 +448,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Updates atmospheric element `atm_element` if a `GasVMRProfileSVE` is
-present.
+Updates atmospheric element `atm_element` if a `GasVMRProfileSVE` is present.
 """
 function atmosphere_element_statevector_update!(
     atm_element::GasAbsorber,
@@ -506,8 +505,8 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Rolls back the `GasAbsorber` volume mixing ratio profile to its first-guess state
-as defined in `sve`.
+Rolls back the `GasAbsorber` volume mixing ratio profile to its first-guess state as
+defined in `sve`.
 """
 function atmosphere_element_statevector_rollback!(
     atm_element::GasAbsorber,
@@ -601,12 +600,11 @@ function atmosphere_element_statevector_update!(
 end
 
 """
-Calculates the pressure weights according to O'Dell et al. in
-10.5194/amt-5-99-2012. Note that this assumes that the gas concentrations
-vary linearly with pressure, as implemented in the function
-`calculate_gas_optical_depth_profiles`.
-
 $(TYPEDSIGNATURES)
+
+Calculates the pressure weights according to O'Dell et al. in 10.5194/amt-5-99-2012. Note
+that this assumes that the gas concentrations vary linearly with pressure, as implemented
+in the function `calculate_gas_optical_depth_profiles`.
 """
 function create_pressure_weights(
     atm::AbstractAtmosphere;
