@@ -1,11 +1,13 @@
 """
-An empty `AbstractSolarModel` type for use in applications that
-do not require any actual implementation. For example, if one wishes
-to calculate only optical properties, but not apply any radiative
-transfer model.
+An empty `AbstractSolarModel` type for use in applications that do not require any actual
+implementation. For example, if one wishes to calculate only optical properties, but not
+apply any radiative transfer model.
 """
 struct EmptySolarModel{T} <: AbstractSolarModel end
 
+"""
+$(TYPEDFIELDS)
+"""
 mutable struct OCOHDFSolarModel{T} <: AbstractSolarModel
 
     file_name::String
@@ -20,6 +22,9 @@ mutable struct OCOHDFSolarModel{T} <: AbstractSolarModel
 
 end
 
+"""
+$(TYPEDFIELDS)
+"""
 mutable struct TSISSolarModel{T} <: AbstractSolarModel
 
     file_name::String
@@ -30,6 +35,9 @@ mutable struct TSISSolarModel{T} <: AbstractSolarModel
     irradiance_unit::Unitful.Units
 end
 
+"""
+$(TYPEDFIELDS)
+"""
 mutable struct ListSolarModel{T} <: AbstractSolarModel
 
     ww::Vector{T}

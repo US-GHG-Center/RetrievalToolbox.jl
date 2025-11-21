@@ -1,8 +1,7 @@
 """
 $(TYPEDSIGNATURES)
 
-Reads a pair of MIE and MOM text files to create an appropriate aerosol property
-object.
+Reads a pair of MIE and MOM text files to create an appropriate aerosol property object.
 
 # Details
 We expect the format of the Colorado State University MIE and MOM files. TODO Add more
