@@ -57,8 +57,6 @@ surface_types = [
 
 For the `Lambertian` surface, there is only one needed parameter, which is the order of the polynomial to capture the spectral dependence. For the `RPV` BRDF kernel, three additional parameters need to be part of the tuple: the hotspot, asymmetry and anisotropy parameters (see also [`RPVPolynomialKernel`](@ref)). The important part here is that the surface are created and assigned, in order such that `swin_A` and `swin_B` both get their own Lambertian surfaces, and the RPV BRDF kernel surface will be attached to `swin_C`.
 
-
-
 ## Types
 
 ```@docs
