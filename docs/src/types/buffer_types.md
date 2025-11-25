@@ -2,7 +2,7 @@
 
 Below are the currently supported buffer types which represent collections of pre-allocated objects that can be used over and over in situations where users want to e.g. perform many retrievals. The following buffers can be created once and then used repeatedly for different scenes. The slower the retrieval process itself is, the lower is the overall performance gain from re-using buffers, however. For very fast retrievals with completion times less then a few seconds, it is highly recommended to re-use the buffers.
 
-## How to construct and use an `EarthAtmosphereBuffer`
+## How to construct an `EarthAtmosphereBuffer`
 
 The `EarthAtmosphereBuffer` type requires itself several other objects based on RetrievalToolbox types. Most importantly, a number of functions that RetrievalToolbox provides implicitly assume that all those objects are correctly instantiated and all relevant relationships hold across the type hierarchy. While it is possible to create an `EarthAtmosphereBuffer` object manually, it is highly recommended to use the convenience function that is provided with RetrievalToolbox. In cases where this convenience function does not produce the right configuration due to specific user needs, the best course of action is to copy the function code (`src/buffers.jl`) into a new module and make appropriate changes to capture those cases. See also: [How to develop or extend RetrievalToolbox](@ref develop_RetrievalToolbox).
 
@@ -56,6 +56,44 @@ surface_types = [
 ```
 
 For the `Lambertian` surface, there is only one needed parameter, which is the order of the polynomial to capture the spectral dependence. For the `RPV` BRDF kernel, three additional parameters need to be part of the tuple: the hotspot, asymmetry and anisotropy parameters (see also [`RPVPolynomialKernel`](@ref)). The important part here is that the surface are created and assigned, in order such that `swin_A` and `swin_B` both get their own Lambertian surfaces, and the RPV BRDF kernel surface will be attached to `swin_C`.
+
+## How to use an `EarthAtmosphereBuffer`
+
+Once created, users must fill the various arrays and vectors of an `EarthAtmosphereBuffer` with meaningful values such that the other various routines can produce sensible values. An `EarthAtmosphereBuffer` only contains one `EarthScene`, which itself contains only one `EarthAtmosphere`; hence if `buf` is the name of the `EarthAtmosphereBuffer`, one would access the atmosphere object via `buf.scene.atmosphere`.
+
+For example, calculating the gravity and altitude profiles for an existing atmosphere requires the atmosphere object to have valid meteorological pressure, temperature and specific humidity profiles along with a valid location and altitude. Assuming `buf` was created successfully beforehand, one would use below lines to manipulate the `EarthAtmosphere` inside the buffer.
+
+```julia
+# Create a location: lon, lat, altitude, altitude unit
+buf.scene.location = RE.EarthLocation(0.0, 45.0, 100.0, u"m")
+
+# Set MET profiles
+buf.scene.atmosphere.met_pressure_levels[:] .= ... # copy met P
+buf.scene.atmosphere.temperature_levels[:] .= ... # copy met T
+buf.scene.atmosphere.specific_humidity_levels[:] .= ... # copy met q
+
+# Calculate g and z (in-place operation), this will update
+# buf.scene.atmosphere.altitude_levels and buf.scne.atmosphere.gravity_levels
+RE.calculate_altitude_and_gravity!(buf.scene)
+```
+
+In another example, we use the instrument buffer attached to the `EarthAtmosphereBuffer` to perform an instrument model calculation - applying some instrument spectral response function:
+
+```julia
+swin = buf.spectral_window[2] # take the second spectral window from the list
+
+RE.apply_isrf_to_spectrum!(
+    buf.inst_buf, # the instrument buffer created beforehand
+    ISRF, # my ISRF
+    buf.rt_buf.dispersion[swin], # grab the corresponding dispersion
+    some_high_resolution_spectrum, # a result from a forward model run perhaps
+    swin # the spectral window we picked
+)
+```
+
+Note that in the above example, we make sure that the right objects are passed into the function.
+
+See [this tutorial](https://petersomkuti.github.io/RetrievalToolbox-Tutorials/tutorial_02.html) for relevant learning materials and more details.
 
 ## Types
 
