@@ -11,11 +11,15 @@ function create_empty_EarthAtmosphere(
     T::Type{<:Real};
     pressure_unit::Unitful.PressureUnits=u"Pa",
     met_pressure_unit::Unitful.PressureUnits=u"Pa",
-    temperature_unit::Unitful.Units{U, Unitful.𝚯, nothing} where U=u"K",
+    temperature_unit::Unitful.Units{U, Unitful.𝚯, nothing}=u"K",
     specific_humidity_unit::Unitful.DimensionlessUnits=u"kg/kg",
     altitude_unit::Unitful.LengthUnits=u"km",
     gravity_unit::Unitful.AccelerationUnits=u"m/s^2"
-    )
+    ) where U
+
+    # For now, only allow >= 1 layers
+    @assert Nlev > 1 "Number of levels must be at least 2 (1 layer)!"
+
 
     # Create an empty vector for atmosphere elements
     atm_elements = AbstractAtmosphereElement[]
@@ -69,17 +73,18 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Creates the 'classic' University of Leicester-type pressure grid
+Creates the 'classic' University of Leicester-type pressure grid, based on the supplied
+surface pressure `p_surf` and the tropopause pressure `p_tropo`.
 
 # Details
 
-A pressure grid is generated with fixed 5 stratospheric levels. The sixth level
-is halfway between tropopause pressure and level 5, and the seventh level is the
-tropopause pressure itself. Finally, the remaining levels are evenly spaced
-between the tropopause and the surface pressure. The total number of pressure
-levels must be greater than 8 (default: 20). If the tropopause pressure is larger
-than 8000 Pa (i.e. higher in the atmosphere), levels 6 and 7 are then set to
-predefined values and the tropopause is then considered to be level 7.
+A pressure grid is generated with fixed 5 stratospheric levels. The sixth level is halfway
+between tropopause pressure and level 5, and the seventh level is the tropopause pressure
+itself. Finally, the remaining levels are evenly spaced between the tropopause and the
+surface pressure. The total number of pressure levels must be greater than 8 (default:
+20). If the tropopause pressure is larger than 8000 Pa (i.e. higher in the atmosphere),
+levels 6 and 7 are then set to predefined values and the tropopause is then considered to
+be level 7.
 """
 function create_UoL_pressure_grid(
     p_surf::Unitful.Pressure,
@@ -365,8 +370,8 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Default function to update the atmosphere element `atm_element` according to the
-current value of the state vector element `sve`. This does nothing!
+Default function to update the atmosphere element `atm_element` according to the current
+value of the state vector element `sve`. This does nothing!
 """
 function atmosphere_element_statevector_update!(
     atm_element::AbstractAtmosphereElement,
@@ -602,13 +607,16 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculates the pressure weights according to O'Dell et al. in 10.5194/amt-5-99-2012. Note
-that this assumes that the gas concentrations vary linearly with pressure, as implemented
-in the function `calculate_gas_optical_depth_profiles`.
+Calculates the pressure weights according to O'Dell et al. in 10.5194/amt-5-99-2012.
+Between layer boundaries, a sub-layer numerical integration is used to calculate the
+``(1-q) / (g * M_\\mathrm{dry})`` term, where `N_sub` determines the number of sub-layers.
+Note that this assumes that the gas concentrations vary linearly with pressure, as
+implemented in the function `calculate_gas_optical_depth_profiles`.
 """
 function create_pressure_weights(
     atm::AbstractAtmosphere;
-    N_sub::Integer=10)
+    N_sub::Integer=10
+    )
 
     # Construct pressure weight array
 
@@ -786,7 +794,9 @@ function atmosphere_statevector_rollback!(
 end
 
 """
-    Updates the atmosphere `atm` for a `TemperatureOffsetSVE` state vector element.
+$(TYPEDSIGNATURES)
+
+Updates the atmosphere `atm` for a `TemperatureOffsetSVE` state vector element.
 """
 function atmosphere_statevector_update!(
     atm::AbstractAtmosphere,
@@ -816,6 +826,11 @@ function atmosphere_statevector_update!(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Rolls back the atmosphere `atm` for a `TemperatureOffsetSVE` state vector element.
+"""
 function atmosphere_statevector_rollback!(
     atm::AbstractAtmosphere,
     sve::TemperatureOffsetSVE

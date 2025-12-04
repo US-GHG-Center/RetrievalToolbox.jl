@@ -1,5 +1,5 @@
 """
-$(SIGNATURES)
+$(TYPEDSIGNATURES)
 
 Pretty printing for State Vector types
 """
@@ -59,6 +59,12 @@ For using indexing on `RetrievalStateVector` objects.
 Base.getindex(SV::AbstractStateVector, idx::Int) = SV.state_vector_elements[idx]
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns the posterior uncertainty of a specific state vector element `SVE`, precomputed in
+a `OEQuantities` object `q`.
+"""
 function get_posterior_ucert(q::OEQuantities, SVE::AbstractStateVectorElement)
 
     for (idx, qSVE) in enumerate(q.state_vector.state_vector_elements)
@@ -73,7 +79,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Returns all state vector elements from state vector `SV` that satisfy the type `t`
+Returns all state vector elements from state vector `SV` that satisfy the type `t`.
 """
 function return_SVE_of_type(
     SV::RetrievalStateVector,
@@ -96,8 +102,8 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Returns true if any of the state vector elements
-is of the type requested. Otherwise returns false.
+Returns true if any of the state vector elements is of the type requested. Otherwise
+returns false.
 """
 function any_SVE_is_type(
     SV::RetrievalStateVector,
@@ -122,16 +128,15 @@ and specific implementations should return true.
 # Details
 Certain SVEs require dedicated handling in the radiative transfer, in particular during
 the computation of atmospheric weighting functions. This function helps us decide if some
-SVE should be considered there or not. If an SVE is implmented that *does* require a
+SVE should be considered there or not. If an SVE is implemented that *does* require a
 dedicated weighting function, users must also provide a function that returns true.
 """
 is_aerosol_SVE(SVE::AbstractStateVectorElement) = false
 
 
 """
-Helper type to assist with selective iteration
-over state vector elements that are a subtype
-(or type) of `sve_type`.
+Helper type to assist with selective iteration over state vector elements that are a
+subtype (or type) of `sve_type`.
 
 $(TYPEDFIELDS)
 
@@ -153,22 +158,18 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Implementation of `Base.iterate` to iterate over all
-state vector elements in a state vector, but only consider
-the type given in `StateVectorIterator`.
+Implementation of `Base.iterate` to iterate over all state vector elements in a state
+vector, but only consider the type given in `StateVectorIterator`.
 
-Return the tuple `(idx, sve)` where `idx` is the position
-of the `StateVectorElement` `sve` in the state vector, if it
-is of type `sve_type`.
-Very useful, when wanting to loop over state vector elements
-of a certain type or type union only. Note that this is
-thus not equivalent to iterating with `enumerate`.
+Return the tuple `(idx, sve)` where `idx` is the position of the `StateVectorElement`
+`sve` in the state vector, if it is of type `sve_type`. Very useful, when wanting to loop
+over state vector elements of a certain type or type union only. Note that this is thus
+not equivalent to iterating with `enumerate`.
 
 # Usage
 
-To select all state vector elements of type `DispersionPolynomialSVE`,
-for example, one can write the following (`my_sv` being an
-`AbstractStateVector`).
+To select all state vector elements of type `DispersionPolynomialSVE`, for example, one
+can write the following (`my_sv` being an `AbstractStateVector`).
 
 ```
 for (idx, sve) in StateVectorIterator(my_sv, DispersionPolynomialSVE)
