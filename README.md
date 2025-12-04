@@ -13,9 +13,9 @@ The main documentation, built with [Documenter.jl](https://documenter.juliadocs.
 
 Looking at working examples is also highly instructive:
 
- * [EMIT retrieval demo for AGU2025 (New Orleans, USA, 2025)](https://github.com/PeterSomkuti/EMIT-retrieval/)
+ * [EMIT retrieval demo for AGU2025 (New Orleans, USA, 2025)](https://github.com/RetrievalToolbox/EMIT-retrieval/)
  * [Demo for IWGGMS21 (Takamatsu, Japan, 2025)](https://github.com/US-GHG-Center/IWGGMS21-Demo)
- * [Implementation of NASA's ACOS algorithm](https://github.com/PeterSomkuti/ACOS-Goddard/)
+ * [Implementation of NASA's ACOS algorithm](https://github.com/RetrievalToolbox/ACOS-Goddard/)
 
 _Users are very welcome to submit their working set-ups to be listed here!_
 
@@ -87,6 +87,10 @@ using RetrievalToolbox
 ## Citing RetrievalToolbox
 
 We will be working in the future to submit an entry to the Journal of Open Source Software (JOSS), which will allow citing RetrievalToolbox with a proper DOI.
+
+## Contributing
+
+Contributions are always welcome, whether bug reports, bug fixes (through pull requests), suggestions, feature requests or otherwise. Please use the Github [issue tracker](https://github.com/RetrievalToolbox/ACOS-Goddard/issues).
 
 ## Alternatives
 
