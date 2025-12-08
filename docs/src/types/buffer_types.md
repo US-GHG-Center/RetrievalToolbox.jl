@@ -1,4 +1,4 @@
-# [Buffer types] (@id buffer_types)
+# [Buffer types](@id buffer_types)
 
 Below are the currently supported buffer types which represent collections of pre-allocated objects that can be used over and over in situations where users want to e.g. perform many retrievals. The following buffers can be created once and then used repeatedly for different scenes. The slower the retrieval process itself is, the lower is the overall performance gain from re-using buffers, however. For very fast retrievals with completion times less then a few seconds, it is highly recommended to re-use the buffers.
 
