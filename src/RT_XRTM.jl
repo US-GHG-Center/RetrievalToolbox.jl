@@ -793,8 +793,25 @@ function _run_XRTM!(
     thread_error_flags = zeros(Bool, Threads.nthreads())
     looplock = Threads.SpinLock()
 
+
+    # ====================================================================================
+    # WARNING
+    # The following is a very crude hack to make multi-threading here work for Julia 1.12
+    # This needs to be fixed soon..
+    #
+    #
+    # At each iteration, a "task id" is taken from the `task_id_channel`, to make sure
+    # that the pre-allocated objects are used by only one parallel thread. At the end,
+    # the task id is put back into the channel, free for the next task to pick it up.
+    # ====================================================================================
+
+    task_id_channel = Channel{Int}(Threads.nthreads())
+    for i in 1:Threads.nthreads()
+        put!(task_id_channel, i)
+    end
+
     # Hires spectral loop
-    Threads.@threads for i_spectral in spec_iterator
+    Threads.@threads :static for i_spectral in spec_iterator
 
         #=
             Notes on threading
@@ -813,8 +830,9 @@ function _run_XRTM!(
 
         =#
 
+        myid = take!(task_id_channel)
 
-        if thread_error_flags[Threads.threadid()]
+        if thread_error_flags[myid]
             # An error has been noticed for this thread -> skip evaluating the loop body.
             continue
         end
@@ -822,13 +840,13 @@ function _run_XRTM!(
 
         # Pick the XRTM instance for this thread!
         if Threads.nthreads() == length(xrtm_l)
-            xrtm = xrtm_l[Threads.threadid()]
+            xrtm = xrtm_l[myid]
         else
             xrtm = xrtm_l[1]
         end
 
         # Pick the tmp vector for this thread!
-        tmp_vec = tmp_vec_list[Threads.threadid()]
+        tmp_vec = tmp_vec_list[myid]
 
         # Sun-normalized
         XRTM.set_F_0(xrtm, 1.0)
@@ -873,19 +891,19 @@ function _run_XRTM!(
 
             if (ampfac <= 0)
                 @error "[XRTM] Surface kernel amplitude factor must be > 0."
-                thread_error_flags[Threads.threadid()] = true
+                thread_error_flags[myid] = true
                 break
             end
 
             XRTM.set_kernel_ampfac(xrtm, k-1, ampfac)
         end
 
-        if thread_error_flags[Threads.threadid()]
+        if thread_error_flags[myid]
             continue
         end
 
         # Let XRTM know which layers involve weighting functions
-        if first_XRTM_call[Threads.threadid()] & have_jacobians
+        if first_XRTM_call[myid] & have_jacobians
             # This function needs to be called only once (as per XRTM manual)
             XRTM.update_varied_layers(xrtm)
         end
@@ -963,7 +981,10 @@ function _run_XRTM!(
         end # Solver loop end
 
         # Establish that we have succesfully called XRTM once!
-        first_XRTM_call[Threads.threadid()] = false
+        first_XRTM_call[myid] = false
+
+        # Put back the id
+        put!(task_id_channel, myid)
 
         # Update progress bar
         next!(prog)
