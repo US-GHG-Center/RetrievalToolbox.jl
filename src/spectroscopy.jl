@@ -159,7 +159,7 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Loads a complete ABSCO table into memory and creates an ABSCOSpectroscopy3D/4D object,
+Loads a complete ABSCO table into memory and creates an ABSCOAERSpectroscopy3D/4D object,
 depending on whether the ABSCO file contains H2O broadening information.
 
 # Details
@@ -167,26 +167,50 @@ depending on whether the ABSCO file contains H2O broadening information.
 Wavenumber dimension and the corresponding axis for the coefficient array are flipped to
 give wavelengths in increasing order. User can supply a scale factor which is multiplied
 into the entire table.
+
+This function reads ABSCO tables generated via the ReFRACtor/ABSCO toolset, found at
+https://github.com/ReFRACtor/ABSCO.
+
+## O2 spectroscopy
+
+When generating O2 spectroscopy tables with ReFRACtor/ABSCO, the tool will produce a
+5-dimensional table, with O2 broadening as an independent axis. For now, this function
+will only slice through the first element of that dimension, ignoring the O2 broadening,
+as it seems to make no difference near the bands that are of concern (~760nm, ~1270nm).
+This might change, however and **should** be re-visited upon user requests/needs.
+
 """
 function load_ABSCOAER_spectroscopy(
     fname::String;
     spectral_unit=:Wavelength,
     scale_factor=1.0,
-    distributed=false
+    distributed=false,
+    force_positive=true
     )
 
     if !isfile(fname)
-        @error "ABSCO file location: $(fname) not a valid file!"
+        @error "[SPEC] ABSCO file location: $(fname) not a valid file!"
         return nothing
     end
 
     nc = NCDataset(fname, "r")
 
     # Parse the gas name from the nc attribute
-    gas_name = split(lstrip(split(nc.attrib["description"], "for")[2]))[1] |> string
+    if haskey(nc.attrib, "description")
+        gas_name = split(lstrip(split(nc.attrib["description"], "for")[2]))[1] |> string
+    else
+        # Some files may not have the 'description' attribute, for example those ABSCO
+        # files that have been joined via the `join_tables.py` tool. Set manually instead.
+        gas_name = "Unknown"
+    end
 
     # Read the spectral unit inside the file
-    absco_spec_unit = nc["Spectral_Grid"].attrib["units"]
+    if haskey(nc["Spectral_Grid"].attrib, "units")
+        absco_spec_unit = nc["Spectral_Grid"].attrib["units"]
+    else
+        @warn "[SPEC] Could not find spectral grid units inside file. Assume cm^-1."
+        absco_spec_unit = "cm-1"
+    end
 
     if (spectral_unit == :Wavelength) && (absco_spec_unit == "cm-1")
         ww_unit = u"μm"
@@ -217,6 +241,7 @@ function load_ABSCOAER_spectroscopy(
 
     # Reverse array order to be increasing in wavelength
     if spectral_unit == :Wavelength
+        @debug "[SPEC] Reversing spectral grid to be increasing in wavelength!"
         reverse!(ww)
     end
 
@@ -224,24 +249,53 @@ function load_ABSCOAER_spectroscopy(
     # Remember - we have to flip the cross section table also, so that it follows our
     # convention with the first element being the lowest-pressure one.
     if "H2O_VMR" in NCDatasets.listVar(nc.ncid)
+
         broadener_vmrs = nc["H2O_VMR"].var[:]
 
-        # In the netCDF file, the CS is stored in order of: H2O, pressure, temp, spectral
-        # (Remember to flip in pressure direction!)
+        # If the cross section table is 4-dimensional, everything is fine. We only have
+        # 5-dimensional tables when O2 broadening is included as well. So far, I have only
+        # encountered this for O2 tables.
+
+        cs_shape = size(nc["Cross_Section"])
+
+        if length(cs_shape) == 4
+
+            # Cross section array is: H2O, pressure, temp, spectral
+            N_pres = cs_shape[2]
+            cs_idx = (:,N_pres:-1:1,:,:)
+
+        elseif length(cs_shape) == 5
+
+            # Cross section array is: O2, H2O, pressure, temp, spectral
+            @warn "[SPEC] Encountered 5-dimensional cross section array! " *
+            "Only picking the first entry along the O2 axis!"
+            # TODO this may need fixing for situations where O2 dependance matters!
+            N_pres = cs_shape[3]
+            cs_idx = (1,:,N_pres:-1:1,:,:)
+        end
+
         if distributed
             # Create a SharedArray
             cross_section = SharedArray{eltype(nc["Cross_Section"].var)}(
                 size(nc["Cross_Section"])...)
             # .. fill with values (we know this is 4D)
-            cross_section[:,:,:,:] = nc["Cross_Section"].var[:,end:-1:1,:,:]
+            cross_section[:,:,:,:] = nc["Cross_Section"].var[cs_idx...]
         else
-            cross_section = nc["Cross_Section"].var[:,end:-1:1,:,:]
+            cross_section = nc["Cross_Section"].var[cs_idx...]
         end
         if spectral_unit == :Wavelength
-            @debug "[SPEC] Reversing spectral grid to be increasing in wavelength!"
+            @debug "[SPEC] Reversing spectral dimension to be increasing in wavelength!"
             reverse!(cross_section, dims=4)
         end
         close(nc)
+
+        # Cap negative values (they seem to appear ocassionally in the tables)
+        if (force_positive)
+            @debug "[SPEC] Forcing cross section table entries to be positive."
+            @turbo for i in eachindex(cross_section)
+                cross_section[i] = max(cross_section[i], 0.)
+            end
+        end
 
         return ABSCOAERSpectroscopy4D(
             fname,
@@ -278,6 +332,14 @@ function load_ABSCOAER_spectroscopy(
         end
         close(nc)
 
+        # Cap negative values (they seem to appear ocassionally in the tables)
+        if (force_positive)
+            @debug "[SPEC] Forcing cross section table entries to be positive."
+            @turbo for i in eachindex(cross_section)
+                cross_section[i] = max(cross_section[i], 0.)
+            end
+        end
+
         return ABSCOAERSpectroscopy3D(
             fname,
             gas_name,
@@ -306,15 +368,15 @@ that sort ww2 into ww1. This function is not exported.
 
 # Details
 
-This provides the same functionality to a broadcast searchsorted
-(think: searchsorted.(Ref(ww1), ww2)), however faster if both ww1 and ww2 are sorted. This
-is used to e.g. find the indices of the spectral window wavelength relative to
-spectroscopy wavelengths. For example, for inputs ww1 = [100., 110., 120., 140., 145.],
-ww2 = [105., 111., 142.], the function will return [1,2,4], signifying that ww2[1] can be
-inserted between ww1[1] and ww1[2].
+This provides the same functionality to a broadcast searchsorted (think:
+searchsorted.(Ref(ww1), ww2)), however faster if both ww1 and ww2 are sorted. This is used
+to e.g. find the indices of the spectral window wavelength relative to spectroscopy
+wavelengths. For example, for inputs ww1 = [100., 110., 120., 140., 145.], ww2 = [105.,
+111., 142.], the function will return [1,2,4], signifying that ww2[1] can be inserted
+between ww1[1] and ww1[2].
 
-**NOTE!** This function does **not** check if ww1 and ww2 are sorted and will return meaningless
-results if either ww1 or ww2 are not sorted!
+**NOTE!** This function does **not** check if ww1 and ww2 are sorted and will return
+meaningless results if either ww1 or ww2 are not sorted!
 
 # Example
 ```jldoctest
@@ -850,7 +912,8 @@ function get_cross_section_value_at!(
     is_matched_wl::Bool,
     p::Unitful.Pressure,
     T::Unitful.Temperature,
-    H2O::Number
+    H2O::Number;
+    force_positive = true
     )
 
     _get_abscoaer_cross_section_value_at!(
@@ -867,6 +930,15 @@ function get_cross_section_value_at!(
         T |> spec.temperatures_unit |> ustrip,
         H2O
     )
+
+    # Force results to be positive:
+    # values below 1e-10 are bumped up to 1e-10
+    # (in case interpolation ends up going negative)
+    if force_positive
+        for i in eachindex(output)
+            output[i] = max(0., output[i])
+        end
+    end
 
 end
 
@@ -1054,7 +1126,8 @@ function get_cross_section_value_at!(
     is_matched_wl::Bool,
     p::Unitful.Pressure,
     T::Unitful.Temperature,
-    H2O::Number
+    H2O::Number;
+    force_positive=true
     )
 
     _get_abscoaer_cross_section_value_at!(
@@ -1069,6 +1142,14 @@ function get_cross_section_value_at!(
         p |> spec.pressures_unit |> ustrip,
         T |> spec.temperatures_unit |> ustrip,
     )
+    # Force results to be positive:
+    # values below 1e-10 are bumped up to 1e-10
+    # (in case interpolation ends up going negative)
+    if force_positive
+        @turbo for i in eachindex(output)
+            output[i] = max(0., output[i])
+        end
+    end
 
 end
 
