@@ -35,19 +35,18 @@ function show(io::IO, rt::LSIRTMethod)
 end
 
 """
-    Calculates √ξ (see O'Dell 2009) for a spectral index `i` from a given
-    `AbstractOpticalProperties` object. Needed for LSI.
+$(TYPEDSIGNATURES)
 
-    $(TYPEDSIGNATURES)
+Calculates √ξ (see O'Dell 2009) for a spectral index `i` from a given
+`AbstractOpticalProperties` object. Needed for LSI.
 
-    NOTE: This current implementation is not very performant, so a specialized
-    implementation to calculate √ξ for all spectral points in a band is needed
-    to make this faster. However, it seems to run in less than 10ms and allocate
-    about ~1MB of memory, which is currently still acceptable.
-    The major drawback is the fact that if one runs this function for all spectral
-    points in a band, the internal loops here reduce the performance and scaling. It would
-    be better to run the spectral loop inside all these layer loops.
-
+NOTE: This current implementation is not very performant, so a specialized
+implementation to calculate √ξ for all spectral points in a band is needed
+to make this faster. However, it seems to run in less than 10ms and allocate
+about ~1MB of memory, which is currently still acceptable.
+The major drawback is the fact that if one runs this function for all spectral
+points in a band, the internal loops here reduce the performance and scaling. It would
+be better to run the spectral loop inside all these layer loops.
 """
 function calculate_ξ_sqrt(
     opt::AbstractOpticalProperties,
