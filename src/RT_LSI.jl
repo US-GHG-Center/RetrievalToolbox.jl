@@ -68,6 +68,10 @@ function calculate_ξ_sqrt(
         end
     end
 
+    # For the sake of ξ calculation, we set τ_gas to some minimally viable value,
+    # so that later in the denominator it won't become Inf
+    τ_gas = max(1e-10, τ_gas)
+
     # Total column scattering optical depth
     τ_sca = 0.0
     # Cumulative sum starting from TOA
@@ -103,10 +107,17 @@ function calculate_ξ_sqrt(
             break
         end
 
-
     end
 
-    return sqrt(τ_gas_prime / τ_gas)
+
+
+    ratio = τ_gas_prime / τ_gas
+    if (ratio >= 0)
+        return sqrt(ratio)
+    else
+        @warn "[RT LSI] ξ calculation failed at spectral point $(i), ratio = $(ratio)"
+        return 0.
+    end
 
 end
 
