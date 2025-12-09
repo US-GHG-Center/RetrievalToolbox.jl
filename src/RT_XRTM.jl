@@ -794,32 +794,29 @@ function _run_XRTM!(
     looplock = Threads.SpinLock()
 
 
-    # ====================================================================================
-    # WARNING
-    # The following is a very crude hack to make multi-threading here work for Julia 1.12
-    # This needs to be fixed soon..
-    #
-    #
-    # At each iteration, a "task id" is taken from the `task_id_channel`, to make sure
-    # that the pre-allocated objects are used by only one parallel thread. At the end,
-    # the task id is put back into the channel, free for the next task to pick it up.
-    # ====================================================================================
-
+    # Create a channel that we fill with array indices corresponding to the number of
+    # threads available to speed up the monochromatic loop.
     task_id_channel = Channel{Int}(Threads.nthreads())
     for i in 1:Threads.nthreads()
         put!(task_id_channel, i)
     end
 
-    # Hires spectral loop
+
+    #=
+        ===================
+        Hires spectral loop
+        ===================
+    =#
     Threads.@threads for i_spectral in spec_iterator
 
         #=
             Notes on threading
+            ==================
 
             Inside this loop, there are only a few writing operations. We first start
             with a list of XRTM instances - each to be used by one thread only. The same
             holds for "tmp_vec", which we generate ahead of this loop and then simply grab
-            the one we want (corresponding to the thread ID).
+            the one we want (corresponding to the task id, see below).
 
             A threaded loop via Threads.@threads cannot be stopped or broken out of. So
             if one thread encounters some error due to bad inputs into XRTM (e.g., the
@@ -828,6 +825,30 @@ function _run_XRTM!(
             without further evaluating the loop body. Then, after the loop is processed,
             we check for the flags for all threads and proceed as appropriate.
 
+            Important for Julia 1.12 and later
+            ----------------------------------
+
+            Threads/tasks are no longer "sticking" to some pre-defined ID, thus we cannot
+            use `Threads.threadid()` as indices to access array positions. Instead, we
+            create a pool of indices 1 .. Nthreads, and store them in a channel. At the
+            start of the loop body, we *take* (thread-safe, blocking) one of the indices
+            in that channel, and use that to access the pre-allocated XRTM structure.
+            At the end of the loop body, we then *put* (thread-safe, blocking) the index
+            back into the channel, for the next iteration to use. This way we guarantee
+            that only one index is used at any given time by only one thread/task.
+            Performance-wise, this seems to be as fast as the pre-1.12 way of using
+            Threads.threadid().
+
+            This is necessary because it is not guaranteed that a thread/task will retain
+            the same Threads.threadid() within the loop body, and thus corrupt the XRTM
+            calculation.
+
+        =#
+
+
+
+        #=
+            Get a unique task id from the list of IDs available.
         =#
 
         myid = take!(task_id_channel)
@@ -841,8 +862,15 @@ function _run_XRTM!(
         # Pick the XRTM instance for this thread!
         if Threads.nthreads() == length(xrtm_l)
             xrtm = xrtm_l[myid]
-        else
+        elseif (length(xrtm_l) == 1)
+            # Note!
+            # When we run this with Nthreads > 1, we might still encounter this function
+            # as part of e.g. LSI or some other binned calculations. In that case, the
+            # xrtm list `xrtm_l` will only have one single element in it. So we have to
+            # grab that first (and only) element.
             xrtm = xrtm_l[1]
+        else
+            @error "Unforseen case to take XRTM object from list!"
         end
 
         # Pick the tmp vector for this thread!
