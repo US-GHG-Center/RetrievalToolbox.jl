@@ -811,7 +811,7 @@ function _run_XRTM!(
     end
 
     # Hires spectral loop
-    Threads.@threads :static for i_spectral in spec_iterator
+    Threads.@threads for i_spectral in spec_iterator
 
         #=
             Notes on threading
