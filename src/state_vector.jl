@@ -122,6 +122,8 @@ end
 
 
 """
+$(TYPEDSIGNATURES)
+
 Returns true if SVE is some aerosol-related state vector element. Default is false,
 and specific implementations should return true.
 
@@ -198,4 +200,46 @@ function Base.iterate(s::StateVectorIterator, i::Int=1)
     else
         iterate(s, i+1)
     end
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Prints the state vector update (current value minus value of iteration before) in a nicely
+formatted table.
+"""
+function print_state_vector_update(SV::AbstractStateVector)
+
+    if length(SV) <= 1
+        # Do not print anything if SV is empty
+        @debug "[SV] Only one iteration in state vector. Not printing updates."
+        return
+    end
+
+
+    pretty_table(
+        permutedims(hcat([
+            [
+                "#$(i)",
+                get_name(sve),
+                get_current_value(sve),
+                sve.iterations[end] - sve.iterations[end-1],
+                get_unit(sve)
+            ] for (i, sve) in enumerate(SV.state_vector_elements)
+            ]...
+            )),
+        alignment=[:l, :r, :r, :l, :l],
+        title="State Vector update",
+        column_labels=[
+            "",
+            "Name",
+            "Current value",
+            "Δ",
+            "Unit"
+        ],
+        show_column_labels=true,
+        display_size=(150, 200)
+    )
+
 end
