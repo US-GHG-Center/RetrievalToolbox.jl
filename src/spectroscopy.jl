@@ -58,15 +58,25 @@ function load_ABSCO_spectroscopy(
     # 4 (T, p, wavenumber, H2O VMR) dimensions. Find out
     # which one we have here.
 
-    if haskey(h5, "Broadener_Index")
-        has_H2O = true
-        broadener_index = h5["Broadener_Index"][1]
-        broadener_key = "Broadener_$(broadener_index)_VMR"
+    broadener_key = ""
+    has_H2O = false
+
+    for key in keys(h5)
+        if all(occursin.(["Broadener", "VMR"], Ref(key)))
+            broadener_key = key
+            has_H2O = true
+        end
+    end
+
+    if has_H2O
+
+        #broadener_index = h5["Broadener_Index"][1]
+        #broadener_key = "Broadener_$(broadener_index)_VMR"
+
         broadener_vmrs = h5[broadener_key][:]
 
         @debug "[SPEC] This ABSCO table has a broadener: " * broadener_index
-    else
-        has_H2O = false
+
     end
 
 
@@ -250,7 +260,15 @@ function load_ABSCOAER_spectroscopy(
     # convention with the first element being the lowest-pressure one.
     if "H2O_VMR" in NCDatasets.listVar(nc.ncid)
 
-        broadener_vmrs = nc["H2O_VMR"].var[:]
+        # Broadener VMRs have units!
+        # .. but Unitful cannot parse `ppmv`, as that is not a valid unit
+        _vmr_unit = nc["H2O_VMR"].attrib["units"]
+        if (_vmr_unit == "ppmv")
+            _vmr_fac = 1e-6
+        else
+            @error "Unknown H2O broadening VMR unit: $(_vmr_unit)"
+        end
+        broadener_vmrs = nc["H2O_VMR"].var[:] * _vmr_fac
 
         # If the cross section table is 4-dimensional, everything is fine. We only have
         # 5-dimensional tables when O2 broadening is included as well. So far, I have only
@@ -263,6 +281,7 @@ function load_ABSCOAER_spectroscopy(
             # Cross section array is: H2O, pressure, temp, spectral
             N_pres = cs_shape[2]
             cs_idx = (:,N_pres:-1:1,:,:)
+            shared_array_shape = size(nc["Cross_Section"])
 
         elseif length(cs_shape) == 5
 
@@ -272,12 +291,15 @@ function load_ABSCOAER_spectroscopy(
             # TODO this may need fixing for situations where O2 dependance matters!
             N_pres = cs_shape[3]
             cs_idx = (1,:,N_pres:-1:1,:,:)
+            # Here, we drop the leading dimension
+            shared_array_shape = size(nc["Cross_Section"])[2:end]
         end
 
         if distributed
-            # Create a SharedArray
+            # Create a SharedArray, but beware! If it's 5D, make it 4D
+
             cross_section = SharedArray{eltype(nc["Cross_Section"].var)}(
-                size(nc["Cross_Section"])...)
+                shared_array_shape)
             # .. fill with values (we know this is 4D)
             cross_section[:,:,:,:] = nc["Cross_Section"].var[cs_idx...]
         else
