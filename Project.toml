@@ -1,7 +1,7 @@
 name = "RetrievalToolbox"
 uuid = "46b81e12-0ded-426f-b207-2eae42eca022"
 authors = ["Peter Somkuti <psomkuti@umd.edu>"]
-version = "0.1.0"
+version = "0.2.0-DEV"
 
 [deps]
 AstroLib = "c7932e45-9af1-51e7-9da9-f004cd3a462b"
