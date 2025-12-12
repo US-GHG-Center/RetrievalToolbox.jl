@@ -9,7 +9,7 @@ RetrievalToolbox was developed at the Earth System Science Interdisciplinary Cen
 
 ## Documentation and Learning
 
-The main documentation, built with [Documenter.jl](https://documenter.juliadocs.org/stable/) is part of the repository under `docs/`, and the corresponding HTML render can be found [here][docs-dev-url]. Learning materials can be found [here](https://retrievaltoolbox.github.io/RetrievalToolbox-Tutorials/) - new users are strongly encouraged to read through these tutorials.
+The main documentation, built with [Documenter.jl](https://documenter.juliadocs.org/stable/) is part of the repository under `docs/`, and the corresponding HTML render can be found [here][docs-dev-url]. Learning materials can be found [here](https://retrievaltoolbox.github.io/RetrievalToolbox-Tutorials/) - new users are **strongly encouraged** to read through these tutorials.
 
 Looking at working examples is also highly instructive:
 
