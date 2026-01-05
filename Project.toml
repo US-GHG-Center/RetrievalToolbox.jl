@@ -1,7 +1,7 @@
 name = "RetrievalToolbox"
 uuid = "46b81e12-0ded-426f-b207-2eae42eca022"
-authors = ["Peter Somkuti <psomkuti@umd.edu>"]
 version = "0.2.0-DEV"
+authors = ["Peter Somkuti <psomkuti@umd.edu>"]
 
 [deps]
 AstroLib = "c7932e45-9af1-51e7-9da9-f004cd3a462b"
@@ -34,7 +34,7 @@ Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 AstroLib = "0.4.5"
 CSV = "0.10.15"
 DataFrames = "1.8.0"
-DocStringExtensions = "0.9.3"
+DocStringExtensions = ">= 0.9"
 NCDatasets = "0.14.8"
 PrettyTables = "3.0.11"
 SharedArrays = "1.11.0"
