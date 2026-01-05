@@ -16,7 +16,6 @@ makedocs(
     doctest=true,
     pages = [
         "Main" => "index.md",
-        "Design" => joinpath("design", "design.md"),
         "Concepts" =>
             [
                 "Fundamentals" => joinpath("concepts", "fundamentals.md"),
@@ -24,6 +23,7 @@ makedocs(
                 "Radiance" => joinpath("concepts", "radiance.md"),
                 "Scattering Phasefunction" => joinpath("concepts" , "phasefunction.md"),
             ],
+        "Design" => joinpath("design", "design.md"),
         "Functions" =>
             [
                 "State Vector Functions" => joinpath("functions", "state_vector_functions.md"),
