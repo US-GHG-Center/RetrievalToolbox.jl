@@ -1,31 +1,39 @@
 """
-Creates a spectral grid from a `SimplePolynomialDispersion` object
-and returns the indices and the corresponding spectral grid.
+Creates a spectral grid from a `SimplePolynomialDispersion` object and returns the indices
+and the corresponding spectral grid.
 
 $(TYPEDSIGNATURES)
 """
 function calculate_grid_from_dispersion(
     disp::SimplePolynomialDispersion,
-    spectral_window::AbstractSpectralWindow
+    window::AbstractSpectralWindow
     )
 
     full_grid = Polynomial(disp.coefficients).(disp.detector_samples)
 
-    idx_start = searchsortedfirst(full_grid, spectral_window.ww_min)
-    idx_stop = searchsortedfirst(full_grid, spectral_window.ww_max) + 1
+    if full_grid[2] > full_grid[1]
+        # Increasing wavelength
+        idx_start = searchsortedfirst(full_grid, window.ww_min)
+        idx_stop = searchsortedfirst(full_grid, window.ww_max) + 1
+    else
+        # Decreasing wavelength
+        idx_start = searchsortedlast(full_grid, window.ww_max, rev=true)
+        idx_stop = searchsortedlast(full_grid, window.ww_min, rev=true)
+    end
+
+    idx_start = max(idx_start, 1)
+    idx_stop = min(idx_stop, length(disp.detector_samples))
 
     return idx_start:idx_stop, full_grid[idx_start:idx_stop]
 
 end
 
 """
-Updates the dispersion object `disp` given a state vector `sv`,
-also considering an optional instrument Doppler factor. The
-instrument Doppler factor reflects the relative movement between
-(for example), the measurement location on Earth and the spacecraft.
-
 $(TYPEDSIGNATURES)
 
+Updates the dispersion object `disp` given a state vector `sv`, also considering an
+optional instrument Doppler factor. The instrument Doppler factor reflects the relative
+movement between (for example), the measurement location on Earth and the spacecraft.
 """
 function update_dispersion!(
     disp::SimplePolynomialDispersion,
@@ -69,9 +77,9 @@ end
 
 
 """
-Update the dispersion according to its coefficients.
-
 $(TYPEDSIGNATURES)
+
+Updates the dispersion according to its coefficients.
 
 # Details
 
