@@ -1,8 +1,7 @@
 """
 
-A type to facilitate inversions using the Iterative Maximum
-A-posteriori (IMAP) solver method. See Frankenberg et al. (2005)
-for details.
+A type to facilitate inversions using the Iterative Maximum A-posteriori (IMAP) solver
+method. See Frankenberg et al. (2005) (https://doi.org/10.5194/acp-5-9-2005) for details.
 
 $(TYPEDFIELDS)
 
@@ -45,9 +44,8 @@ struct IMAPSolver <: AbstractSolver
         noise::Dict{<:AbstractDispersion, <:AbstractVector}
     )
 
-        # Construct the prior covariance matrix.
-        # It's convenient to have it as part of the structure,
-        # since it is not changing during the inversion.
+        # Construct the prior covariance matrix. It's convenient to have it as part of the
+        # structure, since it is not changing during the inversion.
 
         # Note - any cross-correlations have to be added manually at this point.
         @views Sa[:,:] .= 0.0
