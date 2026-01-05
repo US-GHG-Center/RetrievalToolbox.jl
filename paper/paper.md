@@ -24,9 +24,9 @@ bibliography: paper.bib
 
 # Summary
 
-[`RetrievalToolbox.jl`](https://github.com/US-GHG-Center/RetrievalToolbox.jl) is a software library written in Julia which allows users to write their own trace gas retrieval algorithms and related applications. It provides many types with an established type hierarchy, with each type representing a tangible concept often used in this category of remote sensing problems. Further, `RetrievalToolbox` ships with functions that act on or utilize those types and provide means to perform various calculations that are common in the field.
+[`RetrievalToolbox.jl`](https://github.com/US-GHG-Center/RetrievalToolbox.jl) is a software library written in Julia which allows users to create their own trace gas retrieval algorithms and related applications. It provides many types with an established type hierarchy, where each type represents a tangible concept often used in this category of remote sensing problems. Further, `RetrievalToolbox` ships with functions that act on or utilize those types and provide means to perform various calculations that are common in the field.
 
-A distinguishing feature of `RetrievalToolbox` is that it does not specifically implement a so-called *forward model* (the computation of synthetic observations), giving users the freedom to create their own and be in full control of the main body of calculations.
+A distinguishing feature of `RetrievalToolbox` is that it does not specifically implement a so-called *forward model* (the computation of synthetic observations), giving users the freedom to be in full control of the main body of calculations.
 
 # Statement of need
 
@@ -58,7 +58,7 @@ julia> ?create_pressure_weights
 
 will bring up helpful information regarding the `create_pressure_weights` function.
 
-In addition to these docstrings, the code repository also hosts online documentation in the form of a website. Built with [`Documenter.jl`](https://documenter.juliadocs.org/), it lists the types and functions along with their docstrings grouped into appropriate categories. It includes details on overall usage, design principles and code snippets, as well as guides on how to extend the software library with new types and functions if the provided ones do not fully meet user needs. Additionally, several example implementations already exist and are linked on the [`Github page`](https://github.com/US-GHG-Center/RetrievalToolbox.jl). Finally, users can read through [`learning materials`](https://retrievaltoolbox.github.io/RetrievalToolbox-Tutorials/) at their own pace. These tutorials provide an entry point for researchers with the relevant background.
+In addition to these docstrings, the code repository also hosts online documentation in the form of a website. Built with [`Documenter.jl`](https://documenter.juliadocs.org/), it lists the types and functions along with their docstrings grouped into appropriate categories. It includes details on overall usage, design principles and code snippets, as well as guides on how to extend the software library with new types and functions if the provided ones do not fully meet user needs. Additionally, several example implementations already exist and are linked on the [`Github page`](https://github.com/US-GHG-Center/RetrievalToolbox.jl). Finally, users can read through [`learning materials`](https://retrievaltoolbox.github.io/RetrievalToolbox-Tutorials/) at their own pace. These tutorials provide an entry point for researchers with the relevant background, and also contains helpful sections for users that have no prior experience with the Julia programming language.
 
 # Scope and functionality
 
@@ -66,12 +66,13 @@ In addition to these docstrings, the code repository also hosts online documenta
 
 To facilitate the creation of retrieval algorithms, `RetrievalToolbox` contains a number of pre-defined state vector element types (e.g. surface reflectance polynomial coefficients, gas volume mixing ratios, etc.) which trigger internal calculation of partial derivatives. Inverse solver objects then use those derivatives to compute Jacobian matrices that are required to iteratively adjust the state vector elements in order to match some measurement. If needed, users are able to override functions if they require a different implementation or function behavior (e.g. a different calculation of Rayleigh scattering).
 
-Retrieval applications can be written very compactly with `RetrievalToolbox`. As an example, a basic methane retrieval for measurements from NASA's EMIT instrument, is roughly 500 lines of user-facing code, published [here](https://github.com/RetrievalToolbox/EMIT-retrieval). An [independent implementation of NASA's ACOS algorithm](https://github.com/RetrievalToolbox/ACOS-Goddard), while not fully equivalent in features yet, is composed of fewer than 3,000 lines of user-facing code.
+Retrieval applications can be written very compactly with `RetrievalToolbox`. As an example, a basic methane retrieval for measurements from NASA's EMIT instrument, is roughly 500 lines of user-facing code, published [here](https://github.com/RetrievalToolbox/EMIT-retrieval). An [independent implementation of NASA's ACOS algorithm](https://github.com/RetrievalToolbox/ACOS-Goddard) (not yet fully feature-equivalent) to retrieve carbon dioxide is composed of fewer than 3,000 lines of user-facing code.
 
 Below follows a short (incomplete) list of some currently supported features
 
 * Single-scene paradigm with 1-dimensional radiative transfer through a layered model atmosphere
 * Suitable for the wavelength range between UV (~200 nm) and upper mid-IR (~2700 nm)
+* Loading of molecular absorption coefficient tables in either NASA JPL format [@Payne2020], or files generated by the [ReFRACtor/ABSCO toolset](https://github.com/ReFRACtor/ABSCO)
 * Dedicated types to represent radiance as intensity-only or polarization-aware (I,Q,U components)
 * Arbitrary spectral window configuration (single-band, multi-band)
 * Down- and up-looking instrument viewing geometries
