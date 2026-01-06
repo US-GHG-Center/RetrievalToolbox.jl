@@ -81,6 +81,6 @@ Below follows a short (incomplete) list of some currently supported features
 
 # Acknowledgements
 
-`RetrievalToolbox` received additional funding through NASA's Cooperative Earth Systems Science Research Agreement (CESSRA), grant number 80NSSC23M0011.
+`RetrievalToolbox` received funding by the U.S. Greenhouse Gas Center, and was executed through NASA's Cooperative Earth Systems Science Research Agreement (CESSRA), grant number 80NSSC23M0011.
 
 # References
