@@ -24,6 +24,33 @@ struct SimplePolynomialDispersion{
     ww_unit::Union{Unitful.LengthUnits, Unitful.WavenumberUnits}
 end
 
+
+"""
+Pretty printing for `SimplePolynomialDispersion` types
+
+$(TYPEDSIGNATURES)
+"""
+function show(io::IO, ::MIME"text/plain", disp::SimplePolynomialDispersion)
+
+    println(io, "SimplePolynomialDispersion")
+    println(io, "  attached to $(disp.spectral_window)")
+    println(io, "  coefficients: $(disp.coefficients)")
+    println(io, "  detector samples: $(disp.detector_samples)")
+
+end
+
+"""
+Brief pretty printing for `SimplePolynomialDispersion` types
+
+$(TYPEDSIGNATURES)
+"""
+function show(io::IO, disp::SimplePolynomialDispersion)
+
+    print(io, "SimplePolynomialDispersion -> $(disp.spectral_window)")
+
+end
+
+
 """
 Generates a `SimplePolynomialDispersion` object from a vector of polynomial coefficients
 (`coeffs`), some detector samples given as an `AbstractRange` object like 1:1016,
