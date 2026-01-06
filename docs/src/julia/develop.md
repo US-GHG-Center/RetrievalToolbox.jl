@@ -35,9 +35,9 @@ Plots.plot(
 )
 xlabel!("Wavelength")
 ylabel!("SIF radiance\n($(sif.radiance_unit))")
-Plots.savefig("develop_fig1.png"); nothing # hide
+Plots.savefig("develop_fig1.svg"); closeall(); nothing # hide
 ```
-![sif plot](develop_fig1.png)
+![sif plot](develop_fig1.svg)
 
 
 To get the spectrally integrated value, we only need to sample this emitted radiance waveform in spectral space and integrate with some appropriate technique (trapezoidal integration is sufficient here). Further, we then multiply the spectrally integrated value with ``2\pi`` to take care of the integration of the half-space, which is equal to ``2\pi`` steradians. Also note how we use various units to make sure that we get the correct units for the final result in Watts per square meter.
