@@ -98,7 +98,7 @@ In above code example, there was no need to use any arbitrary index to access th
 
 Note that adding allocated objects to an existing dictionary, or even creating a dictionary with already allocated objects, does not (in general) allocate new memory! Therefore, there is no additional memory footprint due to objects appearing in one or more dictionaries.
 
-Look at the memory footprint below. The first call allocates a new array in memory and resevers several MiB of memory in the process. The second call only establishes the dictionary via referencing and does not need to allocate the existing array anew.
+Look at the memory footprint below. The first call allocates a new array in memory and reserves several MiB of memory in the process. The second call only establishes the dictionary via referencing and does not need to allocate the existing array anew.
 
 ```@repl dict
 _blank = Dict(1 => rand(2,2)) # hide

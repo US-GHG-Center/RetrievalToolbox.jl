@@ -33,3 +33,5 @@ or
 ```
 
 The polynomial coefficients ``c`` are usually either available in the published measurement data, in accompanying documents, or in rare cases, have to be derived.
+
+Dispersions in RetrievalToolbox are implemented under the abstract type umbrella of `AbstractDispersion`, and the type documentation can be found here: [dispersion types](@ref dispersion_types).
