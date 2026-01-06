@@ -36,9 +36,9 @@ function show(io::IO, SV::RetrievalStateVector)
 end
 
 """
-Gets the names of all state vector elements in the state vector
-
 $(TYPEDSIGNATURES)
+
+Gets the names of all state vector elements in the state vector
 """
 get_name(SV::RetrievalStateVector) = map(get_name, SV.state_vector_elements)
 
@@ -58,6 +58,22 @@ For using indexing on `RetrievalStateVector` objects.
 """
 Base.getindex(SV::AbstractStateVector, idx::Int) = SV.state_vector_elements[idx]
 
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Re-sets the contents of the state vector `sv` by emptying the `.iterations` vectors of
+each state vector element, and then adding a single new iteration that is the first-guess.
+"""
+function reset!(sv::AbstractStateVector)
+
+    for sve in sv.state_vector_elements
+        empty!(sve.iterations)
+        append!(sve.iterations, sve.first_guess)
+    end
+
+end
 
 """
 $(TYPEDSIGNATURES)
@@ -137,10 +153,10 @@ is_aerosol_SVE(SVE::AbstractStateVectorElement) = false
 
 
 """
+$(TYPEDFIELDS)
+
 Helper type to assist with selective iteration over state vector elements that are a
 subtype (or type) of `sve_type`.
-
-$(TYPEDFIELDS)
 
 !!! note
 
