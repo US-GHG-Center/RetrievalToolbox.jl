@@ -1,8 +1,8 @@
 """
-
-
 $(TYPEDFIELDS)
 
+A type to represent a polynomial dispersion, where each spectral sample is related to
+wavelength or wavenumber through a polynomial of arbitrary degree.
 """
 struct SimplePolynomialDispersion{
     T1<:AbstractSpectralWindow,
@@ -24,11 +24,18 @@ struct SimplePolynomialDispersion{
     ww_unit::Union{Unitful.LengthUnits, Unitful.WavenumberUnits}
 end
 
+"""
+Generates a `SimplePolynomialDispersion` object from a vector of polynomial coefficients
+(`coeffs`), some detector samples given as an `AbstractRange` object like 1:1016,
+(`detector_samples`), and a spectral window of type `AbstractSpectralWindow` that this
+dispersion object will refer to.
 
+$(TYPEDSIGNATURES)
+"""
 function SimplePolynomialDispersion(
-    coeffs,
-    detector_samples,
-    spectral_window
+    coeffs::AbstractVector,
+    detector_samples::AbstractRange,
+    spectral_window::AbstractSpectralWindow
     )
 
     # We demand the user supplies coefficients
