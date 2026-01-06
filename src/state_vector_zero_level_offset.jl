@@ -69,9 +69,16 @@ function calculate_zlo!(
     # Figure out the physical unit before the loop
     # NOTE that doing this calculation within the loop is very performance-draining!
     this_unit = get_unit(sve) * dispersion.ww_unit^sve.coefficient_order
+
     # Find out the conversion factor needed to bring (sve)*Δww^coefficient_order
-    # to the same units as the radiance buffer
-    this_unit_conversion = ustrip(radiance_unit, 1.0 * this_unit)
+    # to the same units as the radiance buffer. The branch below is needed because
+    # `ustrip` does not work if the first argument is a `Number`.
+
+    if radiance_unit isa Number
+        this_unit_conversion = radiance_unit * this_unit
+    else
+        this_unit_conversion = ustrip(radiance_unit, 1.0 * this_unit)
+    end
 
     # Δww is in units of the dispersion^coefficient_order now
     ww_delta = (
