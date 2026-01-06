@@ -1,8 +1,8 @@
 """
+$(TYPEDSIGNATURES)
+
 Creates a spectral grid from a `SimplePolynomialDispersion` object and returns the indices
 and the corresponding spectral grid.
-
-$(TYPEDSIGNATURES)
 """
 function calculate_grid_from_dispersion(
     disp::SimplePolynomialDispersion,
