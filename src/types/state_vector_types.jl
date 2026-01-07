@@ -285,7 +285,7 @@ mutable struct ZeroLevelOffsetPolynomialSVE{
         =#
 
         new_ww_unit = supply_unit^-order
-        final_ww_unit = unit(radiance_unit * new_ww_unit)
+        final_ww_unit = radiance_unit * new_ww_unit
 
         return new{T1, T2}(
             swin, order, new_ww_unit, final_ww_unit,
