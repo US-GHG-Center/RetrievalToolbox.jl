@@ -184,7 +184,7 @@ As mentioned before, one of the most crucial parts of a RetrievalToolbox impleme
 
 Note that both radiance and derivatives are calculated automatically by the appropriate functions inside of RetrievalToolbox, so we do not need to write them explicitly.
 
-[^1]: This is a required bookkeeping step; when more than one spectral window is used, there is no single obvious choice regarding where the radiance results of one spectral window should be stored in the pre-allocated buffer. The `calculate_indices!` function makes sure that this assignment is available via the `rt_buf.indices` field.
+[^1]: This is a required bookkeeping step; when more than one spectral window is used, there is no single obvious choice regarding where the radiance results of any given spectral window should be stored in the pre-allocated buffer. The `calculate_indices!` function makes sure that this assignment is available via the `rt_buf.indices` field.
 
 ```@example linefit
 function forward_model!(
@@ -274,6 +274,8 @@ RE.reset!(sv)
 RE.next_iteration!(solver; fm_kwargs=(rt_buf=rt_buf,))
 # Evaluate the forward model with the updated state vector
 solver.forward_model(solver.state_vector; rt_buf=rt_buf)
+
+nothing # hide
 ```
 
 Plot the results! Note that we make use of the `get_measured`, `get_modeled` and `get_wavelength` helper functions which let us extract those quantities without us having to think too much about indices and buffers. RetrievalToolbox has many of these helper functions which compactify a lot of tasks that might otherwise be typed out very often.
@@ -298,9 +300,138 @@ RE.print_posterior(solver)
 
 ### Mutability of Objects
 
+In scientific computing, many objects (think mostly: arrays) are **mutable**. This is also true in RetrievalToolbox, where mutable objects are used throughout the software library. Mutability refers to the fact that values can change after initialization. In general, mutability makes it more difficult to read or understand program code as one has to track how and if object values change throughout the program runtime.
+
+The main advantage of mutability is the single reason why it is used heavily in RetrievalToolbox: modifying objects in-place leads to significant performance gain since we can re-use already created objects rather than having to re-allocate them in memory. Think of an object that represents the per-layer optical properties due to gas absorption, which may be an array with 30,000 rows and 25 columns. If we set up a pipeline where we want to perform retrievals for an entire orbit's worth of scenes, we would have to create this array potentially hundreds of thousands of times. In Julia, we also cannot manually de-allocate unneeded objects, so these arrays would remain in memory until a garbage collector sweep removes them. If we treat that array as a re-usable container, however, we need to allocate it only once and then fill it with meaningful values when needed.
+
+This choice comes with the obvious downside that it is possible to alter the contents of objects in a way that is not meaningful in the context of a retrieval algorithm. For example, referring back to the section above we can easily edit the contents of the dispersion object `disp` without seeing an error raised or any other complaints:
+
+```@example linefit
+disp.index[1] = min(10, N_point - 1)
+```
+
+If we were to attempt to fit the line again, we would see somewhat unpredicted behavior, since we now changed how the instrument model relates detector-level spectral samples to those spectral points within our desired spectral window.
+
+```@example linefit
+RE.reset!(sv)
+RE.next_iteration!(solver; fm_kwargs=(rt_buf=rt_buf,))
+solver.forward_model(solver.state_vector; rt_buf=rt_buf)
+
+scatter(RE.get_wavelength(solver), RE.get_measured(solver), label="Noisy measurement")
+plot!(RE.get_wavelength(solver), meas_true, label="Truth", marker=:square, markersize=3)
+plot!(RE.get_wavelength(solver), RE.get_modeled(solver), label="fit", linestyle=:dash, width=3)
+xlims!(-0.1, 1.1)
+Plots.savefig("linefit_fig2.svg"); closeall(); nothing # hide
+```
+
+![line fit plot](linefit_fig2.svg)
+
+In Julia, native arrays and arrays that derive from the native abstract array type, are **always mutable**, therefore users will always be able to modify array-type fields of any RetrievalToolbox type objects.
+
+!!! warning
+    Many objects in RetrievalToolbox are mutable, and therefore can be altered *after* they have been initialized. This is deliberately part of the software design and intended behavior as it allows highly performant retrieval pipelines in which objects are re-used. Users must always aim to write their code carefully to **avoid unwanted and accidental modifications of objects** and to **be diligent about how and when to modify objects**.
+
 ### Utilizing Buffers
+
+As part of the "mutability paradigm", RetrievalToolbox employs so-called *buffers*. One can think of them as structured containers that include correctly-sized arrays. These buffers are to be allocated ahead of running the actual forward model calculations or the retrieval. Several crucial functions in RetrievalToolbox explicitly require some buffer type object, hence the use of these buffers is **not optional**.
+
+A typical workflow for a retrieval problem, in which we want to perform gas retrievals for many scenes, could look like the following:
+
+1. Create atmospheric constituents (gases, aerosols)
+2. Create spectral window(s) and dispersion(s) for the range(s) of interest
+3. Create state vector elements and collect them into a state vector
+5. Create the buffer(s) (requires the objects from 1-3)
+6. Write forward model function
+7. Create a solver object (using all of the above)
+8. Loop through scenes
+   1. Copy measurement of the current scene into solver (overwriting!)
+   2. Adjust prior and first guess values of the state vector, then re-set state vector (overwriting!)
+   3. Copy atmospheric data (meteorology, gas profiles etc.) into buffer (overwriting!)
+   4. Run inversion until convergence is reached
+   5. Copy state vector contents into some appropriate collection to store per-scene results
+   6. Repeat until all scenes are processed
+
+Details on the different buffer types are found at [Buffer types](@ref buffer_types).
 
 ### Units
 
+Physical units are used within RetrievalToolbox to make sure that necessary unit conversions are performed when needed. Many objects will require an explicit unit to be supplied during construction, and most objects require specific units that match the quantity. This generally allows users to mix and match compatible units and choose whichever units are more convenient for some particular use case. For example, the volume mixing ratio for CO₂ may be stated in ppm, whereas the mixing ratio for CH₄ could be stated in ppb. The internal routines inside RetrievalToolbox perform the appropriate conversions when needed.
+
+For example, when creating a state vector element that controls the surface pressure, users **must** supply a pressure-type unit, such as Pa, hPa or Torr.
+
+```@example psurf
+using Unitful
+using RetrievalToolbox; const RE = RetrievalToolbox
+
+sve_psurf = RE.SurfacePressureSVE(
+    u"hPa", # unit
+    1000.0, # first guess
+    1000.0, # prior value
+    400.0 # prior covariance
+)
+```
+
+Using an incompatible unit will throw an error:
+
+```julia
+sve_psurf = RE.SurfacePressureSVE(
+    u"km", # WILL NOT WORK: km is not compatible with a unit of type kg m⁻¹ s⁻²
+    1000.0, # first guess
+    1000.0, # prior value
+    400.0 # prior covariance
+)
+```
+
+Note that the use of units is **not fully automatic**, users must be aware of where unit information is stored in the various objects. Let us think of a situation where two spectral windows are present, `swin1` and `swin2`:
+
+```@example unit
+using Unitful
+using RetrievalToolbox; const RE = RetrievalToolbox
+
+swin1 = RE.SpectralWindow(
+    "window1", # plain-text name for future reference
+    1.5, # Lower wavelength bound
+    1.7, # Upper wavelength bound
+    1.4:0.1:1.8 |> collect, # the underlying high-resolution grid
+    u"µm", # The wavelength unit to be used
+    1.6 # The reference wavelength for spectrally dependent quantities (e.g. slopes)
+)
+
+swin2 = RE.SpectralWindow(
+    "window2", # plain-text name for future reference
+    800., # Lower wavelength bound
+    900., # Upper wavelength bound
+    780.:1.:910. |> collect, # the underlying high-resolution grid
+    u"nm", # The wavelength unit to be used
+    850. # The reference wavelength for spectrally dependent quantities (e.g. slopes)
+)
+
+nothing # hide
+```
+
+Note that `swin1` uses µm, and `swin2` uses nm. If we wanted to find out which of those two windows is lower in spectral space, we may instinctively write something like this:
+
+```@example unit
+swin1.ww_min < swin2.ww_max
+```
+
+The result above, `true`, suggests that indeed the lower bound of `swin1` is lower than the lower bound of `swin2`. That is, of course, *not* true when accounting for the fact that the wavelength values inside of `swin1` are in µm, and those within `swin2` are in nm. Users must write the following instead:
+
+```@example unit
+swin1.ww_min * swin1.ww_unit < swin2.ww_min * swin2.ww_unit
+```
+
+Multiplying a value with a `Unitful` unit produces a quantity with an attached physical unit, and the comparison will respect the units (if compatible) and produce the correct answer.
+
+To learn more about units and how they are used in RetrievalToolbox, follow this link: [working with units](@ref working_with_units).
+
 ## Reading material
 
+Most concepts in RetrievalToolbox assume a general understanding of trace gas remote sensing. Here is a list of useful literature that may help those who are new to this research area:
+
+* [Differential Optical Absorption Spectroscopy, Platt & Stutz, 2008, Springer](https://link.springer.com/book/10.1007/978-3-540-75776-4): a thorough text book on the DOAS retrieval technique, introduces all the required concepts starting from the fundamental physics that lead to molecular absorption features.
+* [Novel Methods for Atmospheric Carbon Dioxide Retrieval from the JAXA GOSAT and NASA OCO-2 Satellites, Somkuti, 2018, PhD Thesis](https://hdl.handle.net/2381/42868): a thesis with a focus on satellite remote sensing of CO₂ and radiative transfer acceleration techniques.
+* [Inverse Methods for Atmospheric Sounding, Rodgers, 2000, World Scientific Publishing](https://doi.org/10.1142/3171): the de-facto standard textbook for optimal-estimation type inversions in the context of atmospheric retrievals.
+* [Toward Urban Greenhouse Gas Mapping with a Portable Reflected Sunlight Spectrometer, Löw, 2024, PhD Thesis](https://archiv.ub.uni-heidelberg.de/volltextserver/35155/1/Loew_Benedikt_Dissertation.pdf): contains very useful chapters on the theory and operation of FTIR spectrometers as well as chapers on retrievals (4.3 onwards).
+* [OCO-2/3 L2 Algorithm Theoretical Basis Document](https://docserver.gesdisc.eosdis.nasa.gov/public/project/OCO/OCO_L2_ATBD.pdf): details the concepts used in the operational full-physics type retrieval algorithm for NASA's OCO-2 and OCO-3 missions.
+* [ESA GHG-CCI+ Algorithm Theoretical Basis Documents](https://climate.esa.int/en/projects/ghgs/): scroll down to see the ATBDs for the participating algorithms for the ESA GHG-CCI+ project.
