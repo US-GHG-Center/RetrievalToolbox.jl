@@ -1,6 +1,7 @@
 using Documenter, RetrievalToolbox
 const RE = RetrievalToolbox
 
+ENV["GKSwstype"] = "100" # Inform Plots.jl about headless mode.
 
 DocMeta.setdocmeta!(
     RetrievalToolbox,
