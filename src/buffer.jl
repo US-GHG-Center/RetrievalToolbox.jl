@@ -299,7 +299,7 @@ by the order in the `buf.spectral_window` vector.
 """
 function calculate_indices!(buf::EarthAtmosphereBuffer)
 
-    calculate_indices!(buf.spectral_window, buf.rt_buf)
+    calculate_indices!(buf.rt_buf, buf.spectral_window)
 
 end
 
