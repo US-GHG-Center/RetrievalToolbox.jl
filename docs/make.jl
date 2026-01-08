@@ -1,3 +1,14 @@
+using Pkg
+
+if isfile(joinpath(@__DIR__, "..", "Project.toml"))
+    # Local development - use the local package
+    Pkg.develop(PackageSpec(path=joinpath(@__DIR__, "..")))
+else
+    # CI/remote - add from remote source
+    Pkg.add(url="https://github.com/US-GHG-Center/RetrievalToolbox.jl")
+end
+
+
 using Documenter, RetrievalToolbox
 const RE = RetrievalToolbox
 
@@ -57,3 +68,6 @@ deploydocs(;
     versions = ["stable" => "v^", "v#.#", "main" => "main", "dev" => "dev"],
     push_preview = false,
 )
+
+# Remove package from Project.toml
+Pkg.rm("RetrievalToolbox")
