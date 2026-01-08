@@ -284,8 +284,16 @@ mutable struct ZeroLevelOffsetPolynomialSVE{
         the unit will be the "more intuitive" "ph/s/m^2/sr/µm/µm".
         =#
 
-        new_ww_unit = supply_unit^-order
-        final_ww_unit = radiance_unit * new_ww_unit
+        new_ww_unit = supply_unit^-order # this is a Unitful.Units
+
+        if radiance_unit isa Number
+            # Here: radiance_unit * new_ww_unit would be a Unitful.Quantity, so we must
+            # extract the unit
+            final_ww_unit = unit(radiance_unit * new_ww_unit)
+        elseif radiance_unit isa Unitful.Units
+            # Here: radiance_unit * new_ww_unit is a Unitful.Units, an we can leave it
+            final_ww_unit = radiance_unit * new_ww_unit
+        end
 
         return new{T1, T2}(
             swin, order, new_ww_unit, final_ww_unit,
