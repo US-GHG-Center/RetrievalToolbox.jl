@@ -4,8 +4,9 @@ if isfile(joinpath(@__DIR__, "..", "Project.toml"))
     # Local development - use the local package
     Pkg.develop(PackageSpec(path=joinpath(@__DIR__, "..")))
 else
-    # CI/remote - add from remote source
-    Pkg.add(url="https://github.com/US-GHG-Center/RetrievalToolbox.jl")
+    # CI/remote
+    # The Github action via the workflow .github/workflows/documentation.yml
+    # takes care of adding the module. No need to add anything.
 end
 
 
