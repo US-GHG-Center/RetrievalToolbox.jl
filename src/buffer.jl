@@ -306,10 +306,10 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculates the indices of an `AbstractRTBuffer` type (`rt_buf`) to assign
-forward model output (radiances) from specific spectral windows to a retrieval-wide array
-of radiances. The order in which those are concatenated into the RT buffer is determined
-by the order in the `swin_list` vector.
+Calculates the indices of an `AbstractRTBuffer` type (`rt_buf`) to assign forward model
+output (radiances) from specific spectral windows to a retrieval-wide array of radiances.
+The order in which those are concatenated into the RT buffer is determined by the order in
+the `swin_list` vector.
 """
 function calculate_indices!(rt_buf::AbstractRTBuffer, swin_list::Vector{T}) where
     {T <: AbstractSpectralWindow}
