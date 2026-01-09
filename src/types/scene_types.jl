@@ -32,7 +32,7 @@ $(SIGNATURES)
 """
 function show(io::IO, ::MIME"text/plain", scene::EarthScene)
 
-    println(io, "EarthScene")
+    println(io, "EarthScene at $(scene.location)")
 
 end
 
@@ -43,6 +43,6 @@ $(SIGNATURES)
 """
 function show(io::IO, scene::EarthScene)
 
-    println(io, "EarthScene")
+    println(io, "EarthScene at $(scene.location)")
 
 end
