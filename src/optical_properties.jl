@@ -183,18 +183,18 @@ function calculate_earth_optical_properties!(
 end
 
 """
-Creates an **EarthAtmosphereOpticalProperties** object, given some
-**EarthScene** and **AbstractSpectralWindow**.
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Creates an `EarthAtmosphereOpticalProperties` object, given some `EarthScene` and
+`AbstractSpectralWindow`.
 
 # Details
 
-Earth scenes have optical absorption and scattering due to gases,
-aerosols and Rayleigh scattering. At the moment, the partial derivative of surface
-pressure w.r.t. optical depth at the bottom-most layer (∂psurf / ∂τ) is calculated
-via finite differencing, as the analytic calculation proved error-prone. As such, a
-finite perturbation parameter is required, which is set to a default value.
+Earth scenes have optical absorption and scattering due to gases, aerosols and Rayleigh
+scattering. At the moment, the partial derivative of surface pressure w.r.t. optical depth
+at the bottom-most layer (∂psurf / ∂τ) is calculated via finite differencing, as the
+analytic calculation proved error-prone. As such, a finite perturbation parameter is
+required, which is set to a default value.
 
 """
 function calculate_earth_optical_properties!(
