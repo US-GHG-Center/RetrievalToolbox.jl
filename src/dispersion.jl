@@ -161,11 +161,19 @@ function calculate_dispersion_polynomial_jacobian!(
     disp = sve.dispersion
     swin = disp.spectral_window
 
+    # Estimate the best stepsize to use for partial derivative of
+    # ∂ISRF / ∂λ (or ∂ISRF / ∂ν):
+
+    NΔ = (
+        minimum(diff(disp.ww)) / minimum(diff(swin.ww_grid))
+    ) |> round |> Int
+
     # Call low-level high performance function
     return _calculate_dispersion_polynomial_jacobian_table!(
         inst_buf,
         sve.coefficient_order,
         ISRF,
+        NΔ,
         swin.ww_unit,
         swin.ww_grid,
         disp.ww_unit,
@@ -181,6 +189,7 @@ function _calculate_dispersion_polynomial_jacobian_table!(
     inst_buf::InstrumentBuffer,
     order::Integer,
     ISRF::TableISRF,
+    NΔ::Integer,
     hires_unit,
     hires_ww,
     lores_unit,
@@ -241,9 +250,9 @@ function _calculate_dispersion_polynomial_jacobian_table!(
 
 
         this_ISRF = @view inst_buf.tmp1[1:idx_last - idx_first + 1]
-        @views this_ISRF[:] .= 0.0
+        @views this_ISRF[:] .= 0
 
-        @views inst_buf.tmp2[:] .= 0.0
+        @views inst_buf.tmp2[:] .= 0
         @views @. this_ww_delta[:] = (
             unit_fac * ISRF.ww_delta[:, this_l1b_idx] + this_ww
         )
@@ -260,15 +269,16 @@ function _calculate_dispersion_polynomial_jacobian_table!(
         )
 
         # Re-zero tmp2
-        @views inst_buf.tmp2[:] .= 0.0
+        @views inst_buf.tmp2[:] .= 0
 
         # Calculate dISRF / dwavelength
-        for i in 1:length(this_ISRF) - 1
-            inst_buf.tmp2[i] = this_ISRF[i + 1] - this_ISRF[i]
-            inst_buf.tmp2[i] /= hires_ww[idx_first + i + 1] - hires_ww[idx_first + i]
+        # (make this a central difference..)
+        for i in 1:length(this_ISRF) - NΔ
+            inst_buf.tmp2[i] = this_ISRF[i + NΔ] - this_ISRF[i]
+            inst_buf.tmp2[i] /= this_hires_wl[i + NΔ] - this_hires_wl[i]
         end
 
-        dISRF_dww = @view inst_buf.tmp2[1:idx_last - idx_first]
+        dISRF_dww = @view inst_buf.tmp2[1:length(this_ISRF) - 1]
         this_data = @view data[idx_first:idx_last - 1]
 
         # Not sure why the minus here is needed (it is!), maybe check the math
