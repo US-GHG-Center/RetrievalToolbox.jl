@@ -916,6 +916,7 @@ to account for sphericity.
 
 Results are stored in `factors_solar` and `factors_viewing`. The flag `solar_only`
 determines whether only the factors for the solar path are computed (for e.g. uplooking).
+`factors_viewing` can be `nothing`.
 
 # Details
 See Dahlback and Stamnes (https://doi.org/10.1016/0032-0633(91)90061-E) for details. The
@@ -935,7 +936,7 @@ one would use (with sphericity factors ``ch_j``)
 """
 function create_sphericity_factors!(
     factors_solar::AbstractVector,
-    factors_viewing::AbstractVector,
+    factors_viewing::Union{AbstractVector, Nothing},
     scene::EarthScene;
     solar_only::Bool=true
 )
