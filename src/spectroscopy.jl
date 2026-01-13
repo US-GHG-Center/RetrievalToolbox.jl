@@ -305,11 +305,18 @@ function load_ABSCOAER_spectroscopy(
         else
             cross_section = nc["Cross_Section"].var[cs_idx...]
         end
+
         if spectral_unit == :Wavelength
             @debug "[SPEC] Reversing spectral dimension to be increasing in wavelength!"
             reverse!(cross_section, dims=4)
         end
+
         close(nc)
+
+        # Scale
+        @turbo for i in eachindex(cross_section)
+            cross_section[i] *= scale_factor
+        end
 
         # Cap negative values (they seem to appear ocassionally in the tables)
         if (force_positive)
@@ -355,7 +362,13 @@ function load_ABSCOAER_spectroscopy(
             @debug "[SPEC] Reversing spectral grid to be increasing in wavelength!"
             reverse!(cross_section, dims=3)
         end
+
         close(nc)
+
+        # Scale
+        @turbo for i in eachindex(cross_section)
+            cross_section[i] *= scale_factor
+        end
 
         # Cap negative values (they seem to appear ocassionally in the tables)
         if (force_positive)
