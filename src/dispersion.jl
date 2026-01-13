@@ -161,12 +161,14 @@ function calculate_dispersion_polynomial_jacobian!(
     disp = sve.dispersion
     swin = disp.spectral_window
 
-    # Estimate the best stepsize to use for partial derivative of
+    # Estimate the best stepsize to use for partial derivative
     # ∂ISRF / ∂λ (or ∂ISRF / ∂ν):
 
     NΔ = (
         minimum(diff(disp.ww)) / minimum(diff(swin.ww_grid))
     ) |> round |> Int
+
+    @debug "[DISPERSION] NΔ = $(NΔ)"
 
     # Call low-level high performance function
     return _calculate_dispersion_polynomial_jacobian_table!(
@@ -198,6 +200,7 @@ function _calculate_dispersion_polynomial_jacobian_table!(
     data,
     doppler_factor
 )
+    @assert NΔ > 0 "NΔ must be > 0! (NΔ = $(NΔ))"
     @assert length(data) == length(hires_ww) (
         "Hi-res vector and hires vector grid must be same size!"
     )
