@@ -181,8 +181,9 @@ function calculate_radiances_and_jacobians!(
 
 
     # Calculate sphericity factors
-    ch = create_sphericity_factors(rt.optical_properties, rt.scene)
-    #sza_per_lay = create_refracted_sza(rt.optical_properties, rt.scene)
+    ch_solar = rt.optical_properties.tmp_Nlay1
+    ch_solar[:] .= 0
+    create_sphericity_factors!(ch_solar, nothing, rt.scene)
 
     # Total column optical depth
     total_column_od = rt.optical_properties.tmp_Nhi2
@@ -190,17 +191,9 @@ function calculate_radiances_and_jacobians!(
 
     @views rt.hires_radiance.I[:] .= 0.0
 
-     # In-place summation, equivalent to
-    # @views total_column_od[:] = sum(rt.optical_properties.total_tau, dims=2)[:,1]
-    # but non-allocating, and overwriting the contents of total_column_od
-    #avx_sum_along_columns!(total_column_od, rt.optical_properties.total_tau)
-
-
     @turbo for l in 1:rt.scene.atmosphere.N_layer
         for i in eachindex(rt.hires_radiance.I)
-            #total_column_od[i] += rt.optical_properties.total_tau[i,l] / cosd(rt.scene.solar_zenith)
-            total_column_od[i] += rt.optical_properties.total_tau[i,l] * ch[l]
-            #total_column_od[i] += rt.optical_properties.total_tau[i,l] / cosd(sza_per_lay[l])
+            total_column_od[i] += rt.optical_properties.total_tau[i,l] * ch_solar[l]
         end
     end
 
@@ -213,9 +206,7 @@ function calculate_radiances_and_jacobians!(
     # Same as for a SatelliteObserver, but for the UplookingObserver, we
     # drop the outgoing path as well as the surface reflectance.
     @turbo for i in eachindex(rt.hires_radiance.I)
-        rt.hires_radiance.I[i] = rt.hires_solar.I[i] * exp(-total_column_od[i]
-            #/ cosd(rt.scene.solar_zenith)
-            )
+        rt.hires_radiance.I[i] = rt.hires_solar.I[i] * exp(-total_column_od[i])
     end
 
 
@@ -614,8 +605,10 @@ function calculate_rt_jacobian!(
         return
     end
 
-    ch = create_sphericity_factors(rt.optical_properties, rt.scene)
-    #sza_per_lay = create_refracted_sza(rt.optical_properties, rt.scene)
+    # Chapman factors
+    ch_solar = rt.optical_properties.tmp_Nlay1
+    ch_solar[:] .= 0
+    create_sphericity_factors!(ch_solar, nothing, rt.scene)
 
     @views jac.I[:] .= -rt.hires_radiance.I[:]
 
@@ -629,22 +622,9 @@ function calculate_rt_jacobian!(
     tau_subcolumn = rt.optical_properties.tmp_Nhi1
     @views tau_subcolumn[:] .= 0.0
 
-    # total-column optical depth due to this specific gas
-    #=
-    avx_sum_along_columns_between!(
-        tau_subcolumn,
-        rt.optical_properties.gas_tau[sve.gas],
-        idx1,
-        idx2
-        )
-    =#
-
     @turbo for l in idx1:idx2
-        #this_µ = cosd(sza_per_lay[l])
         for i in eachindex(rt.hires_radiance.I)
-            #tau_subcolumn[i] += rt.optical_properties.gas_tau[sve.gas][i,l] / cosd(rt.scene.solar_zenith)
-            tau_subcolumn[i] += rt.optical_properties.gas_tau[sve.gas][i,l] * ch[l]
-            #tau_subcolumn[i] += rt.optical_properties.gas_tau[sve.gas][i,l] / this_µ
+            tau_subcolumn[i] += rt.optical_properties.gas_tau[sve.gas][i,l] * ch_solar[l]
         end
     end
 
@@ -654,8 +634,7 @@ function calculate_rt_jacobian!(
     # Internally, this SVE has to be a scale factor in units of [1], rather
     # than, e.g. percent, so we must back-convert to the user-specified units
     @views @. jac.I[:] = -rt.hires_radiance.I[:] * tau_subcolumn[:] / scale_factor /
-        ustrip(sve.unit, 1.0) #/ cosd(rt.scene.solar_zenith)
-
+        ustrip(sve.unit, 1.0)
     # Re-zero the temp array
     @views tau_subcolumn[:] .= 0.0
 

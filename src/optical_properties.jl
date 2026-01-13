@@ -907,8 +907,9 @@ function create_refracted_sza(
 
 end
 
-function create_sphericity_factors(
-    opt::EarthAtmosphereOpticalProperties,
+function create_sphericity_factors!(
+    factors_solar,
+    factors_viewing,
     scene::EarthScene;
     solar_only=true
 )
@@ -916,12 +917,7 @@ function create_sphericity_factors(
     # See Dahlback and Stamnes, https://doi.org/10.1016/0032-0633(91)90061-E
     # (appendix B)
 
-    factors_solar = ones(scene.atmosphere.N_layer)
-
     atm = scene.atmosphere
-
-    # Calculate the per-layer SZA for a refracting atmosphere
-    sza_per_layer = create_refracted_sza(opt, scene)
 
     # Create interpolation object for altitude
     # (we need altitudes for RT grid)
@@ -935,7 +931,13 @@ function create_sphericity_factors(
     # calculations and then loop over all gases to multiply the newly calculated
     # factors.
 
-    r_p = ustrip(atm.altitude_unit, EARTH_RADIUS)
+
+    # r_e: Earth radius in units of atmosphere altitude
+    r_e = ustrip(atm.altitude_unit, EARTH_RADIUS)
+    # P: altitude (from Earth radius) of scene location in units of atm. altitude
+    P = ustrip(atm.altitude_unit, scene.location.altitude_unit * scene.location.altitude)
+    # r_p: distance between observation and Earth center, now in units of atm. altitude.
+    r_p = r_e + P
 
     for j in 1:atm.N_layer
 
@@ -943,16 +945,19 @@ function create_sphericity_factors(
             Solar path contributions
         =#
 
+        # Level altitudes (measured from r_e)
         alt_up = altitude_int(atm.pressure_levels[j])
         alt_lo = altitude_int(atm.pressure_levels[j+1])
 
-        r_p_term_solar = (r_p + alt_lo)^2 * (sind(sza_per_layer[j]))^2
+        # r_p² sin²θ₀
+        r_p_term_solar = (r_p)^2 * (sind(scene.solar_zenith))^2
 
-        # Altitude of the layer boundary above (closer to TOA)
-        r_up = r_p + alt_up
-        # Altitude of the layer boundary below (closer to ground)
-        r_lo = r_p + alt_lo
+        # Height of the layer boundary above (closer to TOA), measured from Earth center
+        r_up = r_e + alt_up
+        # Height of the layer boundary below (closer to surf), measured from Earth center
+        r_lo = r_e + alt_lo
 
+        # Equation B1
         Δs = sqrt(r_up^2 - r_p_term_solar) - sqrt(r_lo^2 - r_p_term_solar)
         Δh = alt_up - alt_lo
 
@@ -961,11 +966,10 @@ function create_sphericity_factors(
 
     end
 
-    # Override .. for testing only
-    @views factors_solar[:] .= 1 / cosd(scene.solar_zenith)
-
     if solar_only
         return factors_solar
+    else
+        error("Only solar factors for curved atmosphere are currently implemented!")
     end
 
 end
