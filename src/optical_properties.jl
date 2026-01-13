@@ -907,11 +907,37 @@ function create_refracted_sza(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Calculates sphericity factors needed to calculate the enhancement in optical path due to
+the curved atmosphere. This function is used mostly by the Beer-Lambert type RT functions
+to account for sphericity.
+
+Results are stored in `factors_solar` and `factors_viewing`. The flag `solar_only`
+determines whether only the factors for the solar path are computed (for e.g. uplooking).
+
+# Details
+See Dahlback and Stamnes (https://doi.org/10.1016/0032-0633(91)90061-E) for details. The
+calculated sphericity factors are meant to be used as drop-in replacements for the ``\\mu = 1 /
+\\cos(\\mathrm{SZA})`` terms inside the Beer-Lambert formula, and now have a layer index
+too. Instead of (layer index ``j``)
+
+```math
+\\ldots \\exp(-\\sum_j \\frac{\\tau_j}{\\mu})
+```
+
+one would use (with sphericity factors ``ch_j``)
+
+```math
+\\ldots \\exp(-\\sum_j \\tau_j \\cdot ch_j)
+```
+"""
 function create_sphericity_factors!(
-    factors_solar,
-    factors_viewing,
+    factors_solar::AbstractVector,
+    factors_viewing::AbstractVector,
     scene::EarthScene;
-    solar_only=true
+    solar_only::Bool=true
 )
 
     # See Dahlback and Stamnes, https://doi.org/10.1016/0032-0633(91)90061-E
@@ -931,7 +957,6 @@ function create_sphericity_factors!(
     # calculations and then loop over all gases to multiply the newly calculated
     # factors.
 
-
     # r_e: Earth radius in units of atmosphere altitude
     r_e = ustrip(atm.altitude_unit, EARTH_RADIUS)
     # P: altitude (from Earth radius) of scene location in units of atm. altitude
@@ -949,7 +974,7 @@ function create_sphericity_factors!(
         alt_up = altitude_int(atm.pressure_levels[j])
         alt_lo = altitude_int(atm.pressure_levels[j+1])
 
-        # r_p² sin²θ₀
+        # r_p² sin²θ₀, remember solar zenith angle is in degrees, hence the `sind`
         r_p_term_solar = (r_p)^2 * (sind(scene.solar_zenith))^2
 
         # Height of the layer boundary above (closer to TOA), measured from Earth center
