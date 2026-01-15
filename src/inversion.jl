@@ -1,29 +1,11 @@
 include("inversion_IMAP.jl")
 include("inversion_LM.jl")
 
-
 """
-    Creates an alphabetically-ordered list of spectral windows
-    to iterate over for consistent iteration order.
-
-
-"""
-function buffer_swin_iterator(s::AbstractSolver)
-
-    swin_names = [swin.window_name for swin in keys(s.dispersions)]
-    swin_order = sortperm(swin_names)
-
-    return [swin for swin in keys(s.dispersions)][swin_order]
-
-end
-
-
-"""
-Turns the Jacobians from the solver object into a freshly allocated matrix, so they
-can be used in the inversion part of the algorithm.
-
 $(TYPEDSIGNATURES)
 
+Turns the Jacobians from the solver object into a freshly allocated matrix, so they can be
+used in the inversion part of the algorithm.
 """
 function create_K_from_solver(s::AbstractSolver)
 
@@ -32,9 +14,9 @@ function create_K_from_solver(s::AbstractSolver)
 
     K = zeros((N_wl, N_jac))
 
-    for swin in buffer_swin_iterator(s)
+    for (swin, indices) in s.indices
         for (i, sve) in enumerate(s.state_vector.state_vector_elements)
-            @views K[s.indices[swin], i] .= s.jacobians[sve].I[s.indices[swin]]
+            @views K[indices, i] .= s.jacobians[sve].I[indices]
         end
     end
 
@@ -43,35 +25,28 @@ function create_K_from_solver(s::AbstractSolver)
 end
 
 """
-Creates and returns the instrument noise covariance matrix
-
 $(TYPEDSIGNATURES)
+
+Creates and returns the instrument noise covariance matrix. If the optional keyword
+`return_inverse` is set to `true`, the inverse is returned. For now, this function only
+supports diagonal noise covariance matrices.
 """
-function create_Se_from_solver(s::AbstractSolver; return_inverse=false)
+function create_Se_from_solver(s::AbstractSolver; return_inverse::Bool=false)
 
     N_wl = map(length, values(s.indices)) |> sum
     Se_diag = zeros(N_wl)
 
     # Construct diagonal entries
-    for swin in keys(s.indices)
+    for (swin, indices) in s.indices
 
         disp = s.dispersions[swin]
-        Se_diag[s.indices[swin]] = (s.instrument_noise[disp][disp.index]) .^ 2
+        Se_diag[indices] = (s.instrument_noise[disp][disp.index]) .^ 2
 
     end
 
     # Create diagonal matrix from those entries
     # (can be used like a regular matrix)
     Se = Diagonal(Se_diag)
-
-    #=
-    Se = Diagonal(
-            vcat([
-                (s.instrument_noise[s.dispersions[swin]][s.dispersions[swin].index]) .^ 2
-                for swin in buffer_swin_iterator(s)
-                    ]...)
-                    )
-    =#
 
     if return_inverse
         return inv(Se)
@@ -82,10 +57,9 @@ function create_Se_from_solver(s::AbstractSolver; return_inverse=false)
 end
 
 """
-Calculates the reduced ``χ^2`` statistic for the spectral
-fit within `solver`.
-
 $(TYPEDSIGNATURES)
+
+Calculates the reduced ``χ^2`` statistic for the spectral fit within `solver`.
 
 # Details
 
@@ -95,7 +69,6 @@ The reduced ``χ^2`` statistic is calculated as
 χ^2 = \\frac{1}{N_{\\text{spec}} - N_{\\text{sv}}}
 \\sum_i^{N_{\\text{spec}}} \\frac{M_i - O_i}{\\varepsilon_i}
 ```
-
 """
 function calculate_chi2(s::AbstractSolver)
 
@@ -144,11 +117,11 @@ function calculate_chi2(s::AbstractSolver)
 end
 
 """
-Returns the measured radiances of an `AbstractSolver` `s`, belonging to an
-`AbstractSpectralWindow` `swin`. The optional argument `view` determines whether
-to return a view onto the array (`true`), or a copy (`false`).
-
 $(TYPEDSIGNATURES)
+
+Returns the measured radiances of an `AbstractSolver` `s`, belonging to an
+`AbstractSpectralWindow` `swin`. The optional argument `view` determines whether to return
+a view onto the array (`true`), or a copy (`false`).
 """
 function get_measured(
     s::AbstractSolver,
@@ -189,11 +162,11 @@ end
 
 
 """
-Returns the modeled radiance currently stored in the `AbstractRTBuffer` of an
-`EarthAtmosphereBuffer` `buf`. The optional argument `view` determines whether
-to return a view onto the array (`view=true`), or a copy (`view=false`).
-
 $(TYPEDSIGNATURES)
+
+Returns the modeled radiance currently stored in the `radiance` field of solver `s`,
+corresponding to the spectral window `swin`. The optional argument `view` determines
+whether to return a view onto the array (`view=true`), or a copy (`view=false`).
 """
 function get_modeled(
     s::AbstractSolver,
@@ -211,23 +184,30 @@ end
 # Shortcut for UK spelling
 get_modelled(s, swin; view=true) = get_modeled(s, swin; view)
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns the modeled radiance currently stored in the `radiance` field of solver `s`,
+for **all** spectral windows, with the ordering given by `s.indices`. Allocates a new
+vector.
+"""
 function get_modeled(s::AbstractSolver)
 
     # Create the needed array
     N = map(length, values(s.indices)) |> sum
-    modelled = zeros(N);
+    modeled = zeros(N);
 
     # Fill with the values from the modelled radiances
-    get_modeled!(modelled, s)
+    get_modeled!(modeled, s)
 
-    return modelled
+    return modeled
 
 end
 
-function get_modeled!(modelled, s)
+function get_modeled!(modeled, s)
 
     for swin in keys(s.indices)
-        @views modelled[s.indices[swin]] = get_modelled(s, swin)
+        @views modeled[s.indices[swin]] = get_modeled(s, swin)
     end
 
 end
@@ -297,8 +277,8 @@ function get_wavelength(s::AbstractSolver)
     N = map(length, values(s.indices)) |> sum
     ww = zeros(N);
 
-    for swin in keys(s.indices)
-        @views ww[s.indices[swin]] = get_wavelength(s, swin)
+    for (swin, indices) in s.indices
+        ww[indices] = get_wavelength(s, swin)
     end
 
     return ww
@@ -306,7 +286,61 @@ end
 
 
 """
+$(TYPEDSIGNATURES)
 
+Returns the partial derivative (Jacobian) with respect to state vector element `SVE`, as
+embedded in the solver `s`. This function **does not calculate the Jacobian itself**, so
+in order for this function to return a meaningful quantity, users must call a forward
+model beforehand, which implements the correct calculations and stores them in
+`s.jacobians`. **This function returs a newly created vector.**
+
+See also `create_K_from_solver` and `get_jacobian(s, SVE, swin)`.
+"""
+function get_jacobian(
+    s::AbstractSolver,
+    SVE::AbstractStateVectorElement,
+    )
+
+    # Create the needed array
+    N = map(length, values(s.indices)) |> sum
+    jac = zeros(N)
+
+    for (swin, indices) in s.indices
+        jac[indices] = get_jacobian(s, SVE, swin)
+    end
+
+    return jac
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns the partial derivative (Jacobian) with respect to state vector element `SVE`, as
+embedded in solver `s` for a spectral window `swin`. If the optional keyword `view` is
+`true`, then a view on the Jacobian is returned, otherwise a copy is created and returned.
+"""
+function get_jacobian(
+    s::AbstractSolver,
+    SVE::AbstractStateVectorElement,
+    swin::AbstractSpectralWindow;
+    view = true
+)
+
+    indices = s.indices[swin]
+
+    if view
+        return @views s.jacobians[SVE][indices]
+    else
+        return s.jacobians[SVE][indices]
+    end
+
+
+end
+
+
+"""
 $(TYPEDSIGNATURES)
 """
 function calculate_scale_factor_AK(
@@ -442,13 +476,10 @@ function calculate_scale_factor_AK(
 end
 
 """
-Print a convenient summary of the current state vector, including
-the associated uncertainties.
-
 $(TYPEDSIGNATURES)
 
-Note that this function does not check for convergence.
-
+Print a convenient summary of the current state vector, including the associated
+uncertainties. Note that this function does not check for convergence.
 """
 function print_posterior(s::AbstractSolver)
 
@@ -466,13 +497,10 @@ end
 print_posterior(s::AbstractSolver, q::OEQuantities) = print_posterior(q)
 
 """
-Print a convenient summary of the current state vector, including
-the associated uncertainties.
-
 $(TYPEDSIGNATURES)
 
-Note that this function does not check for convergence.
-
+Print a convenient summary of the current state vector, including
+the associated uncertainties. Note that this function does not check for convergence.
 """
 function print_posterior(q::OEQuantities)
 
@@ -510,12 +538,10 @@ function print_posterior(q::OEQuantities)
 end
 
 """
-Returns the number of iterations performed in an IMAPSolver
-object, and also checks if all state vector elements have the
-same count (as they should).
-
 $(TYPEDSIGNATURES)
 
+Returns the number of iterations performed in an `AbstractSolver` object `s`, and also
+checks if all state vector elements have the same count (as they should).
 """
 function get_iteration_count(s::AbstractSolver)
     if length(s.state_vector) == 0
@@ -579,9 +605,12 @@ end
 
 
 """
-    Computes the finite-difference Jacobian for the forward model embedded in solver `s`.
-    Users must supply a perturbation value `Δx` (must be unit-compatible with `sve`), such
-    that (F(x + Δx) - F(x)) / Δx can be computed. `Δx` must have units.
+$(TYPEDSIGNATURES)
+
+Computes the finite-difference Jacobian for the forward model embedded in solver `s`.
+Users must supply a perturbation value `Δx` (must be unit-compatible with `sve`), such
+that (F(x + Δx) - F(x)) / Δx can be computed. `Δx` must have units. Returns F(x), F(x +
+Δx), [F(x + Δx) - F(x)]/Δx.
 """
 function compute_finite_difference_jacobian(
     s::AbstractSolver,
