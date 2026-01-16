@@ -79,7 +79,7 @@ function __init__()
 
     if !haskey(ENV, "XRTM_PATH")
 
-        @warn "XRTM_PATH environment variable was not found! Not loading XRTM!"
+        @debug "XRTM_PATH environment variable was not found! Not loading XRTM!"
 
     else
 
@@ -95,7 +95,7 @@ function __init__()
             xrtm_path = joinpath(s, "XRTM.jl")
 
             if isfile(xrtm_path)
-                @info "Loading XRTM from $(s)"
+                @debug "Loading XRTM from $(s)"
                 include(xrtm_path)
 
                 # Also set the environment variable for this Julia session to find the
@@ -114,8 +114,8 @@ function __init__()
     end
 
     if !(have_XRTM)
-        @warn "Could not find XRTM module!"
-        @warn "Calls to XRTM library functions will crash the session!"
+        @debug "Could not find XRTM module!"
+        @debug "Calls to XRTM library functions will crash the session!"
     end
 
 end
