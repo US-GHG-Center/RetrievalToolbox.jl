@@ -85,8 +85,10 @@ function calculate_solar_angles(longitude, latitude, datetime)
     # You'll need to convert to local solar time
     lst = ct2lst(longitude, jd)  # Local Sidereal Time
 
-    # Calculate zenith and azimuth angles
-    zenith, azimuth = eq2hor(ra, dec, jd, latitude, longitude)
+    # Calculate altitude and azimuth angles
+    alt, azimuth = eq2hor(ra, dec, jd, latitude, longitude)
+    # Conver to zenith angle!
+    zenith = 90 - alt
 
     return zenith, azimuth
 end
