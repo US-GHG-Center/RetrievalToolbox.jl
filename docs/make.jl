@@ -1,3 +1,15 @@
+using Pkg
+
+if isfile(joinpath(@__DIR__, "..", "Project.toml"))
+    # Local development - use the local package
+    Pkg.develop(PackageSpec(path=joinpath(@__DIR__, "..")))
+else
+    # CI/remote
+    # The Github action via the workflow .github/workflows/documentation.yml
+    # takes care of adding the module. No need to add anything.
+end
+
+
 using Documenter, RetrievalToolbox
 const RE = RetrievalToolbox
 
@@ -58,3 +70,6 @@ deploydocs(;
     versions = ["stable" => "v^", "v#.#", "main" => "main", "dev" => "dev"],
     push_preview = false,
 )
+
+# Remove package from Project.toml
+Pkg.rm("RetrievalToolbox")
