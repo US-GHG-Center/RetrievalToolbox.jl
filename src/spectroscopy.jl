@@ -321,9 +321,6 @@ function load_ABSCOAER_spectroscopy(
         # Cap negative values (they seem to appear ocassionally in the tables)
         if (force_positive)
             @debug "[SPEC] Forcing cross section table entries to be positive."
-            @info (
-                @sprintf "Number of negative cross section values: %d" ((cross_section .< 0) |> sum)
-                )
             @turbo for i in eachindex(cross_section)
                 cross_section[i] = max(cross_section[i], 0.)
             end
