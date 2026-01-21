@@ -155,7 +155,8 @@ function calculate_dispersion_polynomial_jacobian!(
     sve::DispersionPolynomialSVE,
     ISRF::TableISRF,
     data::AbstractVector;
-    doppler_factor=0.0
+    doppler_factor=0.0,
+    Ndelta::Union{Nothing, Number}=nothing,
     )
 
     disp = sve.dispersion
@@ -164,9 +165,13 @@ function calculate_dispersion_polynomial_jacobian!(
     # Estimate the best stepsize to use for partial derivative
     # ∂ISRF / ∂λ (or ∂ISRF / ∂ν):
 
-    NΔ = (
-        minimum(diff(disp.ww)) / minimum(diff(swin.ww_grid))
-    ) |> round |> Int
+    if isnothing(Ndelta)
+        NΔ = (
+            minimum(diff(disp.ww)) / minimum(diff(swin.ww_grid))
+        ) |> round |> Int
+    else
+        NΔ = Ndelta
+    end
 
     @debug "[DISPERSION] NΔ = $(NΔ)"
 
