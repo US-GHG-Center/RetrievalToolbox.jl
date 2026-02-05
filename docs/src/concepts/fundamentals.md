@@ -137,7 +137,7 @@ zlo0 = RE.ZeroLevelOffsetPolynomialSVE(
     swin, # Spectral window
     0, # Coefficient order
     u"µm", # Spectral unit
-    1.0, # Radiance unit
+    u"1", # Radiance unit
     0.0, # First guess
     0.0, # Prior value
     1.0 # Prior covariance
@@ -147,7 +147,7 @@ zlo1 = RE.ZeroLevelOffsetPolynomialSVE(
     swin, # Spectral window
     1, # Coefficient order
     u"µm", # Spectral unit
-    1.0, # Radiance unit
+    u"1", # Radiance unit
     1.0, # First guess
     1.0, # Prior value
     1.0 # Prior covariance
