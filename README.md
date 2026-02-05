@@ -1,5 +1,6 @@
 # RetrievalToolbox
 [![docs-dev](https://img.shields.io/badge/docs-dev-blue.svg)][docs-dev-url]
+[![Static Badge](https://img.shields.io/badge/Tutorials-green)](https://retrievaltoolbox.github.io/RetrievalToolbox-Tutorials/)
 [![License](https://img.shields.io/badge/License-BSD_3--Clause-blue.svg)](https://opensource.org/licenses/BSD-3-Clause)
 
 RetrievalToolbox is a library for building trace gas retrieval algorithms and related applications written in pure [Julia](https://julialang.org). The library is currently in an early release stage, and feature-breaking updates might happen - although we attempt to keep those to a minimum. For the time being, we recommend to fork this repository into your own GitHub organization and integrate updates from here as to not break your own application.
