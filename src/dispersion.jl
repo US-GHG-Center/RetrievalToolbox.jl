@@ -1,31 +1,39 @@
 """
-Creates a spectral grid from a `SimplePolynomialDispersion` object
-and returns the indices and the corresponding spectral grid.
-
 $(TYPEDSIGNATURES)
+
+Creates a spectral grid from a `SimplePolynomialDispersion` object and returns the indices
+and the corresponding spectral grid.
 """
 function calculate_grid_from_dispersion(
     disp::SimplePolynomialDispersion,
-    spectral_window::AbstractSpectralWindow
+    window::AbstractSpectralWindow
     )
 
     full_grid = Polynomial(disp.coefficients).(disp.detector_samples)
 
-    idx_start = searchsortedfirst(full_grid, spectral_window.ww_min)
-    idx_stop = searchsortedfirst(full_grid, spectral_window.ww_max) + 1
+    if full_grid[2] > full_grid[1]
+        # Increasing wavelength
+        idx_start = searchsortedfirst(full_grid, window.ww_min)
+        idx_stop = searchsortedfirst(full_grid, window.ww_max) + 1
+    else
+        # Decreasing wavelength
+        idx_start = searchsortedlast(full_grid, window.ww_max, rev=true)
+        idx_stop = searchsortedlast(full_grid, window.ww_min, rev=true)
+    end
+
+    idx_start = max(idx_start, 1)
+    idx_stop = min(idx_stop, length(disp.detector_samples))
 
     return idx_start:idx_stop, full_grid[idx_start:idx_stop]
 
 end
 
 """
-Updates the dispersion object `disp` given a state vector `sv`,
-also considering an optional instrument Doppler factor. The
-instrument Doppler factor reflects the relative movement between
-(for example), the measurement location on Earth and the spacecraft.
-
 $(TYPEDSIGNATURES)
 
+Updates the dispersion object `disp` given a state vector `sv`, also considering an
+optional instrument Doppler factor. The instrument Doppler factor reflects the relative
+movement between (for example), the measurement location on Earth and the spacecraft.
 """
 function update_dispersion!(
     disp::SimplePolynomialDispersion,
@@ -69,9 +77,9 @@ end
 
 
 """
-Update the dispersion according to its coefficients.
-
 $(TYPEDSIGNATURES)
+
+Updates the dispersion according to its coefficients.
 
 # Details
 
@@ -147,17 +155,32 @@ function calculate_dispersion_polynomial_jacobian!(
     sve::DispersionPolynomialSVE,
     ISRF::TableISRF,
     data::AbstractVector;
-    doppler_factor=0.0
+    doppler_factor=0.0,
+    Ndelta::Union{Nothing, Number}=nothing,
     )
 
     disp = sve.dispersion
     swin = disp.spectral_window
+
+    # Estimate the best stepsize to use for partial derivative
+    # ∂ISRF / ∂λ (or ∂ISRF / ∂ν):
+
+    if isnothing(Ndelta)
+        NΔ = (
+            minimum(diff(disp.ww)) / minimum(diff(swin.ww_grid))
+        ) |> round |> Int
+    else
+        NΔ = Ndelta
+    end
+
+    @debug "[DISPERSION] NΔ = $(NΔ)"
 
     # Call low-level high performance function
     return _calculate_dispersion_polynomial_jacobian_table!(
         inst_buf,
         sve.coefficient_order,
         ISRF,
+        NΔ,
         swin.ww_unit,
         swin.ww_grid,
         disp.ww_unit,
@@ -173,6 +196,7 @@ function _calculate_dispersion_polynomial_jacobian_table!(
     inst_buf::InstrumentBuffer,
     order::Integer,
     ISRF::TableISRF,
+    NΔ::Integer,
     hires_unit,
     hires_ww,
     lores_unit,
@@ -181,6 +205,7 @@ function _calculate_dispersion_polynomial_jacobian_table!(
     data,
     doppler_factor
 )
+    @assert NΔ > 0 "NΔ must be > 0! (NΔ = $(NΔ))"
     @assert length(data) == length(hires_ww) (
         "Hi-res vector and hires vector grid must be same size!"
     )
@@ -233,9 +258,9 @@ function _calculate_dispersion_polynomial_jacobian_table!(
 
 
         this_ISRF = @view inst_buf.tmp1[1:idx_last - idx_first + 1]
-        @views this_ISRF[:] .= 0.0
+        @views this_ISRF[:] .= 0
 
-        @views inst_buf.tmp2[:] .= 0.0
+        @views inst_buf.tmp2[:] .= 0
         @views @. this_ww_delta[:] = (
             unit_fac * ISRF.ww_delta[:, this_l1b_idx] + this_ww
         )
@@ -252,15 +277,16 @@ function _calculate_dispersion_polynomial_jacobian_table!(
         )
 
         # Re-zero tmp2
-        @views inst_buf.tmp2[:] .= 0.0
+        @views inst_buf.tmp2[:] .= 0
 
         # Calculate dISRF / dwavelength
-        for i in 1:length(this_ISRF) - 1
-            inst_buf.tmp2[i] = this_ISRF[i + 1] - this_ISRF[i]
-            inst_buf.tmp2[i] /= hires_ww[idx_first + i + 1] - hires_ww[idx_first + i]
+        # (make this a central difference..)
+        for i in 1:length(this_ISRF) - NΔ
+            inst_buf.tmp2[i] = this_ISRF[i + NΔ] - this_ISRF[i]
+            inst_buf.tmp2[i] /= this_hires_wl[i + NΔ] - this_hires_wl[i]
         end
 
-        dISRF_dww = @view inst_buf.tmp2[1:idx_last - idx_first]
+        dISRF_dww = @view inst_buf.tmp2[1:length(this_ISRF) - 1]
         this_data = @view data[idx_first:idx_last - 1]
 
         # Not sure why the minus here is needed (it is!), maybe check the math

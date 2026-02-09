@@ -1,6 +1,19 @@
+using Pkg
+
+if isfile(joinpath(@__DIR__, "..", "Project.toml"))
+    # Local development - use the local package
+    Pkg.develop(PackageSpec(path=joinpath(@__DIR__, "..")))
+else
+    # CI/remote
+    # The Github action via the workflow .github/workflows/documentation.yml
+    # takes care of adding the module. No need to add anything.
+end
+
+
 using Documenter, RetrievalToolbox
 const RE = RetrievalToolbox
 
+ENV["GKSwstype"] = "100" # Inform Plots.jl about headless mode.
 
 DocMeta.setdocmeta!(
     RetrievalToolbox,
@@ -16,7 +29,6 @@ makedocs(
     doctest=true,
     pages = [
         "Main" => "index.md",
-        "Design" => joinpath("design", "design.md"),
         "Concepts" =>
             [
                 "Fundamentals" => joinpath("concepts", "fundamentals.md"),
@@ -24,6 +36,7 @@ makedocs(
                 "Radiance" => joinpath("concepts", "radiance.md"),
                 "Scattering Phasefunction" => joinpath("concepts" , "phasefunction.md"),
             ],
+        "Design" => joinpath("design", "design.md"),
         "Functions" =>
             [
                 "State Vector Functions" => joinpath("functions", "state_vector_functions.md"),
@@ -34,6 +47,7 @@ makedocs(
             [
                 "Atmosphere Types" => joinpath("types", "atmosphere_types.md"),
                 "Buffer Types" => joinpath("types", "buffer_types.md"),
+                "Dispersion Types" => joinpath("types", "dispersion_types.md"),
                 "Radiative Transfer Method Types" => joinpath("types", "RT_types.md"),
                 "State Vector Types" => joinpath("types", "state_vector_types.md"),
                 "Surface Types" => joinpath("types", "surface_types.md"),
@@ -56,3 +70,6 @@ deploydocs(;
     versions = ["stable" => "v^", "v#.#", "main" => "main", "dev" => "dev"],
     push_preview = false,
 )
+
+# Remove package from Project.toml
+Pkg.rm("RetrievalToolbox")

@@ -8,7 +8,7 @@ struct EarthLocation{T1, T2} <: AbstractLocation
 end
 
 """
-Pretty printing for Earth location types
+Pretty printing for `EarthLocation` types
 
 $(SIGNATURES)
 """
@@ -22,7 +22,7 @@ function show(io::IO, ::MIME"text/plain", el::EarthLocation)
 end
 
 """
-Brief pretty printing for Earth location types
+Brief pretty printing for `EarthLocation` types
 
 $(SIGNATURES)
 """

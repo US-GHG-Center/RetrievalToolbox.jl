@@ -299,35 +299,49 @@ by the order in the `buf.spectral_window` vector.
 """
 function calculate_indices!(buf::EarthAtmosphereBuffer)
 
-    # We loop through all spectral windows present in the buffer
+    calculate_indices!(buf.rt_buf, buf.spectral_window)
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the indices of an `AbstractRTBuffer` type (`rt_buf`) to assign forward model
+output (radiances) from specific spectral windows to a retrieval-wide array of radiances.
+The order in which those are concatenated into the RT buffer is determined by the order in
+the `swin_list` vector.
+"""
+function calculate_indices!(rt_buf::AbstractRTBuffer, swin_list::Vector{T}) where
+    {T <: AbstractSpectralWindow}
+
     idx_start = 1
 
-    for swin in buf.spectral_window
+    for swin in swin_list
 
         # Clear out old data
-        empty!(buf.rt_buf.indices[swin])
+        empty!(rt_buf.indices[swin])
 
         # How many elements do we need for this spectral window?
-        L = length(buf.rt_buf.dispersion[swin].index)
+        L = length(rt_buf.dispersion[swin].index)
         @debug "[BUFFER] $(swin) has $(L) elements"
 
         idx_stop = idx_start+L-1
+
+        # Make sure that the radiance buffer is big enough!
+        if idx_stop > size(rt_buf.radiance, 1)
+            error("""Radiance buffer too small! Next index would be $(idx_stop), but the
+                     Buffer only fits $(size(rt_buf.radiance, 1)) entries!""")
+        end
+
         # Store the values into the empty vector
-        append!(buf.rt_buf.indices[swin], collect(idx_start:idx_stop))
+        append!(rt_buf.indices[swin], collect(idx_start:idx_stop))
 
         @debug "[BUFFER] Added indices for $(swin) => $(idx_start):$(idx_stop)"
         # Set the new start index
         idx_start += L
 
-
     end
 
-    #=
-    @info "Indices: "
-    for swin in buf.spectral_window
-        @info "$(swin.window_name): $(buf.rt_buf.indices[swin][1:10])..."
-    end
-    =#
 end
 
 

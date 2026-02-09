@@ -1,11 +1,22 @@
 """
-
-A type to facilitate inversions using the Iterative Maximum
-A-posteriori (IMAP) solver method. See Frankenberg et al. (2005)
-for details.
+A type to facilitate inversions using the Iterative Maximum A-posteriori (IMAP) solver
+method. See Frankenberg et al. (2005) (https://doi.org/10.5194/acp-5-9-2005) for details.
 
 $(TYPEDFIELDS)
 
+# Forward model function
+
+In any `IMAPSolver` object, a forward model function has be supplied that returns a `Bool`
+to signify whether the forward model execution was successful. By definition, the first
+and only non-keyword argument must be an `AbstractStateVector`, any number of keyword
+arguments may follow. For example
+
+```
+    function my_forward_model(sv::RE.RetrievalStateVector; extra_data)
+        # Do something with `sv` and `extra_data`
+        return true
+    end
+```
 """
 struct IMAPSolver <: AbstractSolver
     "The forward model function, only takes AbstractStateVector as argument"
@@ -45,9 +56,8 @@ struct IMAPSolver <: AbstractSolver
         noise::Dict{<:AbstractDispersion, <:AbstractVector}
     )
 
-        # Construct the prior covariance matrix.
-        # It's convenient to have it as part of the structure,
-        # since it is not changing during the inversion.
+        # Construct the prior covariance matrix. It's convenient to have it as part of the
+        # structure, since it is not changing during the inversion.
 
         # Note - any cross-correlations have to be added manually at this point.
         @views Sa[:,:] .= 0.0
