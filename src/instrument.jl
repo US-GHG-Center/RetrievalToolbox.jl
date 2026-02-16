@@ -32,8 +32,7 @@ function apply_isrf_to_spectrum!(
     inst_buf::InstrumentBuffer,
     ISRF::TableISRF,
     disp::AbstractDispersion,
-    data::AbstractVector,
-    spectral_window::AbstractSpectralWindow;
+    data::AbstractVector;
     doppler_factor=0.0
     )
 
@@ -47,8 +46,8 @@ function apply_isrf_to_spectrum!(
         ISRF.ww_delta_unit,
         ISRF.ww_delta,
         ISRF.relative_response,
-        spectral_window.ww_unit,
-        spectral_window.ww_grid,
+        disp.spectral_window.ww_unit,
+        disp.spectral_window.ww_grid,
         data,
         disp.ww_unit,
         disp.ww,
@@ -61,6 +60,27 @@ function apply_isrf_to_spectrum!(
     return success
 
 end
+
+# Legacy function interface that still includes spectral window as seperate argument
+function apply_isrf_to_spectrum!(
+    inst_buf::InstrumentBuffer,
+    ISRF::TableISRF,
+    disp::AbstractDispersion,
+    data::AbstractVector,
+    spectral_window::AbstractSpectralWindow;
+    doppler_factor=0.0
+    )
+
+    return apply_isrf_to_spectrum!(
+        inst_buf,
+        ISRF,
+        disp,
+        data;
+        doppler_factor=doppler_factor
+    )
+
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -210,8 +230,7 @@ function apply_isrf_to_spectrum!(
     inst_buf::InstrumentBuffer,
     ISRF::GaussISRF,
     disp::AbstractDispersion,
-    data::AbstractVector,
-    swin::AbstractSpectralWindow;
+    data::AbstractVector;
     doppler_factor=0.0,
     extend=4.0 # How many σ's to move away from the center for integration?
     )
@@ -225,8 +244,8 @@ function apply_isrf_to_spectrum!(
         inst_buf.low_res_output,
         σ,
         extend,
-        swin.ww_unit,
-        swin.ww_grid,
+        disp.spectral_window.ww_unit,
+        disp.spectral_window.ww_grid,
         data,
         disp.ww_unit,
         disp.ww,
@@ -235,6 +254,28 @@ function apply_isrf_to_spectrum!(
     )
 
     return success
+
+end
+
+# Legacy function interface
+function apply_isrf_to_spectrum!(
+    inst_buf::InstrumentBuffer,
+    ISRF::GaussISRF,
+    disp::AbstractDispersion,
+    data::AbstractVector,
+    swin::AbstractSpectralWindow;
+    doppler_factor=0.0,
+    extend=4.0 # How many σ's to move away from the center for integration?
+    )
+
+    return apply_isrf_to_spectrum!(
+        inst_buf,
+        ISRF,
+        disp,
+        data,;
+        doppler_factor=doppler_factor,
+        extend=extend
+    )
 
 end
 
