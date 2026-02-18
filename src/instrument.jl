@@ -1,6 +1,6 @@
 """
-
 $(TYPEDSIGNATURES)
+
 Applies the `TableISRF`-type instrument response function on some vector `data`, usually
 intended to be the high-resolution model radiance or Jacobian. The output is stored in
 `inst_buf.low_res_output`. Returns `true` if the calculation did not encounter any errors.
@@ -238,7 +238,7 @@ function apply_isrf_to_spectrum!(
     # Convert to σ here, so we can pass a number to the lowlevel function
     # (if you include this code in the function itself, it produces a lot of
     #  additional allocations.)
-    σ = FWHM_to_sigma(ISRF.FWHM) * ISRF.FWHM_unit |> swin.ww_unit |> ustrip
+    σ = FWHM_to_sigma(ISRF.FWHM) * ISRF.FWHM_unit |> disp.spectral_window.ww_unit |> ustrip
 
     success = _apply_gaussisrf_to_spectrum_lowlevel!(
         inst_buf.low_res_output,
