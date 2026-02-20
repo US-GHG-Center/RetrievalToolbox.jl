@@ -1,7 +1,7 @@
 """
-Pretty printing for OCO solar model types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for OCO solar model types
 """
 function show(io::IO, ::MIME"text/plain", sm::OCOHDFSolarModel)
 
@@ -10,9 +10,9 @@ function show(io::IO, ::MIME"text/plain", sm::OCOHDFSolarModel)
 end
 
 """
-Brief pretty printing for OCO solar model types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for OCO solar model types
 """
 function show(io::IO, sm::OCOHDFSolarModel)
 
@@ -23,20 +23,18 @@ end
 
 
 """
-Calculates the down-sampled solar spectrum at the
-high-resolution grid specified within the spectral
-window `swin` and saves it in `rt.hires_solar`.
-
 $(TYPEDSIGNATURES)
+
+Calculates the down-sampled solar spectrum at the high-resolution grid specified within
+the spectral window `swin` and saves it in `rt.hires_solar`.=
 
 # Details
 
-In this function, the solar Doppler shift is considered via
-sampling the original solar spectrum at acccording wavelengths.
-The Doppler factor is defined as the relative velocity between
-the observation point on Earth (for Earth-Backscatter spectra),
-and a negative sign indicates the observation point moving closer
-to the sun, as a fraction of the speed of light in vacuum.
+In this function, the solar Doppler shift is considered via sampling the original solar
+spectrum at acccording wavelengths. The Doppler factor is defined as the relative velocity
+between the observation point on Earth (for Earth-Backscatter spectra), and a negative
+sign indicates the observation point moving closer to the sun, as a fraction of the speed
+of light in vacuum.
 """
 function calculate_solar_irradiance!(
     rt::AbstractRTMethod,
@@ -156,55 +154,58 @@ function calculate_solar_irradiance!(
 end
 
 """
-    Converts solar model data from "ph/s/m^2/µm" to "W/m^2/µm"
+$(TYPEDSIGNATURES)
+
+Converts solar model data from "ph/s/m^2/µm" to "W/m^2/µm"
 """
 function convert_solar_model_to_W!(s::OCOHDFSolarModel)
 
     if s.irradiance_unit == u"ph/s/m^2/µm"
         @debug "[SOLAR] Solar model in units of ph/s/m2/µm - converting to W/m2/µm!"
         @views s.continuum[:] .*= ustrip.(Ref(u"W"),
-            1.0u"s^-1" .* SPEED_OF_LIGHT ./ (s.ww[:] .* u"µm") .* PLANCK
+            1.0u"s^-1" .* SPEED_OF_LIGHT ./ (s.ww[:] .* s.ww_unit) .* PLANCK
         )
 
         s.irradiance_unit = u"W/m^2/µm"
+        return true
 
     else
 
-        @warn "Units already in W/m^2/µm - skipping!"
-
+        error("This function does not (yet) accept irradiance units of $(s.irradiance_unit)!")
+        return false
     end
 
 end
 
 """
-    Converts solar model data from "W/m^2/nm" to "ph/s/m^2/µm"
+$(TYPEDSIGNATURES)
+
+Converts solar model data from "W/m^2/nm" to "ph/s/m^2/µm"
 """
 function convert_solar_model_to_photons!(s::TSISSolarModel)
 
     if s.irradiance_unit == u"W/m^2/nm"
         @debug "[SOLAR] Solar model in units of W/m^2/nm - converting to ph/s/m^2/µm!"
         @views s.irradiance[:] .*= ustrip.(u"m^-2 * µm^-1", # We want this in 1/m2 1/µm
-        s.irradiance_unit * 1.0u"s" ./ SPEED_OF_LIGHT .* (s.ww[:] .* u"nm") ./ PLANCK
+            s.irradiance_unit * 1.0u"s" ./ SPEED_OF_LIGHT .* (s.ww[:] .* s.ww_unit) ./ PLANCK
         )
 
         s.irradiance_unit = u"ph/s/m^2/µm"
+        return true
 
     else
 
-        @warn "Units already in ph/s/m^2/µm - skipping!"
-
+        error("This function does not (yet) accept irradiance units of $(s.irradiance_unit)!")
+        return false
     end
-
-    return true
 
 end
 
 
 """
-Reads a JPL/OCO-type solar model HDF5 file and returns
-a `OCOHDFSolarModel` object.
 
-$(TYPEDSIGNATURES)
+
+Reads a JPL/OCO-type solar model HDF5 file and returns a `OCOHDFSolarModel` object.
 """
 function OCOHDFSolarModel(
     filename::String,
@@ -320,9 +321,6 @@ function TSISSolarModel(
     # Turn wavelength into microns
     ww = ustrip.(Ref(u"µm"), wavelength * wavelength_unit)
     ww_unit = u"µm"
-
-    # Convert wavelength to µm
-    irradiance = ustrip.(Ref(u"W/m^2/µm"), irradiance * irradiance_unit)
 
     if spectral_unit == :Wavelength
 
