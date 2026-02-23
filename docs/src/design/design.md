@@ -54,7 +54,7 @@ for atm in atm_list
 end
 ```
 
-and as long as there is a function `calculate_tau` which implements the calculate for the requested type, above code will execute and keep this top-level loop nice and tidy.
+and as long as there is a function `calculate_tau` which implements the calculation for the requested type, above code will execute and keep this top-level loop nice and tidy.
 
 While the above example allows for some convenience, the strength of multiple dispatch also lies in how users can expand code without having to change code deep within a module they use. For example, let us imagine a new aerosol type that a user wants to integrate in their retrieval application: `MyAerosolType`. A new list of atmosphere elements would be created, like so
 
@@ -96,11 +96,19 @@ Currently, the top-level buffer is the `EarthAtmosphereBuffer` which itself incl
 
 Buffers are represented by their own types, listed here: [Buffer Types](@ref buffer_types).
 
-### Order of instantiation in a retrieval algorithm
+## Order of instantiation in a retrieval algorithm
+
 
 ## Executing the forward model will mutate some objects
 
-Kinda bad for e.g. gas scale factors that mean factors of some initial atmospheric state.
+!!! warn
+    For the sake of performance and thus the necessity of buffers, many objects will inevitably be mutated!
+
+Most forward model implementations will over-write the vectors that carry the radiative transfer results, the optical depth profiles, the mappings between spectral sample and positions in the result buffers, and so forth. Hence calling `solver.forward_model(solver.state_vector; fm_kwargs...)` will mutate various parts of the buffer! As such, users should be always aware of order of operations within their forward model as well as their entire algorithm.
+
+The most immediate impacts of the mutability of certain objects is seen in the state of the atmosphere. For example: a forward model that is set up to adjust the atmosphere for the retrieval of a temperature profile offset (see for example :[`TemperatureOffsetSVE`](@ref)) will update in-place the temperature profile of the atmosphere object using the `atmosphere_statevector_update!` function. It is also expected that the forward model then also reverts to its original state via the `atmosphere_statevector_rollback!` function. Thus, when optical properties are calculated, it matters whether that calculation takes place between those two function calls or after and they will *not* produce the same result!
+
+See the [Atmosphere functions](@ref) section of the documentation for more details.
 
 ## Explicit and lengthy or simplified and short?
 

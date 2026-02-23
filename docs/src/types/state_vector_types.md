@@ -113,8 +113,6 @@ In order to update the surface(s) given some state vector, a helper function exi
 
 ## Dispersion polynomial
 
-
-
 ```@docs
 RE.DispersionPolynomialSVE
 ```
@@ -123,4 +121,10 @@ RE.DispersionPolynomialSVE
 
 ```@docs
 RE.ZeroLevelOffsetPolynomialSVE
+```
+
+## Temperature profile offset
+
+```@docs
+RE.TemperatureOffsetSVE
 ```
