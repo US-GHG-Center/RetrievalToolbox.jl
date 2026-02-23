@@ -2,6 +2,7 @@ using Pkg
 
 if isfile(joinpath(@__DIR__, "..", "Project.toml"))
     # Local development - use the local package
+    @info "Using local development!"
     Pkg.develop(PackageSpec(path=joinpath(@__DIR__, "..")))
 else
     # CI/remote
@@ -41,7 +42,8 @@ makedocs(
             [
                 "State Vector Functions" => joinpath("functions", "state_vector_functions.md"),
                 "Atmosphere Functions" => joinpath("functions", "atmosphere_functions.md"),
-                "Instrument Functions" => joinpath("functions", "instrument_functions.md")
+                "Instrument Functions" => joinpath("functions", "instrument_functions.md"),
+                "Inversion Functions" => joinpath("functions", "inversion_functions.md"),
             ],
         "Types" =>
             [

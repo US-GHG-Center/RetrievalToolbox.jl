@@ -11,3 +11,6 @@ In the current version of the software library, the following are not (yet) supp
 
 * True infra-red radiative transfer that includes thermal emission
 * Limb soundings
+
+!!! warning
+    API documentation is not complete at this time. We recommend users to study the example implementations found on the main repository page, reach out directly or via the [GitHub Issues Tracker](https://github.com/RetrievalToolbox/ACOS-Goddard/issues).
