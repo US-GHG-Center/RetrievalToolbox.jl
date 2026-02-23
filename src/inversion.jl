@@ -66,7 +66,7 @@ Calculates the reduced ``χ^2`` statistic for the spectral fit within `solver`.
 The reduced ``χ^2`` statistic is calculated as
 
 ```math
-χ^2 = \\frac{1}{N_{\\text{spec}} - N_{\\text{sv}}}
+χ^2 = \\frac{1}{N_{\\text{spec}} - N_{\\text{sv}} - 1}
 \\sum_i^{N_{\\text{spec}}} \\frac{M_i - O_i}{\\varepsilon_i}
 ```
 """
@@ -105,10 +105,9 @@ function calculate_chi2(s::AbstractSolver)
 
         N_spec = length(s.indices[swin])
         N_sv  = length(s.state_vector)
-        chi2[swin] /= (N_spec)
 
-        # Some definions subtract the number of free parameters:
-        # chi2[swin] /= (N_spec - N_sv - 1)
+        # In our usage of χ², we subtract the number of free parameters:
+        chi2[swin] /= (N_spec - N_sv - 1)
 
     end
 
@@ -138,7 +137,13 @@ function get_measured(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
 
+Returns the measured radiances as of an `AbstractSolver` `s`, as seen by the full solver,
+meaning that all spectral windows are concatenated into one newly allocated array. This
+reads the contents of `s.measured` but mapped via the solver indices.
+"""
 function get_measured(s::AbstractSolver)
 
     # Create the needed array
@@ -152,10 +157,17 @@ function get_measured(s::AbstractSolver)
 
 end
 
-function get_measured!(meausured, s)
+"""
+$(TYPEDSIGNATURES)
+
+Returns the measured radiances as of an `AbstractSolver` `s`, as seen by the full solver,
+meaning that all spectral windows are inserted into an existing array `measured`. This
+function does not check if `measured` is big enough.
+"""
+function get_measured!(measured, s)
 
     for swin in keys(s.indices)
-        @views meausured[s.indices[swin]] = get_measured(s, swin)
+        @views measured[s.indices[swin]] = get_measured(s, swin)
     end
 
 end
@@ -187,8 +199,8 @@ get_modelled(s, swin; view=true) = get_modeled(s, swin; view)
 """
 $(TYPEDSIGNATURES)
 
-Returns the modeled radiance currently stored in the `radiance` field of solver `s`,
-for **all** spectral windows, with the ordering given by `s.indices`. Allocates a new
+Returns the modeled radiance currently stored in the `radiance` field of `AbstractSolver`
+`s`, for **all** spectral windows, with the ordering given by `s.indices`. Allocates a new
 vector.
 """
 function get_modeled(s::AbstractSolver)
@@ -204,7 +216,15 @@ function get_modeled(s::AbstractSolver)
 
 end
 
-function get_modeled!(modeled, s)
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns the modeled radiance field of an `AbstractSolver` `s` for all spectral windows,
+and stores them into `modeled`, according to the solver's mapping indices. Does not check
+whether `modeled` is large enough to hold all values.
+"""
+function get_modeled!(modeled::AbstractVector, s::AbstractSolver)
 
     for swin in keys(s.indices)
         @views modeled[s.indices[swin]] = get_modeled(s, swin)
@@ -213,6 +233,13 @@ function get_modeled!(modeled, s)
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns the noise-equivalent radiances in `AbstractSolver` `s`, belonging to spectral
+window `swin`. If `view` is `true`, a view to the vector inside `s` is returned, otherwise
+a new vector is allocated and returned.
+"""
 function get_noise(
     s::AbstractSolver,
     swin::AbstractSpectralWindow;
@@ -229,6 +256,12 @@ function get_noise(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns the noise-equivalent radiances in `AbstractSolver` `s`, where the values for all
+spectral windows inside `s` are concatenated into a new vector and returned.
+"""
 function get_noise(s::AbstractSolver)
 
     # Create the needed array
@@ -242,7 +275,14 @@ function get_noise(s::AbstractSolver)
 
 end
 
-function get_noise!(noise, s)
+"""
+$(TYPEDSIGNATURES)
+
+Returns the noise-equivalent radiances in `AbstractSolver` `s`, where the values for all
+spectral windows inside `s` are concatenated into the vector `noise`. Does not check
+whether `noise` is large enough to hold all values.
+"""
+function get_noise!(noise::AbstractVector, s::AbstractSolver)
 
     for swin in keys(s.indices)
         @views noise[s.indices[swin]] = get_noise(s, swin)
@@ -255,6 +295,13 @@ end
 get_wavenumber(s) = get_wavelength(s)
 get_wavenumber(s, swin) = get_wavelength(s, swin)
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns the wavelengths in `AbstractSolver` `s`, belonging to spectral window `swin`, as
+pointed to by the dispersion object. If `view` is `true`, a view to the vector inside `s`
+is returned, otherwise a new vector is allocated and returned. See also `get_wavenumber`.
+"""
 function get_wavelength(
     s::AbstractSolver,
     swin::AbstractSpectralWindow;
@@ -271,6 +318,13 @@ function get_wavelength(
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Returns the wavelenth vector in `AbstractSolver` `s`, where the values for all spectral
+windows inside `s` are concatenated into a new vector and returned. See also
+`get_wavenumber`.
+"""
 function get_wavelength(s::AbstractSolver)
 
     # Create the needed array
@@ -342,6 +396,15 @@ end
 
 """
 $(TYPEDSIGNATURES)
+
+Calculates the averaging kernel profile for a gas absorber `gas` if that gas was retrieved
+through a scaling factor (`GasLevelScalingFactorSVE`) rather than a full profile
+retrieval. This function assumes that the partial derivatives of optical depths with respect to
+volume mixing ratios have been calculated - which should be the case if the general set-up
+through buffer helper functions (e.g. `EarthAtmosphereBuffer(...)`).
+
+## Details
+(TODO: add derivation)
 """
 function calculate_scale_factor_AK(
     buf::AbstractAtmosphereBuffer,
@@ -569,6 +632,16 @@ function get_iteration_count(s::AbstractSolver)
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Checks if the solver object `s` is *valid*, meaning that the mapping indices are not
+empty, the model radiances do not have any NaNs and the model Jacobians do not have any
+NaNs. Returns `true` if all of those checks pass, otherwise returns `false`.
+
+This function can be used in inversions to prevent later parts of the code from failing
+due to NaNs being propagated into matrices etc.
+"""
 function check_solver_validity(s::AbstractSolver)
 
     # Loop through all present spectral windows
