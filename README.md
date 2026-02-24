@@ -91,7 +91,7 @@ We will be working in the future to submit an entry to the Journal of Open Sourc
 
 ## Contributing
 
-Contributions are always welcome, whether bug reports, bug fixes (through pull requests), suggestions, feature requests or otherwise. Please use the Github [issue tracker](https://github.com/RetrievalToolbox/ACOS-Goddard/issues).
+Contributions are always welcome, whether bug reports, bug fixes (through pull requests), suggestions, feature requests or otherwise. Please use the GitHub [issue tracker](https://github.com/US-GHG-Center/RetrievalToolbox.jl/issues).
 
 ## Alternatives
 
