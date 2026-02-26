@@ -4,11 +4,11 @@ This section of the documentation deals with known pitfalls regarding the usage 
 
 ## Azimuthal angles and convention for use with XRTM
 
-
+TODO
 
 ## Mutability of many RetrievalToolbox objects
 
-
+TODO
 
 ## Angles and trigonometric functions with Unitful.jl
 

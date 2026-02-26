@@ -142,7 +142,11 @@ and less verbose is an option - sometimes.
 
 ## Wrapper functions and specific dispatch
 
+TODO
+
 ## Considering quantities with physical units
+
+TODO
 
 ## Wavelengths and wavenumbers
 
@@ -224,6 +228,12 @@ When users write top-level retrieval scripts for some specific scenario, it is u
 
 ### Custom forward model
 
+TODO
+
 ### Lack of an instrument type
 
+TODO
+
 ### Custom ingestion of needed inputs
+
+TODO
