@@ -10,7 +10,9 @@ RetrievalToolbox was developed at the Earth System Science Interdisciplinary Cen
 
 ## Documentation and Learning
 
-The main documentation, built with [Documenter.jl](https://documenter.juliadocs.org/stable/) is part of the repository under `docs/`, and the corresponding HTML render can be found [here][docs-dev-url]. Learning materials can be found [here](https://retrievaltoolbox.github.io/RetrievalToolbox-Tutorials/) - new users are **strongly encouraged** to read through these tutorials.
+The main documentation is part of the repository under `docs/`, and the corresponding HTML render can be found [here][docs-dev-url].
+
+Learning materials can be found [here](https://retrievaltoolbox.github.io/RetrievalToolbox-Tutorials/) - new users are **strongly encouraged** to read through these tutorials.
 
 Looking at working examples is also highly instructive:
 
@@ -21,6 +23,9 @@ Looking at working examples is also highly instructive:
 _Users are very welcome to submit their working set-ups to be listed here!_
 
 ## Installation
+
+> [!TIP]
+> For users who do not currently have Julia installed: it is **highly** recommended to install Julia via [JuliaUp](https://github.com/JuliaLang/juliaup), the Julia version multiplexer which allows to easily update Julia versions as well as to seamlessly switch between different versions.
 
 The library can be installed directly from Julia by typing (via http)
 
@@ -95,7 +100,7 @@ Contributions are always welcome, whether bug reports, bug fixes (through pull r
 
 ## Alternatives
 
-RetrievalToolbox was heavily influenced by the hard work of numerous scientists in different labs and institutions in various countries. Some of those algorithms have been under development for over a decade and a proven track record of reliability. Prominent and publicly available alternatives are
+RetrievalToolbox was heavily influenced by the hard work of numerous scientists in different labs and institutions in various countries. Some of those algorithms have been under development for over a decade and have a proven track record of reliability. Prominent and publicly available alternatives are
 
 - NASA's RtRetrievalFramework (https://github.com/NASA/RtRetrievalFramework) and ReFRACtor (https://github.com/ReFRACtor)
 - SRON's RemoteC (https://bitbucket.org/sron_earth/remotec_general/src/main/)
