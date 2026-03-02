@@ -52,7 +52,7 @@ To build XRTM, you need somewhat recent versions of GCC, gfortran and make. Firs
 
 or
 
-`git clone https://github.com/PeterSomkuti/xrtm`
+`git clone https://github.com/RetrievalToolbox/xrtm`
 
 Note that as of May 2025, the first repository does not compile on MacOS without modifications to the makefile. The second repository, however, should compile successfully. In either case, you must take a copy of the example makefile and save it as `make.inc`. So switch to the XRTM directory (`cd xrtm`) and
 
@@ -84,7 +84,7 @@ ENV["XRTM_PATH"] = "/path/to/xrtm"
 using RetrievalToolbox
 ```
 
-**Important!** The second repository (https://github.com/PeterSomkuti/xrtm) contains a small, but very impactful code modification. In `xrtm/src/xrtm.h` the pre-processor directive was changed to say
+**Important!** The second repository (https://github.com/RetrievalToolbox/xrtm) contains a small, but very impactful code modification. In `xrtm/src/xrtm.h` the pre-processor directive was changed to say
 ``` c
 #define DO_NOT_ADD_SFI_SS 1
 ```
