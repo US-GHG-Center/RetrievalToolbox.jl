@@ -55,17 +55,20 @@ function calculate_solar_irradiance!(
 
     end
 
-    # Doppler effect depends on the spectral unit.
+    # Doppler effect depends on the spectral unit. This calculation only makes sense for
+    # solar models that have the .ww field.
 
-    if solar_model.ww_unit isa Unitful.LengthUnits
-        # Very cheeky way of moving from λ -> λ * (1 + Doppler)
-        @turbo for i in eachindex(solar_model.ww)
-            solar_model.ww[i] *= (1 + doppler_factor)
-        end
-    elseif solar_model.ww_unit isa Unitful.WavenumberUnits
-        # Very cheeky way of moving from ν -> ν / (1 + Doppler)
-        @turbo for i in eachindex(solar_model.ww)
-            solar_model.ww[i] /= (1 + doppler_factor)
+    if hasproperty(solar_model, :ww)
+        if solar_model.ww_unit isa Unitful.LengthUnits
+            # Very cheeky way of moving from λ -> λ * (1 + Doppler)
+            @turbo for i in eachindex(solar_model.ww)
+                solar_model.ww[i] *= (1 + doppler_factor)
+            end
+        elseif solar_model.ww_unit isa Unitful.WavenumberUnits
+            # Very cheeky way of moving from ν -> ν / (1 + Doppler)
+            @turbo for i in eachindex(solar_model.ww)
+                solar_model.ww[i] /= (1 + doppler_factor)
+            end
         end
     end
 
@@ -80,12 +83,12 @@ function calculate_solar_irradiance!(
 
     # Scale factor to account for unit differences! This must be applied before the
     # `pwl_value` operation, and then we revert!
-
-    unit_fac = 1.0 * solar_model.ww_unit / swin.ww_unit |> upreferred
-    @turbo for i in eachindex(solar_model.ww)
-        solar_model.ww[i] *= unit_fac
+    if hasproperty(solar_model, :ww)
+        unit_fac = 1.0 * solar_model.ww_unit / swin.ww_unit |> upreferred
+        @turbo for i in eachindex(solar_model.ww)
+            solar_model.ww[i] *= unit_fac
+        end
     end
-
 
     if solar_model isa OCOHDFSolarModel
         # Sample the solar spectrum at our Doppler-influenced
@@ -118,6 +121,11 @@ function calculate_solar_irradiance!(
             swin.ww_grid,
             rt.hires_solar.I
         )
+
+    elseif solar_model isa UnitSolarModel
+
+        rt.hires_solar.I[:] .= 1.0
+
     else
         # Revert solar model spectral grid unit before throwing.
         @turbo for i in eachindex(solar_model.ww)
@@ -128,27 +136,30 @@ function calculate_solar_irradiance!(
     end
 
     # Revert solar model spectral grid unit..
-    @turbo for i in eachindex(solar_model.ww)
-        solar_model.ww[i] /= unit_fac
-    end
+    if hasproperty(solar_model, :ww)
 
+        @turbo for i in eachindex(solar_model.ww)
+            solar_model.ww[i] /= unit_fac
+        end
+
+        # Restore original solar model grid
+        if solar_model.ww_unit isa Unitful.LengthUnits
+            # Very cheeky way of moving back from λ * (1 + Doppler) -> λ
+            @turbo for i in eachindex(solar_model.ww)
+                solar_model.ww[i] /= (1 + doppler_factor)
+            end
+        elseif solar_model.ww_unit isa Unitful.WavenumberUnits
+            # Very cheeky way of moving back from ν * (1 + Doppler) -> ν
+            @turbo for i in eachindex(solar_model.ww)
+                solar_model.ww[i] *= (1 + doppler_factor)
+            end
+        end
+
+    end
 
     # Apply the solar scaler
     @turbo for i in eachindex(rt.hires_solar.I)
         rt.hires_solar.S[i,1] *= rt.solar_scaler[i]
-    end
-
-    # Restore original solar model grid
-    if solar_model.ww_unit isa Unitful.LengthUnits
-        # Very cheeky way of moving back from λ * (1 + Doppler) -> λ
-        @turbo for i in eachindex(solar_model.ww)
-            solar_model.ww[i] /= (1 + doppler_factor)
-        end
-    elseif solar_model.ww_unit isa Unitful.WavenumberUnits
-        # Very cheeky way of moving back from ν * (1 + Doppler) -> ν
-        @turbo for i in eachindex(solar_model.ww)
-            solar_model.ww[i] *= (1 + doppler_factor)
-        end
     end
 
 end
