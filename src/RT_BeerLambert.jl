@@ -163,11 +163,12 @@ function calculate_radiances_and_jacobians!(
         RT object (not the RT buffer though!)
     =#
 
-
     # Calculate jacobians
-    for (i, sve) in enumerate(rt.state_vector.state_vector_elements)
-        if calculate_jacobian_before_isrf(sve)
-            calculate_rt_jacobian!(rt.hires_jacobians[sve], rt, sve)
+    if rt.state_vector isa RetrievalStateVector
+        for (i, sve) in enumerate(rt.state_vector.state_vector_elements)
+            if calculate_jacobian_before_isrf(sve)
+                calculate_rt_jacobian!(rt.hires_jacobians[sve], rt, sve)
+            end
         end
     end
 
@@ -210,10 +211,12 @@ function calculate_radiances_and_jacobians!(
     end
 
 
-   # Calculate jacobians
-    for (i, sve) in enumerate(rt.state_vector.state_vector_elements)
-        if calculate_jacobian_before_isrf(sve)
-            calculate_rt_jacobian!(rt.hires_jacobians[sve], rt, sve)
+    # Calculate jacobians
+    if rt.state_vector isa RetrievalStateVector
+        for (i, sve) in enumerate(rt.state_vector.state_vector_elements)
+            if calculate_jacobian_before_isrf(sve)
+                calculate_rt_jacobian!(rt.hires_jacobians[sve], rt, sve)
+            end
         end
     end
 
