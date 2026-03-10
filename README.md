@@ -123,7 +123,7 @@ The following lines set up so-called buffer objects. They are placeholders that 
 
     my_rt_buffer = RE.ScalarRTBuffer(
         Dict(my_spectral_window => my_dispersion),
-        RE.ScalarRadiance(Float64, N2), # To hold the radiance - we use ScalarRadiance because we don't need polarization
+        RE.ScalarRadiance(Float64, N2), # To hold the radiance
         nothing, # Usually holds Jacobians (which we do not need for this example)
         Dict(my_spectral_window => zeros(Int, 0)), # Hold the detector indices
         Unitful.NoUnits # Radiance units for the forward model
@@ -134,13 +134,13 @@ The following lines set up so-called buffer objects. They are placeholders that 
         my_spectral_window, # The spectral window (or a list of multiple)
         [(:Lambert, 1)], # Surface types, and degree of polynomial
         [my_gas], # List of elements that are part of the atmosphere
-        Dict(my_spectral_window => RE.UnitSolarModel()), # Create solar models, and map them to the spectral windows
+        Dict(my_spectral_window => RE.UnitSolarModel()), # Create solar models, map to spectral windows
         [:BeerLambert], # Which RT model to use for each spectral window?
         RE.ScalarRadiance, # Use ScalarRadiance for high-res radiance calculations
         my_rt_buffer, # The RT buffer object
         my_instrument_buffer, # The instrument buffer object
         10, # The number of retrieval or RT pressure levels
-        my_source_atmosphere.N_met_level, # The number of meteorological pressure levels, as given by the atmospheric inputs
+        my_source_atmosphere.N_met_level, # The number of meteorological pressure levels
         Float64 # The chosen Float data type (e.g. Float16, Float32, Float64)
     )
 
@@ -152,9 +152,14 @@ First, we compute the so-called *incides*, which is the term used for arrays of 
 
 Copy over the meteorological data we have stored in the source atmosphere:
 
-    my_buffer.scene.atmosphere.met_pressure_levels[:] = my_source_atmosphere.met_pressure_levels[:]
-    my_buffer.scene.atmosphere.specific_humidity_levels[:] = my_source_atmosphere.specific_humidity_levels[:]
-    my_buffer.scene.atmosphere.temperature_levels[:] = my_source_atmosphere.temperature_levels[:]
+    my_buffer.scene.atmosphere.met_pressure_levels[:] =
+        my_source_atmosphere.met_pressure_levels[:]
+
+    my_buffer.scene.atmosphere.specific_humidity_levels[:] =
+        my_source_atmosphere.specific_humidity_levels[:]
+
+    my_buffer.scene.atmosphere.temperature_levels[:] =
+        my_source_atmosphere.temperature_levels[:]
 
 Set our custom pressure grid at which the gas VMRs are defined (all in Pa):
 
