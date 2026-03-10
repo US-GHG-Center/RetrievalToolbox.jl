@@ -200,7 +200,7 @@ Solar irradiance must also be calculated, otherwise, the TOA radiance will end u
         my_buffer.rt[my_spectral_window].solar_model
     )
 
-Finally, we can trigger the calculation which produces the TOA radiance according to the Beer-Lambert-Bouguer law, which assumes an absorption-only atmosphere (no scattering processes, no thermal emission)
+Finally, we can trigger the calculation which produces the TOA radiance according to the Beer-Lambert-Bouguer law, which assumes an absorption-only atmosphere (no scattering processes, no thermal emission). The observation geometry is stored in `my_buffer.scene.observer`, which in our case defaults to a `SatelliteObserver` that looks straight down for a viewing zenith angle of 0°. Of course the solar geometry also matters (which is stored in `my_buffer.scene.solar_zenith_angle` etc.) for the actual calculation, however we can ignore that for now since it also defaults to 0°, meaning the sun is straight above the location of interest.
 
     RE.calculate_radiances_and_jacobians!(my_buffer.rt[my_spectral_window])
 
