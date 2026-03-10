@@ -75,7 +75,7 @@ function load_ABSCO_spectroscopy(
 
         broadener_vmrs = h5[broadener_key][:]
 
-        @debug "[SPEC] This ABSCO table has a broadener: " * broadener_index
+        # @debug "[SPEC] This ABSCO table has a broadener: " * broadener_index
 
     end
 
@@ -1313,5 +1313,342 @@ function _get_abscoaer_cross_section_value_at!(
     end
 
 
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Creates the irregular pressure/temperature grids used in NASA JPL ABSCO spectroscopy
+tables. The P/T grid coordinates are based on tabulated files that are shipped with
+RetrievalToolbox.
+"""
+function _create_JPL_PT_grid()
+
+    rootdir = joinpath(@__DIR__, "..", "data", "spectroscopy")
+    P_csv = CSV.File(joinpath(rootdir, "Pgrid.csv"), header=false)
+    T_csv = CSV.File(joinpath(rootdir, "Tgrid.csv"), header=false)
+
+    N_P = length(P_csv)
+
+    N_T = length(T_csv[1])
+    N_TP = length(T_csv)
+
+    Pgrid = zeros(N_P)
+    Tgrid = zeros(N_T, N_TP)
+
+    for i in 1:N_P
+        Pgrid[i] = P_csv.Column1[i]
+    end
+
+    for i in 1:N_TP
+        for j in 1:N_T
+            # Note the transpose, the native array shape
+            # for ABSCO T grid in Julia ordering is [temp, pres]
+            Tgrid[j,i] = T_csv[i][j]
+        end
+    end
+
+    return Pgrid, Tgrid
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+
+"""
+function create_ABSCO_from_HITRAN(
+    gas::String,
+    ww_start::Union{T1, T2},
+    ww_end::Union{T1, T2};
+    h2o_broadening=true,
+    scale_factor=1.0,
+    distributed=false,
+    wavelength_output=false
+) where {T1 <: Unitful.Length, T2 <: Unitful.Wavenumber}
+
+    return create_ABSCO_from_HITRAN(
+        gas,
+        [(ww_start, ww_end)];
+        h2o_broadening=h2o_broadening,
+        scale_factor=scale_factor,
+        distributed=distributed,
+        wavelength_output=wavelength_output
+    )
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Creates an ABSCOSpectroscopy[3/4]D object for a gas, based on HITRAN.jl coefficient
+calculations. The traditional pressure and temperature grid as found in NASA JPL ABSCO
+files are used. Only one gas is produced per spectroscopy table.
+
+Users must supply the name of the molecule (e.g. `gas` being `"CO2"` or `"H2O"`), and the
+spectral ranges must be given in a `Unitful.jl` length- or wavenumber-compatible unit.
+Spectral ranges must be a set of tuples, e.g. `[(12900.0u"1/cm", 13200.0u"1/cm")]` to
+provide the O₂ A-band. Regardless of the order in which the ranges are
+supplied, the intervals will be sorted in ascending order in wavenumber units.
+
+"""
+function create_ABSCO_from_HITRAN(
+     gas::String,
+     ww_tuples::Vector{<:Tuple};
+     h2o_broadening=true,
+     scale_factor=1.0,
+     distributed=false,
+     wavelength_output=false
+)
+
+    @warn "[SPEC] This function uses HITRAN.jl to create cross section tables! \
+           This feature is experimental!"
+
+
+    # Make a check first if "gas" is even available:
+    if ismissing(HITRAN.iso_id([gas]))
+        error("[SPEC] Gas $(gas) is not currently available via HITRAN.jl.")
+    end
+
+    # Let user know that H2O is buggy
+    if gas == "H2O"
+        @warn "[SPEC] H2O calculation is buggy!"
+    end
+
+    # Fetch the HITRAN parameters into the local database
+    db = HITRAN.open_database("RetrievalToolbox_HITRAN.sqlite")
+
+    # Needed later on
+    iso_subset = filter(
+        row -> row.global_id in HITRAN.iso_id([gas]),
+        HITRAN.isotopologues
+    )
+
+    wn_bounds = Vector{Tuple{Float64, Float64}}()
+
+    for (ww_start, ww_end) in ww_tuples
+
+        @assert (ww_start isa Union{Unitful.Wavenumber, Unitful.Length}) "\
+            $(ww_start) is not a wavenumber- or length-type quantity!"
+        @assert (ww_end isa Union{Unitful.Wavenumber, Unitful.Length}) "\
+            $(ww_end) is not a wavenumber- or length-type quantity!"
+        @assert ww_start < ww_end "Spectral bounds must be in ascending order!"
+
+        # Both ww_start and ww_end must be in the same units!
+        if unit(ww_start) != unit(ww_end)
+            @error "[SPEC] ww_start and ww_end must be of the same unit! Instead got"
+            @error "[SPEC] ww_start unit: $(unit(ww_start))"
+            @error "[SPEC] ww_end unit:   $(unit(ww_end))"
+            error("[SPEC] Check input units of `ww_start` and `ww_end`!")
+        end
+
+        # Figure out if we are doing wavelengths or wavenumbers
+        if ww_start isa Unitful.Length
+
+            @debug "[SPEC] User provided wavelengths. Converting to wavenumbers."
+            wn_start = 1e4 / (ww_end |> u"µm") |> ustrip
+            wn_end = 1e4 / (ww_start |> u"µm") |> ustrip
+
+        else
+
+            # Convert to cm⁻¹, just in case the user provides other 1/Length..
+            wn_start = ww_start |> u"cm^-1" |> ustrip
+            wn_end = ww_end |> u"cm^-1" |> ustrip
+
+        end
+
+        # Round to 0.01 cm⁻¹ resolution
+        wn_start = floor(wn_start * 100) / 100
+        wn_end = ceil(wn_end * 100) / 100
+        @debug "[SPEC] Rounded start wavenumber: $(wn_start) cm⁻¹"
+        @debug "[SPEC] Rounded end wavenumber: $(wn_end) cm⁻¹"
+
+        push!(wn_bounds, (wn_start, wn_end))
+
+    end
+
+    # Sort them
+    sort!(wn_bounds)
+
+    # Get the lowest and highest bounds for fetching parameters..
+
+    wn_lowest = mapreduce(minimum, min, wn_bounds)
+    wn_highest = mapreduce(maximum, max, wn_bounds)
+
+    @info "[SPEC] Fetching HITRAN parameters from online database ..."
+
+    HITRAN.fetch!(
+        db,
+        "RetrievalToolbox_$(gas)",
+        iso_id([gas]),
+        wn_lowest,
+        wn_highest,
+        [:standard, :ht_self]
+    )
+
+    wn_grid_array = [a:0.01:b for (a,b) in wn_bounds]
+    # Calculate the needed length for the full array
+    len_wn_grid = length.(wn_grid_array) |> sum
+
+    @debug "[SPEC] Creating ABSCO table axes"
+    p_grid, T_grid = _create_JPL_PT_grid()
+    if h2o_broadening
+        H2O_grid = [0., 0.03, 0.06] # This is the H2O VMR grid that JPL ABSCO uses
+    else
+        H2O_grid = [0.]
+    end
+
+    cross_section = zeros(Float32,
+        len_wn_grid,
+        length(H2O_grid),
+        size(T_grid, 1),
+        length(p_grid)
+    )
+
+    if distributed
+        cross_section = cross_section |> SharedArray
+    end
+
+    @info "[SPEC] Calculating coefficients ..."
+
+    # Where do the batches of cross sections need to go in the table?
+    absco_wn_idx = []
+    for i in 1:length(wn_grid_array)
+        if i == 1
+            push!(absco_wn_idx, 1:length(wn_grid_array[i]))
+        else
+            x = absco_wn_idx[i-1].stop
+            push!(absco_wn_idx, (x+1):(x+length(wn_grid_array[i])))
+        end
+    end
+
+    # Loop through all wavenumber bounds
+    for (i_wnb, (wn1, wn2)) in enumerate(wn_bounds)
+        @info "Spectral window: $(wn1) : $(wn2)"
+
+        @showprogress desc="Calculating σ for $(gas): " for i_p in eachindex(p_grid)
+
+            p_Pa = p_grid[i_p]
+
+            # Pressure loop; this is in units of Pa
+            for (i_T, T) in enumerate(T_grid[:, i_p])
+                # Temperature loop; this is in units of K
+                for (i_H2O, H2O_VMR) in enumerate(H2O_grid)
+                    # H2O loop; this is in units of parts
+
+
+                    p_atm = p_Pa*u"Pa" |> u"atm" |> ustrip # Convert to atm for HITRAN
+
+                    RH = H2O_VMR_to_relative_humidity(
+                        H2O_VMR,
+                        p_atm*u"atm",
+                        T*u"K"
+                    )
+
+                    # P needs to be in ATM here!
+                    moist_air_settings = HITRAN.moist_air(
+                        RH, p_atm, T
+                    )
+
+                    # This dictionary is needed to override HITRAN.jl's behaviour which
+                    # otherwise would apply abundance factors of an average atmosphere
+                    # (e.g. O2 ~ 20.9x%). For our calculations, we want the absorption
+                    # coefficients for a pure gas, since we want to calculate the
+                    # absorption cross sections per molecule!
+
+                    my_env = Dict{Tuple{Int64, Int64}, Float64}()
+
+                    if gas != "H2O"
+                        # Add water vapor abundance to the environment, but only if
+                        # the target gas is not H2O itself.
+                        my_env[(1,1)] = moist_air_settings[(1,1)]
+                    end
+
+                    # Set the abundance of the current isotopologue to the relative
+                    # abundance of the isotopologue group. This is needed since we want
+                    # the cross section result per molecule of our target gas.
+                    for row in eachrow(iso_subset)
+                        my_env[(row.molecule_id, row.local_id)] = row.abundance
+                    end
+
+                    # Calculate the absorption coefficient
+                    # The result is in "cm⁻¹"
+                    _, tmp = HITRAN.α(
+                        ["RetrievalToolbox_$(gas)"],
+                        intensity_threshold=0.,
+                        pressure=p_atm,
+                        temperature=T,
+                        ν_range=(wn1, wn2);
+                        components=my_env,
+                    )
+
+                    # Convert into absorption cross section: divide by the number density
+                    # derived from p, T, in order to obtain cross sections in units of cm²
+                    # molecule⁻¹. Remember that NA and GAS_CONSTANT have correct units
+                    # attached already.
+                    Ndens = (NA * p_Pa*u"Pa") / (GAS_CONSTANT * T*u"K") |> u"cm^-3" |> ustrip
+                    tmp /= Ndens
+
+                    @views cross_section[absco_wn_idx[i_wnb], i_H2O, i_T, i_p] =
+                        scale_factor * tmp[:]
+
+                end # End H2O loop
+            end # End T loop
+        end # End p loop
+
+    end # End wn window loop
+
+    # Create the full wavenumber grid for output
+    full_spec_grid = zeros(len_wn_grid)
+    for i in 1:length(absco_wn_idx)
+        full_spec_grid[absco_wn_idx[i]] = collect(wn_grid_array[i])
+    end
+
+    # Now, if the user wants wavelength output, we have to reorder the tables as well
+    # as produce the spectral grid in µm.
+    if wavelength_output
+        @info "[SPEC] Rearranging cross section table to be in µm!"
+        # Flip spectral axis
+        reverse!(cross_section, dims=1)
+        # Turn ww from cm⁻¹ to µm
+        @views full_spec_grid[:] = 1e4 ./ full_spec_grid[:]
+        # Flip so that ww in µm is in ascending order
+        reverse!(full_spec_grid)
+    end
+
+
+    if h2o_broadening
+        return ABSCOSpectroscopy4D(
+            "N/A", # file name
+            gas, # gas name
+            scale_factor,
+            full_spec_grid, # spectral grid
+            wavelength_output ? u"µm" : u"cm^-1", # spectral grid units
+            T_grid,
+            u"K",
+            p_grid,
+            u"Pa",
+            H2O_grid,
+            cross_section,
+            u"cm^2"
+        )
+    else
+        return ABSCOSpectroscopy3D(
+            "N/A", # file name
+            gas, # gas name
+            scale_factor,
+            full_spec_grid, # spectral grid
+            wavelength_output ? u"µm" : u"cm^-1", # spectral grid units
+            T_grid,
+            u"K",
+            p_grid,
+            u"Pa",
+            cross_section[:,1,:,:], # remove h2o axis
+            u"cm^2"
+        )
+    end
 
 end

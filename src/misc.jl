@@ -487,6 +487,51 @@ function specific_humidity_to_H2O_VMR(
     return h2o
 end
 
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates equilibrium vapor pressure from temperature `T`, where `T` must be given in
+units of Kelvin. See Murphy & Koop (2005): doi:10.1256/qj.04.94.
+"""
+function EQV(T::Unitful.Temperature)
+
+    TK = T |> u"K" |> ustrip
+
+    log_e = (
+        54.842763
+        - 6763.22 / TK - 4.21 * log(TK)
+        + 0.000367 * TK + tanh(0.0415 * (TK - 218.8))
+        * (53.878 - 1331.22 / TK - 9.44523 * log(TK) + 0.014025 * TK)
+    )
+
+    return exp(log_e) * u"Pa"
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates relative humidity given a H₂O volume mixing ratio `H2OVMR`, pressure `p`,
+and temperature `T`.
+
+```jldoctest
+julia> H2O_VMR_to_relative_humidity(0.025, 1013e2u"Pa", 300u"K") ≈ 0.71604995533615401
+true
+```
+"""
+function H2O_VMR_to_relative_humidity(
+    H2OVMR,
+    p::Unitful.Pressure,
+    T::Unitful.Temperature
+)
+
+    return H2OVMR * p / EQV(T)
+
+end
+
+
 """
 $(TYPEDSIGNATURES)
 

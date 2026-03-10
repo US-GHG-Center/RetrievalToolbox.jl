@@ -7,6 +7,7 @@ using CSV
 using Dates
 using DocStringExtensions
 using HDF5
+using HITRAN
 using Interpolations
 using Lazy
 using LinearAlgebra

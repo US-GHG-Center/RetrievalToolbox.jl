@@ -388,18 +388,17 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculates wavelength and layer-resolved optical depths for gaseous
-absorbers defined in the atmosphere object **atm**, for wavelengths
-given in the spectral window object **swin**. The result is a Dict
-where each key corresponds to a gas embedded in **atm**.
+Calculates wavelength and layer-resolved optical depths for gaseous absorbers defined in
+the atmosphere object **atm**, for wavelengths given in the spectral window object
+**swin**. The result is a Dict where each key corresponds to a gas embedded in **atm**.
 
 # Details
 
-Gas optical depth calculation is performed by looping from the surface
-up, going to the top of the atmosphere.
+Gas optical depth calculation is performed by looping from the surface up, going to the
+top of the atmosphere.
 
-Each layer is subdivided into sub-layers, whose number can be supplied
-via the **N_sublayer** keyword.
+Each layer is subdivided into sub-layers, whose number can be supplied via the
+**N_sublayer** keyword.
 
 Gas concentrations are assumed to change linearly with pressure.
 """
@@ -420,11 +419,11 @@ function calculate_gas_optical_depth_profiles!(
         @warn "Make sure you called `calculate_altitude_and_gravity!` beforehand!"
     end
 
+    @assert N_sublayer > 0 "Number of sub-layers must be > 0"
 
-    # N-point Gauss rule for the sub-layer integration.
-    # Calculate the x_i and w_i only once,
-    # and then cheaply scale them to the appropriate integration limits
-    # later on, when needed.
+    # N-point Gauss rule for the sub-layer integration. Calculate the x_i and w_i only
+    # once, and then cheaply scale them to the appropriate integration limits later on,
+    # when needed.
 
     N_gauss = 3
     x_gauss, w_gauss = gauss(N_gauss)
@@ -465,8 +464,7 @@ function calculate_gas_optical_depth_profiles!(
     # Remove the references to the gases not in this window
     deleteat!(gases, remove_idx)
 
-    @assert length(gases) > 0 "Need at least one gas in atmosphere"
-    @assert N_sublayer > 0 "Number of sub-layers must be > 0"
+
 
     if return_dVMR
         for gas in keys(opt.gas_derivatives)
@@ -493,12 +491,10 @@ function calculate_gas_optical_depth_profiles!(
     wl = swin.ww_grid
 
 
-    # Create interpolation objects to sample met profiles
-    # at any pressure.
-    # This operation is quick and fast, does not allocate much
-    # much memory. By default, extrapolation (linear)
-    # is activated, since the met profiles tend to not fully cover
-    # the full pressure range used in the retrieval grid.
+    # Create interpolation objects to sample met profiles at any pressure. This operation
+    # is quick and fast, does not allocate much much memory. By default, extrapolation
+    # (linear) is activated, since the met profiles tend to not fully cover the full
+    # pressure range used in the retrieval grid.
 
     T_int = linear_interpolation(p_met, T, extrapolation_bc = Line())
     sh_int = linear_interpolation(p_met, sh, extrapolation_bc = Line())
@@ -569,8 +565,7 @@ function calculate_gas_optical_depth_profiles!(
     end
 
     # Main layer loop
-    # This loops from the bottom-most layer
-    # up to to to top-most layer of the RT grid.
+    # This loops from the bottom-most layer up to to to top-most layer of the RT grid.
     if do_only_last_layer
         # Useful when calculating ∂τ/∂psurf: use only the last layer
         layer_iterator = atm.N_layer+1:-1:atm.N_layer
@@ -578,6 +573,7 @@ function calculate_gas_optical_depth_profiles!(
     else
         layer_iterator =  atm.N_layer+1:-1:2
     end
+
     # "l" refers to a level index, so to speak
     # use "l-1" to index the corresponding layer
     for l in layer_iterator
@@ -748,14 +744,14 @@ function calculate_gas_optical_depth_profiles!(
 end
 
 """
-Lower-level implementation for Rayleigh optical
-depth calculation. Improves speed a little bit
-because Julia can infer types here.
+$(TYPEDSIGNATURES)
 
-Note that this calculation could further be
-improved by using sub-layer integration for the
-optical depth and making use of (usually) finer
-vertically resolved meteorological profiles.
+Lower-level implementation for Rayleigh optical depth calculation. Improves speed a little
+bit because Julia can infer types here.
+
+Note that this calculation could further be improved by using sub-layer integration for
+the optical depth and making use of (usually) finer vertically resolved meteorological
+profiles.
 """
 function _calculate_rayleigh_optical_depth_profiles!(
     ray_tau,
