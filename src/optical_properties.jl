@@ -484,6 +484,9 @@ function calculate_gas_optical_depth_profiles!(
     p = atm.pressure_levels
     psurf = atm.pressure_levels[end]
 
+    # We must carry the conversion factor between MET p grid and retrieval p grid, so
+    # we know we get the correct unit later on.
+    p_met_ufac = 1.0 * atm.met_pressure_unit / atm.pressure_unit |> upreferred
     p_met = atm.met_pressure_levels
     T = atm.temperature_levels
     sh = atm.specific_humidity_levels
@@ -609,10 +612,10 @@ function calculate_gas_optical_depth_profiles!(
 
                 this_p_fac = (this_p - p_higher) / (p_lower - p_higher)
 
-                this_T = T_int(this_p)
-                this_sh = sh_int(this_p)
+                this_T = T_int(this_p * p_met_ufac)
+                this_sh = sh_int(this_p * p_met_ufac)
                 this_H2O = this_sh / (1 - this_sh) * MM_AIR_TO_H2O
-                this_grav = grav_int(this_p)
+                this_grav = grav_int(this_p * p_met_ufac)
 
                 C_tmp = 1.0 / this_grav * ustrip(NA) / ustrip(MM_DRY_AIR)
 
