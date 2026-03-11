@@ -241,14 +241,18 @@ function EarthAtmosphereBuffer(
             =#
 
             # N_wfunctions = 2 * N_layer + 2 * N_aerosol + 2 * N_surface kernels?
-            N_aero_sv = length(filter(is_aerosol_SVE, sv.state_vector_elements))
-            N_wfunctions = 2 * N_layer + N_aero_sv * N_layer + 5
-
             if sv isa RetrievalStateVector
+
+                N_aero_sv = length(filter(is_aerosol_SVE, sv.state_vector_elements))
+                N_wfunctions = 2 * N_layer + N_aero_sv * N_layer + 5
+
                 hires_wfunctions = [RadType(T, swin.N_hires)
                     for i in 1:N_wfunctions]
+
             elseif sv isa ForwardModelStateVector
+
                 hires_wfunctions = nothing
+
             end
 
             this_rt = MonochromaticRTMethod(

@@ -16,7 +16,6 @@ struct MonochromaticRTMethod{
     V <: AbstractSolarModel,
     R1 <: Radiance,
     S <: AbstractStateVector,
-    SS <: AbstractStateVectorElement,
     } <: AbstractRTMethod
 
     "Which RT model to use, at the moment, only :XRTM is supported"
@@ -38,7 +37,7 @@ struct MonochromaticRTMethod{
     "Buffer to hold the high-resolution radiance Jacobians"
     hires_jacobians::Union{
         Nothing,
-        Dict{SS, R1}
+        Dict{<:AbstractStateVectorElement, R1}
         }
     "Buffer to hold the RT-computed weighting functions"
     hires_wfunctions::Union{
