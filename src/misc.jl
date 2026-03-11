@@ -543,3 +543,55 @@ function FWHM_to_sigma(FWHM::Number)
     return FWHM / 2 / (sqrt(2 * log(2)))
 
 end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the isotropic radiance emitted given some temperature `T` at wavelength `λ`.
+The result is forced into units of W m⁻² sr⁻¹ µm⁻¹. Users must make sure they then
+convert the result into the units of radiance they need.
+"""
+function Planck_radiance(λ::Unitful.Length, T::Unitful.Temperature)
+
+    kB = BOLTZMANN
+    h = PLANCK
+    c = SPEED_OF_LIGHT
+
+    return (2 * h * c^2) / (λ^5) / (exp((h * c) / (λ * kB * T)) - 1) |> u"W/m^2/sr/µm"
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the isotropic radiance emitted given some temperature `T` at wavenumber `ν`.
+The result is forced into units of W m⁻² sr⁻¹ (cm⁻¹)⁻¹. Users must make sure they then
+convert the result into the units of radiance they need.
+"""
+function Planck_radiance(ν::Unitful.Wavenumber, T::Unitful.Temperature)
+
+    kB = BOLTZMANN
+    h = PLANCK
+    c = SPEED_OF_LIGHT
+
+    return (2 * h * c^2 * ν^3) / (exp((h * c * ν) / (kB * T)) - 1) |> u"W/m^2/sr/cm^-1"
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Converts a spetral radiance in units of power per area, per steradian per wavelength into
+spectral radiance in units of ph s⁻¹ m⁻² sr⁻¹ µm⁻¹. Users can then cast this into a
+quantity of other wavelength units.
+
+# Example
+
+
+"""
+function W_to_ph(L_in, λ::Unitful.Length)
+
+    return L_in * λ / (PLANCK * SPEED_OF_LIGHT) |> u"ph/s/m^2/sr/µm"
+
+end

@@ -404,8 +404,8 @@ that sort ww2 into ww1. This function is not exported.
 # Details
 
 This provides the same functionality to a broadcast searchsorted (think:
-searchsorted.(Ref(ww1), ww2)), however faster if both ww1 and ww2 are sorted. This is used
-to e.g. find the indices of the spectral window wavelength relative to spectroscopy
+`searchsorted.(Ref(ww1), ww2))`, however faster if both ww1 and ww2 are sorted. This is
+used to e.g. find the indices of the spectral window wavelength relative to spectroscopy
 wavelengths. For example, for inputs ww1 = [100., 110., 120., 140., 145.], ww2 = [105.,
 111., 142.], the function will return [1,2,4], signifying that ww2[1] can be inserted
 between ww1[1] and ww1[2].

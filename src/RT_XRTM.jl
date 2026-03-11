@@ -332,7 +332,9 @@ function _calculate_radiances_and_wfs_XRTM!(
     )
 
     atm = rt.scene.atmosphere
+    # These are the raw XRTM solvers, thus: rt.model_options["solvers]
     solvers = options_dict["solvers"]
+    # These are the raw XRTM options. These are thus rt.model_options["options"]
     options = options_dict["options"]
 
     if isnothing(xrtm_in)
@@ -377,7 +379,6 @@ function _calculate_radiances_and_wfs_XRTM!(
     end
 
     # Set the output level(s)
-
     if observer isa SatelliteObserver
         for xrtm in xrtm_l
             XRTM.set_out_levels(xrtm, Int32[0])
@@ -386,7 +387,7 @@ function _calculate_radiances_and_wfs_XRTM!(
         # Output at the last level = BOA level = bottom of BOA layer
         # (level indices for XRTM are 0 .. n_layer)
         for xrtm in xrtm_l
-            XRTM.set_out_levels(xrtm, Int32[n_layers])
+            XRTM.set_out_levels(xrtm, Int32[rt.scene.atmosphere.N_layer])
         end
     end
 
@@ -439,7 +440,6 @@ function _calculate_radiances_and_wfs_XRTM!(
             XRTM.set_levels_z(xrtm, altitude_levels)
         end
     end
-
 
     # Set derivatives, if requested. These are simply set once since they stay the same
     # for all spectral points.
@@ -773,6 +773,18 @@ function _run_XRTM!(
     # Do we calculate weighting functions?
     have_jacobians = "calc_derivs" in options_dict["options"]
 
+    # If thermal sources are wanted, we create an interpolation object `T_int` that
+    # helps us with determining the mean-layer temperature.
+    if "source_thermal" in options_dict["options"]
+
+        T_int = linear_interpolation(
+            rt.scene.atmosphere.met_pressure_levels,
+            rt.scene.atmoshpere.temperature_levels,
+            extrapolation_bc = Line()
+        )
+
+    end
+
     # We need some temporary arrays to do various calculations, unfortunately
     tmp_vec_list = [zeros(N_layer) for x in 1:Threads.nthreads()]
 
@@ -903,6 +915,33 @@ function _run_XRTM!(
         end
 
         XRTM.set_omega_n(xrtm, tmp_vec)
+
+
+        # If XRTM options specify thermal sources, we add the isotropic thermal radiance
+        # here, based on the temperature profile in the scene atmosphere.
+        if "source_thermal" in options
+
+            this_ww_with_unit = swin.ww_grid[i_spectral] * swin.ww_unit
+
+            for lev in 1:N_level
+
+                # Get the temperature at this level by interpolating
+                #_this_T = T_int(ustrip(rt.scene.atmoshpere.pressure_unit))
+
+                # Calculate the radiance based on mean layer temperature, for this
+                # spectral point, convert to correct radiance units, and strip units.
+                #b_rad = Planck_radiance(
+                #    this_ww_with_unit,
+                #    _mean_T
+                #) |> rt.radiance_unit |> ustrip
+
+                #XRTM.set_b_l
+
+            end
+
+        end
+
+
 
         #=
             Move surface kernel factor into XRTM. Here we have to evaluate the

@@ -36,12 +36,16 @@ export ph
 Unitful.register(RetrievalToolbox)
 
 # Spectral radiance
-rad_W = u"W/m^2/sr/µm"
-rad_ph = u"ph/s/m^2/sr/µm"
+rad_W_wl = u"W/m^2/sr/µm"
+rad_ph_wl = u"ph/s/m^2/sr/µm"
+rad_W_wn = u"W/m^2/sr/cm^-1"
+rad_ph_wn = u"ph/s/m^2/sr/cm^-1"
 
 # Spectral irradiance
-irrad_W = u"W/m^2/µm"
-irrad_ph = u"ph/s/m^2/µm"
+irrad_W_wl = u"W/m^2/µm"
+irrad_ph_wl = u"ph/s/m^2/µm"
+irrad_W_wn = u"W/m^2/cm^-1"
+irrad_ph_wn = u"ph/s/m^2/cm^-1"
 
 # Definite unit types analogous to e.g. Unitful.LengthUnits
 
