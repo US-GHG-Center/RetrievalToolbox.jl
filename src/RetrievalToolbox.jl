@@ -25,9 +25,8 @@ using Unitful
 
 
 #=
-    Make the "photons" unit available outside of
-    the module scope, otherwise users will have to
-    use RetrievalToolbox.ph instead of u"ph".
+    Make the "photons" unit available outside of the module scope, otherwise users will
+    have to use RetrievalToolbox.ph instead of u"ph".
 =#
 export ph
 
@@ -35,19 +34,41 @@ export ph
 @unit ph "ph" Photons 1u"1" true;
 Unitful.register(RetrievalToolbox)
 
-# Spectral radiance
+#=
+    Spectral (ir)radiance units
+    =======================
+
+    Below variables are used to allow lower-lying functions of RetrievalToolbox to
+    differentiate between the various spectral radiance units. This is needed because some
+    of the physical calculations may produce quantities in only one particular unit and
+    coordinate system (e.g. thermal emission may produce W m⁻² sr⁻¹ μm⁻¹), but the user
+    specified their radiance units in the other coordinate system or units (ph s⁻¹ m⁻²
+    sr⁻¹ (cm⁻¹)⁻¹).
+=#
+
+# Radiance
 rad_W_wl = u"W/m^2/sr/µm"
 rad_ph_wl = u"ph/s/m^2/sr/µm"
 rad_W_wn = u"W/m^2/sr/cm^-1"
 rad_ph_wn = u"ph/s/m^2/sr/cm^-1"
 
-# Spectral irradiance
+# Irradiance
 irrad_W_wl = u"W/m^2/µm"
 irrad_ph_wl = u"ph/s/m^2/µm"
 irrad_W_wn = u"W/m^2/cm^-1"
 irrad_ph_wn = u"ph/s/m^2/cm^-1"
 
-# Definite unit types analogous to e.g. Unitful.LengthUnits
+const DIM_POWER_PER_LENGTH = dimension(rad_W_wl) # M T⁻³ L⁻¹
+const DIM_PHOTON_PER_LENGTH = dimension(rad_ph_wl) # T⁻¹ L⁻¹
+const DIM_POWER_PER_WAVENUMBER = dimension(rad_W_wn) # M T⁻³ L
+const DIM_PHOTON_PER_WAVENUMBER = dimension(rad_ph_wn) # T⁻¹ L
+
+# Extract dimension types from the four possible target unit dimensions
+const TYPE_POWER_PER_LENGTH = typeof(DIM_POWER_PER_LENGTH)
+const TYPE_POWER_PER_WAVENUMBER = typeof(DIM_POWER_PER_WAVENUMBER)
+const TYPE_PHOTON_PER_LENGTH = typeof(DIM_PHOTON_PER_LENGTH)
+const TYPE_PHOTON_PER_WAVENUMBER = typeof(DIM_PHOTON_PER_WAVENUMBER)
+
 
 Unitful.register(@__MODULE__)
 

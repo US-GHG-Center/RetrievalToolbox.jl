@@ -552,8 +552,13 @@ Calculates the isotropic radiance emitted given some temperature `T` at waveleng
 The result is forced into units of W m⁻² sr⁻¹ µm⁻¹. Users must make sure they then
 convert the result into the units of radiance they need.
 """
-function Planck_radiance(λ::Unitful.Length, T::Unitful.Temperature)
+function _Planck_radiance(
+    λ::Unitful.Length,
+    T::Unitful.Temperature,
+    rad_dim::TYPE_POWER_PER_LENGTH
+    )
 
+    # Take physical constants from constants.jl file, rebind to short vars
     kB = BOLTZMANN
     h = PLANCK
     c = SPEED_OF_LIGHT
@@ -569,8 +574,13 @@ Calculates the isotropic radiance emitted given some temperature `T` at wavenumb
 The result is forced into units of W m⁻² sr⁻¹ (cm⁻¹)⁻¹. Users must make sure they then
 convert the result into the units of radiance they need.
 """
-function Planck_radiance(ν::Unitful.Wavenumber, T::Unitful.Temperature)
+function _Planck_radiance(
+    ν::Unitful.Wavenumber,
+    T::Unitful.Temperature,
+    rad_dim::TYPE_POWER_PER_WAVENUMBER
+    )
 
+    # Take physical constants from constants.jl file, rebind to short vars
     kB = BOLTZMANN
     h = PLANCK
     c = SPEED_OF_LIGHT
@@ -578,6 +588,79 @@ function Planck_radiance(ν::Unitful.Wavenumber, T::Unitful.Temperature)
     return (2 * h * c^2 * ν^3) / (exp((h * c * ν) / (kB * T)) - 1) |> u"W/m^2/sr/cm^-1"
 
 end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the isotropic radiance emitted given some temperature `T` at wavelength `λ`.
+The result is forced into units of ph s⁻¹ m⁻² sr⁻¹ µm⁻¹. Users must make sure they then
+convert the result into the units of radiance they need.
+"""
+function _Planck_radiance(
+    λ::Unitful.Length,
+    T::Unitful.Temperature,
+    rad_dim::TYPE_PHOTON_PER_LENGTH
+    )
+
+    # First calculate in Watts
+    p = _Planck_radiance(λ, T, DIM_POWER_PER_LENGTH)
+    # Then convert to ph/s
+    return W_to_ph(p, λ)
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Calculates the isotropic radiance emitted given some temperature `T` at wavenumber `ν`.
+The result is forced into units of ph s⁻¹ m⁻² sr⁻¹ (cm⁻¹)⁻¹. Users must make sure they
+then convert the result into the units of radiance they need.
+"""
+function _Planck_radiance(
+    ν::Unitful.Wavenumber,
+    T::Unitful.Temperature,
+    rad_dim::TYPE_PHOTON_PER_WAVENUMBER
+    )
+
+    # First calculate in Watts
+    p = _Planck_radiance(ν, T, DIM_POWER_PER_WAVENUMBER)
+    # Then convert to ph/s
+    return W_to_ph(p, ν)
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Top-level function to calculate thermal (Planckian blackbody) radiance emission for some
+wavelength `λ` and temperature `T`. Input parameters must be Unitful quantities with
+associated and correct units.
+"""
+function Planck_radiance(
+    λ::Unitful.Length,
+    T::Unitful.Temperature,
+    rad_unit::Unitful.Units
+    )
+
+    return _Planck_radiance(λ, T, dimension(rad_unit)) |> rad_unit
+
+end
+
+"""
+$(TYPEDSIGNATURES)
+
+Top-level function to calculate thermal (Planckian blackbody) radiance emission
+"""
+function Planck_radiance(
+    ν::Unitful.Wavenumber,
+    T::Unitful.Temperature,
+    rad_unit::Unitful.Units
+    )
+
+    return _Planck_radiance(ν, T, dimension(rad_unit)) |> rad_unit
+
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -592,6 +675,26 @@ quantity of other wavelength units.
 """
 function W_to_ph(L_in, λ::Unitful.Length)
 
+    @assert dimension(L_in) == DIM_POWER_PER_LENGTH "Input radiance `L_in` must be of \
+        dimension $(DIM_POWER_PER_LENGTH), but got $(dimension(L_in))"
     return L_in * λ / (PLANCK * SPEED_OF_LIGHT) |> u"ph/s/m^2/sr/µm"
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Converts a spetral radiance in units of power per area, per steradian per wavelength into
+spectral radiance in units of ph s⁻¹ m⁻² sr⁻¹ (cm⁻¹)⁻¹. Users can then cast this into a
+quantity of other wavelength units.
+
+# Example
+"""
+function W_to_ph(L_in, ν::Unitful.Wavenumber)
+
+    @assert dimension(L_in) == DIM_POWER_PER_WAVENUMBER "Input radiance `L_in` must be \
+        of dimension $(DIM_POWER_PER_WAVENUMBER), but got $(dimension(L_in))"
+    return L_in / (ν * PLANCK * SPEED_OF_LIGHT) |> u"ph/s/m^2/sr/(cm^-1)"
 
 end

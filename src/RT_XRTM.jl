@@ -9,9 +9,10 @@ by XRTM. The dictionary used here is the `wfunctions_map` field of the
 
 # Details
 
-This function interrogates the state vector `sv`, and, depending on the state vector
-elements found, will create respective entries in a Dict. Generally, we ask XRTM for these
-basic types of weighting functions, which then are later transformed into Jacobians.
+This function interrogates the state vector `rt.state_vector`, and, depending on the state
+vector elements found, will create respective entries in a Dict. Generally, we ask XRTM
+for these basic types of weighting functions, which then are later transformed into
+Jacobians:
 
 1) ∂I/∂τ for each layer
 2) ∂I/∂ω for each layer
@@ -19,7 +20,7 @@ basic types of weighting functions, which then are later transformed into Jacobi
 
 The dictionary to be returned contains the vectors of integers which determine the
 position of the appropriate XRTM weighting functions for the various derivatives. For
-example, `d[dI_dTau] = [6,7,8,9]` would mean that the per-layer ∂I/∂τ (of a 4-layer
+example, `d["dI_dTau"] = [6,7,8,9]` would mean that the per-layer ∂I/∂τ (of a 4-layer
 atmosphere) are stored in the XRTM weighting function indices 6 through 9.
 
 Notable exceptions are aerosol-related Jacobians. Computing per-layer Jacobians for every
@@ -523,6 +524,12 @@ function _run_XRTM!(
     options_dict::AbstractDict
 )
 
+
+    #=
+        General set-up
+        ==============
+    =#
+
     N_layer = rt.scene.atmosphere.N_layer
     N_hires = rt.optical_properties.spectral_window.N_hires
 
@@ -544,8 +551,36 @@ function _run_XRTM!(
 
     # Due to an incosistency in the coordinate conventions for single scattering and
     # 2OS solvers, the sign of the Stokes U components must be flipped in cases where
-    # the azimuth is adjusted to stay inside of (0, 360).
+    # the azimuth is adjusted to stay inside of (0, 360). `flip_U` will be determined
+    # later on in the code.
     flip_U = false
+
+    # If we ask XRTM to add radiance due to thermal emission, we must make sure that we
+    # use the correct units. The Planck radiance function produces spectral radiance in
+    # either W m⁻² sr⁻¹ μm⁻¹ or W m⁻² sr⁻¹ (cm⁻¹)⁻¹. So if the user wants spectral
+    # radiance in photon-based units rather than power-based units, we must calculate
+    # a conversion factor. We make this computation here outside of the monochromatic
+    # loop so that we do not incur allocation/computation costs inside the loop.
+    b_rad_fac = 1.0
+    if "source_solar" in options_dict["options"]
+
+        # This is the radiance unit produced by `Planck_radiance`, when used with the
+        # native units of the scene and spectral window.
+        _rad_unit_source = unit(
+            Planck_radiance(
+                1.0 * rt.optical_properties.spectral_window.ww_unit,
+                1.0 * rt.scene.atmosphere.temperature_unit
+            )
+        )
+
+
+        # First check if we are in wavelength or wavenumber space
+
+       #if dimension(rt.radiance_unit) == DIM_POWER_
+
+
+    end
+
 
     # Set the total phase function expansion coefficients for all layers
     # NOTE!
@@ -708,9 +743,9 @@ function _run_XRTM!(
     # Zero out all radiance containers, unless user declares otherwise
     if haskey(options_dict, "add")
         if options_dict["add"] == true
-            @debug "[XRTM] Model option -add- found and set to -false-: " *
-                "we are *NOT* zero-ing out radiances and " *
-                "derivatives, but adding to previous results!"
+            @debug "[XRTM] Model option -add- found and set to -false-: \
+                we are *NOT* zero-ing out radiances and \
+                derivatives, but adding to previous results!"
         else
             rt.hires_radiance[:] .= 0
             for i in 1:n_derivs
@@ -838,10 +873,10 @@ function _run_XRTM!(
             Notes on threading
             ==================
 
-            Inside this loop, there are only a few writing operations. We first start
-            with a list of XRTM instances - each to be used by one thread only. The same
-            holds for "tmp_vec", which we generate ahead of this loop and then simply grab
-            the one we want (corresponding to the task id, see below).
+            Inside this loop, there are only a few writing operations. We first start with
+            a list of XRTM instances - each to be used by one thread only. The same holds
+            for "tmp_vec_[lay|lev]", which we generate ahead of this loop and then simply
+            grab the one we want (corresponding to the task id, see below).
 
             A threaded loop via Threads.@threads cannot be stopped or broken out of. So
             if one thread encounters some error due to bad inputs into XRTM (e.g., the
@@ -895,7 +930,7 @@ function _run_XRTM!(
             # grab that first (and only) element.
             xrtm = xrtm_l[1]
         else
-            @error "Unforseen case to take XRTM object from list!"
+            @error "[XRTM] Unforseen case to take XRTM object from list!"
         end
 
         # Pick the tmp vector for this thread!
@@ -932,7 +967,6 @@ function _run_XRTM!(
 
         XRTM.set_omega_n(xrtm, tmp_vec_lay)
 
-
         # If XRTM options specify thermal sources, we add the isotropic thermal radiance
         # here, based on
         # (1) the temperature profile in the scene atmosphere,
@@ -945,24 +979,31 @@ function _run_XRTM!(
             # Wavelength or wavenumber with units
             _this_ww_with_unit = swin.ww_grid[i_spectral] * swin.ww_unit
 
+            # Planck radiance is produced in units of W m⁻² sr⁻¹ [µm⁻¹ | (cm⁻¹)⁻¹],
+            # but the RT object radiance unit may be e.g. ph s⁻¹ m⁻² [µm⁻¹ | (cm⁻¹)⁻¹]
+
 
             for lev in 1:rt.scene.atmosphere.N_level
 
                 # Get the temperature at this level by interpolating the MET profile
-                # (and take care of unit conversion)
+                # Note that T_int produces a value in the same temperature units as
+                # given in `rt.scene.atmosphere.temperature_unit`
 
                 _this_T_with_unit = T_int(
                     rt.scene.atmosphere.pressure_levels[lev] * p_met_ufac
                 )
 
                 # Calculate the radiance based on mean layer temperature, for this
-                # spectral point, convert to correct radiance units, and strip units.
+                # spectral point. `Planck_radiace` calculates in the supplied radiance
+                # units correctly, so we just need to strip units before inserting into
+                # `tmp_vec_lev`.
                 b_rad = Planck_radiance(
-                    _this_ww_with_unit,
-                    _this_T_with_unit
-                ) |> rt.radiance_unit |> ustrip
+                        _this_ww_with_unit,
+                        _this_T_with_unit,
+                        rt.radiance_unit
+                    ) |> ustrip
 
-                # Store in temp array, units will
+                # Store in temp array
                 tmp_vec_lev[lev] = b_rad
 
             end
@@ -970,11 +1011,14 @@ function _run_XRTM!(
             # Copy at-level thermal radiance into XRTM
             XRTM.set_levels_b(xrtm, tmp_vec_lev)
 
+            # Calculate radiance emission from surface
             b_surf = Planck_radiance(
                     _this_ww_with_unit,
-                    310.0u"K"
-                ) |> rt.radiance_unit |> ustrip
+                    280.0u"K", # TODO: add actual surface temperature from element here!!
+                    rt.radiance_unit
+                ) |> ustrip
 
+            # .. and set in XRTM
             XRTM.set_surface_b(xrtm, b_surf)
 
         end
@@ -1098,7 +1142,7 @@ function _run_XRTM!(
 
     # For now, set all radiances and jacobians to NaNs if errors were encountered
     if any(thread_error_flags)
-        @warn "Errors were encountered in this XRTM run. Setting all to NaN!"
+        @warn "[XRTM] Errors were encountered in this XRTM run. Setting all to NaN!"
         rt.hires_radiance[:] .= NaN
         for jac in rt.hires_wfunctions
             jac[:] .= NaN
