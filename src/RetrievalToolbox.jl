@@ -178,6 +178,7 @@ include("types/instrument_types.jl")
 include("types/radiance_types.jl")
 include("types/RT_types.jl")
 include("types/sif_types.jl")
+include("types/thermal_types.jl")
 
 include("types/inversion_types.jl")
 
