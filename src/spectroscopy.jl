@@ -1407,6 +1407,8 @@ function create_ABSCO_from_HITRAN(
     @warn "[SPEC] This function uses HITRAN.jl to create cross section tables! \
            This feature is experimental!"
 
+    # Fetch the HITRAN parameters into the local database
+    db = HITRAN.open_database("RetrievalToolbox_HITRAN.sqlite")
 
     # Make a check first if "gas" is even available:
     if ismissing(HITRAN.iso_id([gas]))
@@ -1417,9 +1419,6 @@ function create_ABSCO_from_HITRAN(
     if gas == "H2O"
         @warn "[SPEC] H2O calculation is buggy!"
     end
-
-    # Fetch the HITRAN parameters into the local database
-    db = HITRAN.open_database("RetrievalToolbox_HITRAN.sqlite")
 
     # Needed later on
     iso_subset = filter(
