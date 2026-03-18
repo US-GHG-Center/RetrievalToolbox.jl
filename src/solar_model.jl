@@ -106,21 +106,51 @@ function calculate_solar_irradiance!(
         # Sample the TSIS irradiance (includes both transmittance
         # and continuum) and store in hires_solar.I
 
-        pwl_value_1d!(
-            solar_model.ww,
-            solar_model.irradiance,
-            swin.ww_grid,
-            rt.hires_solar.I
+        # Out-of-range will be set to 0.
+        if (
+            (swin.ww_grid[1] > solar_model.ww[end]) |
+            (swin.ww_grid[end] < solar_model.ww[1])
         )
+
+            @warn "[SOLAR] Solar model $(solar_model) and spectral window $(swin) do not \
+                overlap! Hi-res solar irradiance will be zero!"
+            @views rt.hires_solar.I[:] .= 0
+
+        else
+
+            # Otherwise, interpolate!
+            pwl_value_1d!(
+                solar_model.ww,
+                solar_model.irradiance,
+                swin.ww_grid,
+                rt.hires_solar.I
+            )
+
+        end
 
     elseif solar_model isa ListSolarModel
 
-        pwl_value_1d!(
-            solar_model.ww,
-            solar_model.irradiance,
-            swin.ww_grid,
-            rt.hires_solar.I
+        # Out-of-range will be set to 0.
+        if (
+            (swin.ww_grid[1] > solar_model.ww[end]) |
+            (swin.ww_grid[end] < solar_model.ww[1])
         )
+
+            @warn "[SOLAR] Solar model $(solar_model) and spectral window $(swin) do not \
+                overlap! Hi-res solar irradiance will be zero!"
+            @views rt.hires_solar.I[:] .= 0
+
+        else
+
+            pwl_value_1d!(
+                solar_model.ww,
+                solar_model.irradiance,
+                swin.ww_grid,
+                rt.hires_solar.I
+            )
+
+        end
+
 
     elseif solar_model isa UnitSolarModel
 
@@ -182,7 +212,8 @@ function convert_solar_model_to_W!(s::OCOHDFSolarModel)
 
     else
 
-        error("This function does not (yet) accept irradiance units of $(s.irradiance_unit)!")
+        error("This function does not (yet) accept irradiance units of \
+            $(s.irradiance_unit)!")
         return false
     end
 
@@ -198,7 +229,8 @@ function convert_solar_model_to_photons!(s::TSISSolarModel)
     if s.irradiance_unit == u"W/m^2/nm"
         @debug "[SOLAR] Solar model in units of W/m^2/nm - converting to ph/s/m^2/µm!"
         @views s.irradiance[:] .*= ustrip.(u"m^-2 * µm^-1", # We want this in 1/m2 1/µm
-            s.irradiance_unit * 1.0u"s" ./ SPEED_OF_LIGHT .* (s.ww[:] .* s.ww_unit) ./ PLANCK
+            s.irradiance_unit * 1.0u"s" ./ SPEED_OF_LIGHT .*
+            (s.ww[:] .* s.ww_unit) ./ PLANCK
         )
 
         s.irradiance_unit = u"ph/s/m^2/µm"
@@ -206,7 +238,8 @@ function convert_solar_model_to_photons!(s::TSISSolarModel)
 
     else
 
-        error("This function does not (yet) accept irradiance units of $(s.irradiance_unit)!")
+        error("This function does not (yet) accept irradiance units of \
+            $(s.irradiance_unit)!")
         return false
     end
 
