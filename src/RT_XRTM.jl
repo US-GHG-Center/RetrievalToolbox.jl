@@ -1021,48 +1021,69 @@ function _run_XRTM!(
             # Wavelength or wavenumber with units
             _this_ww_with_unit = swin.ww_grid[i_spectral] * swin.ww_unit
 
-            # Planck radiance is produced in units of W m⁻² sr⁻¹ [µm⁻¹ | (cm⁻¹)⁻¹],
-            # but the RT object radiance unit may be e.g. ph s⁻¹ m⁻² [µm⁻¹ | (cm⁻¹)⁻¹]
+            # We set the isotropic emission to 0 at first.
+            @views tmp_vec_lev[:] .= 0.
+            XRTM.set_levels_b(xrtm, tmp_vec_lev)
 
+            if findanytype(rt.scene.atmosphere.atm_elements, ThermalAtmosphereIsotropic)
 
-            for lev in 1:rt.scene.atmosphere.N_level
+                # Override with (user-defined) temperature-based emission values
 
-                # Get the temperature at this level by interpolating the MET profile
-                # Note that T_int produces a value in the same temperature units as
-                # given in `rt.scene.atmosphere.temperature_unit`
+                for lev in 1:rt.scene.atmosphere.N_level
 
-                _this_T_with_unit = T_int(
-                    rt.scene.atmosphere.pressure_levels[lev] * p_met_ufac
-                )
+                    # Get the temperature at this level by interpolating the MET profile
+                    # Note that T_int produces a value in the same temperature units as
+                    # given in `rt.scene.atmosphere.temperature_unit`
 
-                # Calculate the radiance based on mean layer temperature, for this
-                # spectral point. `Planck_radiace` calculates in the supplied radiance
-                # units correctly, so we just need to strip units before inserting into
-                # `tmp_vec_lev`.
-                b_rad = Planck_radiance(
-                        _this_ww_with_unit,
-                        _this_T_with_unit,
-                        rt.radiance_unit
-                    ) |> ustrip
+                    _this_T_with_unit = T_int(
+                        rt.scene.atmosphere.pressure_levels[lev] * p_met_ufac
+                    )
 
-                # Store in temp array
-                tmp_vec_lev[lev] = b_rad
+                    # Calculate the radiance based on mean layer temperature, for this
+                    # spectral point. `Planck_radiace` calculates in the supplied radiance
+                    # units correctly, so we just need to strip units before inserting
+                    # into # `tmp_vec_lev`.
+                    b_rad = Planck_radiance(
+                            _this_ww_with_unit,
+                            _this_T_with_unit,
+                            rt.radiance_unit
+                        ) |> ustrip
+
+                    # Store in temp array
+                    tmp_vec_lev[lev] = b_rad
+
+                end
+
+                # Copy at-level isotropic radiance into XRTM
+                XRTM.set_levels_b(xrtm, tmp_vec_lev)
+
+                # NOTE/TODO:
+                # Should we ever support other types of isotropic radiance emission, such
+                # as airglow, then we need to make sure that we calculate all
+                # contributions and add the compound quantity!
 
             end
 
-            # Copy at-level thermal radiance into XRTM
-            XRTM.set_levels_b(xrtm, tmp_vec_lev)
+            # Loop through all atmosphere elements, and if we have a
+            # ThermalSurfaceIsotropic object in there, we grab the surface temperature,
+            # calculate the Planck radiance, and move the radiance value into XRTM.
 
-            # Calculate radiance emission from surface
-            b_surf = Planck_radiance(
-                    _this_ww_with_unit,
-                    280.0u"K", # TODO: add actual surface temperature from element here!!
-                    rt.radiance_unit
-                ) |> ustrip
+            # Set surface emission to 0 at first
+            XRTM.set_surface_b(xrtm, 0.0)
 
-            # .. and set in XRTM
-            XRTM.set_surface_b(xrtm, b_surf)
+            for atm in filter(x -> x isa ThermalSurfaceIsotropic,
+                rt.scene.atmosphere.atm_elements)
 
+                # Calculate radiance emission from surface
+                b_surf = Planck_radiance(
+                        _this_ww_with_unit,
+                        atm.temperature * atm.temperature_unit,
+                        rt.radiance_unit
+                    ) |> ustrip
+
+                # .. and set in XRTM
+                XRTM.set_surface_b(xrtm, b_surf)
+            end
         end
 
 
