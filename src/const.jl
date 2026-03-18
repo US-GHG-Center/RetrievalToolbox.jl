@@ -3,7 +3,7 @@
 "Avogadro-Loschmidt constant, molecules per mol"
 const NA = 6.022140857e23u"1/mol"
 "Molecular mass of dry air"
-const MM_DRY_AIR = 0.0289644e0u"kg/mol"
+const MM_DRY_AIR = 0.0289644u"kg/mol"
 "Molecular mass of water"
 const MM_H2O = 0.01801528u"kg/mol"
 "Ratio of molar masses of dry air to water"
