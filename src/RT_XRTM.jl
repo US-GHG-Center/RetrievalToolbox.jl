@@ -1,3 +1,48 @@
+function _check_XRTM_configuration(
+    rt::AbstractRTMethod,
+    options_dict::Vector{<:AbstractDict}
+)
+
+    # Loop through dictionaries and
+    for (index, d) in enumerate(options_dict)
+        _check_XRTM_configuration(rt, d; index=index)
+    end
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Checks if the options supplied through the `model_options` dictionary have some
+fundamental incosistency that would make XRTM crash or throw an error.
+"""
+function _check_XRTM_configuration(
+    rt::AbstractRTMethod,
+    options_dict::AbstractDict;
+    index=1
+)
+
+    # You can't have (thermal) emission sources turned on AND ask for sun-normalized
+    # radiances, since XRTM requires ALL those quantities to be the same. For now,
+    # RetrievalToolbox only supports thermal emission when the keyword `source_thermal`
+    # is supplied to `options_dict["options"]`, which is piped straight into XRTM.
+    if haskey(options_dict, "sun_normalized")
+        if ("source_thermal" in options_dict["options"]) &
+            (options_dict["sun_normalized"] == true)
+
+            error("[XRTM] [$(index)] Cannot have both sun-normalized RT and \
+                `source_thermal`!")
+
+        end
+    end
+
+
+
+
+end
+
+
 """
 $(TYPEDSIGNATURES)
 
@@ -147,18 +192,22 @@ function _calculate_radiances_and_jacobians_XRTM!(
     # If the user supplies one dictionary, we only need to run XRTM with a single
     # configuration.
     if rt.model_options isa AbstractDict
+
         _calculate_radiances_and_wfs_XRTM!(
             rt, observer, rt.model_options, xrtm_in=xrtm_in)
-    end
 
     # If the user supplies a Vector{} of Dictionaries, simply loop over all
     # options and call the routine for every one of them.
-    if rt.model_options isa Vector{<:AbstractDict}
+    elseif rt.model_options isa Vector{<:AbstractDict}
 
         for model_option in rt.model_options
             _calculate_radiances_and_wfs_XRTM!(
                 rt, observer, model_option, xrtm_in=xrtm_in)
         end
+
+    else
+
+        error("[XRTM] Unkown type for `rt.model_options`!")
 
     end
 
@@ -202,7 +251,6 @@ function create_XRTM(
 
     options = options_dict["options"]
     solvers = options_dict["solvers"]
-
 
     #=
         If derivatives are needed/requested, we must keep track of which
@@ -526,6 +574,18 @@ function _run_XRTM!(
 
 
     #=
+        Basic checks
+        ============
+
+        Some configurations may be incompatible by default, we can capture those right
+        here before anything is done. We call this check right here before XRTM is run,
+        since this is the place where things may go wrong.
+    =#
+
+    _check_XRTM_configuration(rt, options_dict)
+
+
+    #=
         General set-up
         ==============
     =#
@@ -554,33 +614,6 @@ function _run_XRTM!(
     # the azimuth is adjusted to stay inside of (0, 360). `flip_U` will be determined
     # later on in the code.
     flip_U = false
-
-    # If we ask XRTM to add radiance due to thermal emission, we must make sure that we
-    # use the correct units. The Planck radiance function produces spectral radiance in
-    # either W m⁻² sr⁻¹ μm⁻¹ or W m⁻² sr⁻¹ (cm⁻¹)⁻¹. So if the user wants spectral
-    # radiance in photon-based units rather than power-based units, we must calculate
-    # a conversion factor. We make this computation here outside of the monochromatic
-    # loop so that we do not incur allocation/computation costs inside the loop.
-    b_rad_fac = 1.0
-    if "source_solar" in options_dict["options"]
-
-        # This is the radiance unit produced by `Planck_radiance`, when used with the
-        # native units of the scene and spectral window.
-        _rad_unit_source = unit(
-            Planck_radiance(
-                1.0 * rt.optical_properties.spectral_window.ww_unit,
-                1.0 * rt.scene.atmosphere.temperature_unit
-            )
-        )
-
-
-        # First check if we are in wavelength or wavenumber space
-
-       #if dimension(rt.radiance_unit) == DIM_POWER_
-
-
-    end
-
 
     # Set the total phase function expansion coefficients for all layers
     # NOTE!
@@ -647,7 +680,8 @@ function _run_XRTM!(
         elseif n_elem == 6
             these_coefs = rt.optical_properties.total_coef
         else
-            @error "Unsupported number of elements!"
+            @error "[XRTM] Unsupported number of elements! Must be 1 for scalar, and \
+                6 for polarized RT."
         end
 
         for xrtm in xrtm_l
@@ -866,8 +900,7 @@ function _run_XRTM!(
         Hires spectral loop
         ===================
     =#
-    #Threads.@threads
-    for i_spectral in spec_iterator
+    Threads.@threads for i_spectral in spec_iterator
 
         #=
             Notes on threading
@@ -938,8 +971,17 @@ function _run_XRTM!(
         tmp_vec_lev = tmp_vec_lev_list[myid]
 
         if "source_solar" in options_dict["options"]
-            # Sun-normalized
-            XRTM.set_F_0(xrtm, 1.0)
+
+            # We can choose to either calculate sun-normalized radiances,
+            # meaning that the solar irradiance is 1.0 everywhere, or to
+
+            if haskey(options_dict, "sun_normalized")
+                # Sun-normalized
+                (options_dict["sun_normalized"] == true) && XRTM.set_F_0(xrtm, 1.0)
+            else
+                # Use solar model, intensity component
+                XRTM.set_F_0(xrtm, rt.hires_solar.S[i_spectral, 1])
+            end
         end
 
         #=
