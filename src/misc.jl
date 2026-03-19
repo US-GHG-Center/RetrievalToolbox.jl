@@ -513,10 +513,14 @@ end
 
 
 """
-$(TYPEDSIGNATURES)
+    H2O_VMR_to_relative_humidity(
+        H2OVMR::Real,
+        p::Unitful.Pressure,
+        T::Unitful.Temperature
+    ) -> Number
 
 Calculates relative humidity given a H₂O volume mixing ratio `H2OVMR`, pressure `p`,
-and temperature `T`.
+and temperature `T`. Converts the result to `Unitful.NoUnits`, thus returning a number.
 
 ```jldoctest
 julia> H2O_VMR_to_relative_humidity(0.025, 1013e2u"Pa", 300u"K") ≈ 0.71604995533615401
@@ -524,13 +528,12 @@ true
 ```
 """
 function H2O_VMR_to_relative_humidity(
-    H2OVMR,
+    H2OVMR::Real,
     p::Unitful.Pressure,
     T::Unitful.Temperature
 )
 
-    return H2OVMR * p / EQV(T)
-
+    return H2OVMR * p / EQV(T) |> Unitful.NoUnits
 end
 
 
@@ -540,7 +543,7 @@ $(TYPEDSIGNATURES)
 Calculates the standard deviation of a Gaussian for a given full width at half the maximum
 value.
 """
-function FWHM_to_sigma(FWHM::Number)
+function FWHM_to_sigma(FWHM::T) where {T<:Real}
 
     return FWHM / 2 / (sqrt(2 * log(2)))
 
@@ -552,7 +555,7 @@ $(TYPEDSIGNATURES)
 
 Calculates the isotropic radiance emitted given some temperature `T` at wavelength `λ`.
 The result is forced into units of W m⁻² sr⁻¹ µm⁻¹. Users must make sure they then
-convert the result into the units of radiance they need.
+convert the result into the units of radiance they need. FOR INTERNAL USE MOSTLY.
 """
 function _Planck_radiance(
     λ::Unitful.Length,
@@ -574,7 +577,7 @@ $(TYPEDSIGNATURES)
 
 Calculates the isotropic radiance emitted given some temperature `T` at wavenumber `ν`.
 The result is forced into units of W m⁻² sr⁻¹ (cm⁻¹)⁻¹. Users must make sure they then
-convert the result into the units of radiance they need.
+convert the result into the units of radiance they need. FOR INTERNAL USE MOSTLY.
 """
 function _Planck_radiance(
     ν::Unitful.Wavenumber,
@@ -596,7 +599,7 @@ $(TYPEDSIGNATURES)
 
 Calculates the isotropic radiance emitted given some temperature `T` at wavelength `λ`.
 The result is forced into units of ph s⁻¹ m⁻² sr⁻¹ µm⁻¹. Users must make sure they then
-convert the result into the units of radiance they need.
+convert the result into the units of radiance they need. FOR INTERNAL USE MOSTLY.
 """
 function _Planck_radiance(
     λ::Unitful.Length,
@@ -616,7 +619,7 @@ $(TYPEDSIGNATURES)
 
 Calculates the isotropic radiance emitted given some temperature `T` at wavenumber `ν`.
 The result is forced into units of ph s⁻¹ m⁻² sr⁻¹ (cm⁻¹)⁻¹. Users must make sure they
-then convert the result into the units of radiance they need.
+then convert the result into the units of radiance they need. FOR INTERNAL USE MOSTLY.
 """
 function _Planck_radiance(
     ν::Unitful.Wavenumber,
@@ -632,11 +635,19 @@ function _Planck_radiance(
 end
 
 """
-$(TYPEDSIGNATURES)
+    Planck_radiance(
+        λ::Unitful.Length,
+        T::Unitful.Temperature,
+        rad_unit::Unitful.Units
+    ) -> Unitful quantity converted to `rad_unit`
 
 Top-level function to calculate thermal (Planckian blackbody) radiance emission for some
 wavelength `λ` and temperature `T`. Input parameters must be Unitful quantities with
 associated and correct units.
+
+Only radiance units compatible with either $(rad_W_wl) or $(rad_ph_wl) will work, since
+the lower-lying function will dispatch to another function that must be compatible with
+those units.
 """
 function Planck_radiance(
     λ::Unitful.Length,
@@ -649,9 +660,19 @@ function Planck_radiance(
 end
 
 """
-$(TYPEDSIGNATURES)
+    Planck_radiance(
+        λ::Unitful.Length,
+        T::Unitful.Temperature,
+        rad_unit::Unitful.Units
+    ) -> Unitful quantity converted to `rad_unit`
 
-Top-level function to calculate thermal (Planckian blackbody) radiance emission
+Top-level function to calculate thermal (Planckian blackbody) radiance emission for some
+wavenumber `ν` and temperature `T`. Input parameters must be Unitful quantities with
+associated and correct units.
+
+Only radiance units compatible with either $(rad_W_wn) or $(rad_ph_wn) will work, since
+the lower-lying function will dispatch to another function that must be compatible with
+those units.
 """
 function Planck_radiance(
     ν::Unitful.Wavenumber,
@@ -665,17 +686,20 @@ end
 
 
 """
-$(TYPEDSIGNATURES)
+    W_to_ph(
+        L_in::Unitful.Quantity,
+        λ::Unitful.Length
+    ) -> Unitful quantity with units $(u"ph/s/m^2/sr/µm")
 
-Converts a spetral radiance in units of power per area, per steradian per wavelength into
-spectral radiance in units of ph s⁻¹ m⁻² sr⁻¹ µm⁻¹. Users can then cast this into a
-quantity of other wavelength units.
+Converts a spetral radiance `L_in` in units of power per area, per steradian per
+wavelength into spectral radiance in units of $(u"ph/s/m^2/sr/µm"). Users can then cast
+this into a quantity of other wavelength units. The function interface allows `L_in` to be
+any Unitful quantity, however the function checks whether `L_in` is dimensionally
+compatible with spectral radiance type units of power per wavelength.
 
 # Example
-
-
 """
-function W_to_ph(L_in, λ::Unitful.Length)
+function W_to_ph(L_in::Unitful.Quantity, λ::Unitful.Length)
 
     @assert dimension(L_in) == DIM_POWER_PER_LENGTH "Input radiance `L_in` must be of \
         dimension $(DIM_POWER_PER_LENGTH), but got $(dimension(L_in))"
@@ -685,11 +709,16 @@ end
 
 
 """
-$(TYPEDSIGNATURES)
+    W_to_ph(
+        L_in::Unitful.Quantity,
+        ν::Unitful.Wavenumber
+    ) -> Unitful quantity with units ph s⁻¹ m⁻² sr⁻¹ (cm⁻¹)⁻¹
 
 Converts a spetral radiance in units of power per area, per steradian per wavelength into
 spectral radiance in units of ph s⁻¹ m⁻² sr⁻¹ (cm⁻¹)⁻¹. Users can then cast this into a
-quantity of other wavelength units.
+quantity of other wavelength units. The function interface allows `L_in` to be
+any Unitful quantity, however the function checks whether `L_in` is dimensionally
+compatible with spectral radiance type units of power per wavenumber.
 
 # Example
 
