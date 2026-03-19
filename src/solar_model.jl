@@ -112,7 +112,7 @@ function calculate_solar_irradiance!(
             (swin.ww_grid[end] < solar_model.ww[1])
         )
 
-            @warn "[SOLAR] Solar model $(solar_model) and spectral window $(swin) do not \
+            @warn "[SOLAR] Solar model and spectral window $(swin) do not \
                 overlap! Hi-res solar irradiance will be zero!"
             @views rt.hires_solar.I[:] .= 0
 
@@ -136,7 +136,7 @@ function calculate_solar_irradiance!(
             (swin.ww_grid[end] < solar_model.ww[1])
         )
 
-            @warn "[SOLAR] Solar model $(solar_model) and spectral window $(swin) do not \
+            @warn "[SOLAR] Solar model and spectral window $(swin) do not \
                 overlap! Hi-res solar irradiance will be zero!"
             @views rt.hires_solar.I[:] .= 0
 
