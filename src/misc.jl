@@ -491,8 +491,10 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculates equilibrium vapor pressure from temperature `T`, where `T` must be given in
-units of Kelvin. See Murphy & Koop (2005): doi:10.1256/qj.04.94.
+Calculates equilibrium vapor pressure from temperature `T`, which can by any Unitful
+temperature quantity, as it is internally converted to Kelvin.
+
+For details see Murphy & Koop (2005): doi:10.1256/qj.04.94.
 """
 function EQV(T::Unitful.Temperature)
 
@@ -690,6 +692,7 @@ spectral radiance in units of ph s⁻¹ m⁻² sr⁻¹ (cm⁻¹)⁻¹. Users can
 quantity of other wavelength units.
 
 # Example
+
 """
 function W_to_ph(L_in, ν::Unitful.Wavenumber)
 
