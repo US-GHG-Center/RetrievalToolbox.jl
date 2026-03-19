@@ -374,13 +374,14 @@ function TSISSolarModel(
 
         # Turn irradiance into W/m^2/cm^-1 and reverse
         # array order to make them in increasing wavenumbers
-        irradiance ./= (1e4 ./ ww) .^ 2
-        irradiance = irradiance[end:-1:1]
+        @views irradiance[:] ./= (1e4 ./ ww[:]) .^ 2
+        reverse!(irradiance)
         # Set the new irradiance units
         irradiance_unit = u"W/m^2/cm^-1"
 
         # Turn µm into cm^-1 and reverse array
-        ww = 1e4 ./ ww[end:-1:1]
+        @views ww[:] = ww[:] / 1e4
+        reverse!(ww)
         ww_unit = u"cm^-1"
 
     else
