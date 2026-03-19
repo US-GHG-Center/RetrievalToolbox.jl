@@ -62,6 +62,8 @@ Jacobians:
 1) ∂I/∂τ for each layer
 2) ∂I/∂ω for each layer
 3) ∂I/∂s (s being the surface kernel amplitude) for each kernel
+4) ∂I/∂blevel isotropic radiation for each level
+5) ∂I/∂bsurface isotropic radiation emitted from the surface
 
 The dictionary to be returned contains the vectors of integers which determine the
 position of the appropriate XRTM weighting functions for the various derivatives. For
@@ -95,17 +97,32 @@ function _create_weighting_function_dictonary!(
     need_dI_dTau = false
     need_dI_dOmega = false
     need_dI_dBeta = false
+    need_dI_dblevel = false
+    need_dI_dbsurface = false
 
     if any_SVE_is_type(sv, GasLevelScalingFactorSVE)
         @debug "[XRTM] Found GasLevelScalingFactorSVE! Need ∂I/∂τ"
         need_dI_dTau = true
-    elseif any_SVE_is_type(sv, GasVMRProfileSVE)
+    end
+
+    if any_SVE_is_type(sv, GasVMRProfileSVE)
         @debug "[XRTM] Found GasVMRProfileSVE! Need ∂I/∂τ"
         need_dI_dTau = true
-    elseif any_SVE_is_type(sv, TemperatureOffsetSVE)
+    end
+
+    if any_SVE_is_type(sv, TemperatureOffsetSVE)
         @debug "[XRTM] Found TemperatureOffsetSVE! Need ∂I/∂τ"
         need_dI_dTau = true
-    elseif any_SVE_is_type(sv, SurfacePressureSVE)
+
+        # If we do atmospheric thermal emission, we also have to calculate partial
+        # derivatives with respect to that.
+        if findanytype(rt.scene.atmosphere.atm_elements, AbstractThermalAtmosphere)
+            @debug "[XRTM] .. and also ∂I/∂blevels"
+            need_dI_dblevel = true
+        end
+    end
+
+    if any_SVE_is_type(sv, SurfacePressureSVE)
         @debug "[XRTM] Found SurfacePressureSVE! Need ∂I/∂τ"
         need_dI_dTau = true
     end
@@ -136,6 +153,17 @@ function _create_weighting_function_dictonary!(
         current_idx += scene.atmosphere.N_layer
     end
 
+    if need_dI_dblevel
+        # Need one weighting function per atmospheric level
+        d["dI_dblevel"] = collect(current_idx:current_idx+scene.atmosphere.N_level-1)
+        current_idx += scene.atmosphere.N_level
+    end
+
+    if need_dI_dbsurface
+        d["dI_dbsurface"] = [current_idx]
+        current_idx += 1
+    end
+
     #=
         Do we need surfaces?
     =#
@@ -153,6 +181,7 @@ function _create_weighting_function_dictonary!(
             current_idx += 1
         end
     end
+
 
 
     #=
@@ -189,7 +218,7 @@ function _calculate_radiances_and_jacobians_XRTM!(
     =#
 
 
-    # If the user supplies one dictionary, we only need to run XRTM with a single
+    # If the user supplies one dictionary, we only need to run XRTM  with a single
     # configuration.
     if rt.model_options isa AbstractDict
 
@@ -333,31 +362,28 @@ function create_XRTM(
         return false
     end
 
-
-
     n_out_levels  = 1 # Number of output levels
     n_out_thetas  = 1 # Number of output viewing zenith angles
     #n_out_phis    = 1 # Number of output viewing azimuth angles
-
 
     #=
         Create the XRTM handler object with options and parameters as decided above.
     =#
 
-        xrtm = XRTM.create(
-            options,
-            solvers,
-            max_coef,
-            n_quad,
-            n_stokes,
-            n_derivs,
-            n_layers,
-            n_theta_0s,
-            n_kernel_quad,
-            kernels,
-            n_out_levels,
-            n_out_thetas
-            )
+    xrtm = XRTM.create(
+        options,
+        solvers,
+        max_coef,
+        n_quad,
+        n_stokes,
+        n_derivs,
+        n_layers,
+        n_theta_0s,
+        n_kernel_quad,
+        kernels,
+        n_out_levels,
+        n_out_thetas
+        )
 
     return xrtm
 
@@ -470,7 +496,7 @@ function _calculate_radiances_and_wfs_XRTM!(
     # Pseudo-spherical approximation can be used on request
     if "psa" in options
         # Set plantary radius and altitude levels
-        p_radius = ustrip(rt.scene.atmosphere.altitude_unit, 6371.0u"km")
+        p_radius = ustrip(rt.scene.atmosphere.altitude_unit, EARTH_RADIUS)
 
         for xrtm in xrtm_l
             XRTM.set_planet_r(xrtm, p_radius)
@@ -484,11 +510,13 @@ function _calculate_radiances_and_wfs_XRTM!(
         =#
 
         altitude_int = linear_interpolation(
-            ustrip.(Ref(atm.pressure_unit), atm.met_pressure_levels * atm.met_pressure_unit),
+            ustrip.(
+                Ref(atm.pressure_unit),
+                atm.met_pressure_levels * atm.met_pressure_unit
+            ),
             atm.altitude_levels,
             extrapolation_bc = Line()
             )
-
 
         altitude_levels = altitude_int.(atm.pressure_levels)
         for xrtm in xrtm_l
@@ -499,6 +527,7 @@ function _calculate_radiances_and_wfs_XRTM!(
     # Set derivatives, if requested. These are simply set once since they stay the same
     # for all spectral points.
     if "calc_derivs" in options
+
         if haskey(rt.wfunctions_map, "dI_dTau")
             # Set one layer derivative per derivative index
             # NOTE -- this code here assumes that "dI_dTau" really means
@@ -523,6 +552,32 @@ function _calculate_radiances_and_wfs_XRTM!(
             end
         end
 
+        if haskey(rt.wfunctions_map, "dI_dblevel")
+            #error("Not implemented/tested yet!")
+
+            tmp = zeros(rt.scene.atmosphere.N_level) # This allocates, sadly
+
+            for (lev, idx) in enumerate(rt.wfunctions_map["dI_dblevel"])
+
+                tmp[:] .= 0
+                tmp[lev] = 1 # Only set the current level
+
+                for xrtm in xrtm_l
+                    XRTM.set_levels_b_l_1(xrtm, idx-1, tmp)
+                end
+            end
+        end
+
+        if haskey(rt.wfunctions_map, "dI_dbsurface")
+
+            idx = rt.wfunctions_map["dI_dbsurface"][1]
+
+            for xrtm in xrtm_l
+                XRTM.set_surface_b_l_1(xrtm, idx-1, 1.0)
+            end
+
+        end
+
         if haskey(rt.wfunctions_map, "dI_dSurface")
             for (k, idx) in enumerate(rt.wfunctions_map["dI_dSurface"])
                 for xrtm in xrtm_l
@@ -530,6 +585,7 @@ function _calculate_radiances_and_wfs_XRTM!(
                 end
             end
         end
+
     end
 
     # Other derivative calculations are given by dedicated functions inside the
@@ -1021,7 +1077,8 @@ function _run_XRTM!(
             # Wavelength or wavenumber with units
             _this_ww_with_unit = swin.ww_grid[i_spectral] * swin.ww_unit
 
-            # We set the isotropic emission to 0 at first.
+            # We set the isotropic emission to 0 at first. It has to be set to something,
+            # otherwise XRTM complains.
             @views tmp_vec_lev[:] .= 0.
             XRTM.set_levels_b(xrtm, tmp_vec_lev)
 
@@ -1069,6 +1126,7 @@ function _run_XRTM!(
             # calculate the Planck radiance, and move the radiance value into XRTM.
 
             # Set surface emission to 0 at first
+            # (it has to be set to something, otherwise XRTM complains)
             XRTM.set_surface_b(xrtm, 0.0)
 
             for atm in filter(x -> x isa ThermalSurfaceIsotropic,
