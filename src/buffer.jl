@@ -190,10 +190,12 @@ function EarthAtmosphereBuffer(
 
         # .. and the associated Jacobians for each SVE.
         if sv isa RetrievalStateVector
-            hires_jacobians = Dict(
-                sve => RadType(T, swin.N_hires)
-                for sve in sv.state_vector_elements
-            )
+
+            # Create empty dict first (in case we have an empty state vector)
+            hires_jacobians = Dict{AbstractStateVectorElement, RadType{T}}()
+            for sve in sv.state_vector_elements
+                hires_jacobians[sve] = RadType(T, swin.N_hires)
+            end
         elseif sv isa ForwardModelStateVector
             hires_jacobians = nothing
         end
@@ -246,13 +248,20 @@ function EarthAtmosphereBuffer(
                 # N_wfunctions = 2 * N_layer + 2 * N_aerosol + 2 * N_surface kernels?
                 N_aero_sv = length(filter(is_aerosol_SVE, sv.state_vector_elements))
                 N_wfunctions = 2 * N_layer + N_aero_sv * N_layer + 5
-                hires_wfunctions = [RadType(T, swin.N_hires)
-                    for i in 1:N_wfunctions]
+
+                # We need to explicitly declare the vector type here, in case the
+                # RetrievalStateVector is empty:
+
+                hires_wfunctions = RadType{T}[]
+
+                # And now fill with zero-vectors of the right length
+                for i in 1:N_wfunctions
+                    push!(hires_wfunctions, RadType(T, swin.N_hires))
+                end
 
             elseif sv isa ForwardModelStateVector
                 # ForwardModelStateVector does not need Jacobians
                 hires_wfunctions = nothing
-
             end
 
             this_rt = MonochromaticRTMethod(
