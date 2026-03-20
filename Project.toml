@@ -42,7 +42,7 @@ PrettyTables = "3.0.11"
 SharedArrays = "1.11.0"
 SpecialFunctions = "2.5.1"
 TimerOutputs = "0.5.28"
-julia = "^1"
+julia = "1.10"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
