@@ -231,6 +231,7 @@ include("radiance.jl")
 include("RT.jl")
 include("radiance_correction.jl")
 include("SIFRadiance.jl")
+include("thermal.jl")
 
 include("inversion.jl")
 
