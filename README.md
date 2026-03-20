@@ -25,7 +25,7 @@ _Users are very welcome to submit their working set-ups to be listed here!_
 ## Installation
 
 > [!TIP]
-> For users who do not currently have Julia installed: it is **highly** recommended to install Julia via [JuliaUp](https://github.com/JuliaLang/juliaup), the Julia version multiplexer which allows to easily update Julia versions as well as to seamlessly switch between different versions.
+> For users who do not currently have Julia installed: it is **highly** recommended to install Julia via [JuliaUp](https://github.com/JuliaLang/juliaup), the Julia version multiplexer which allows to easily update Julia versions as well as to seamlessly switch between different versions. We suggest using Julia version 1.10 and up, at some point RetrievalToolbox will likely enforce a minimum version.
 
 RetrievalToolbox can be installed directly from Julia by typing (via http)
 
@@ -270,6 +270,9 @@ Now you have to edit `make.inc` to work seamlessly with your environment. Usuall
 4. Set your LAPACK library location. On MacOS, this likely needs to be set to `-framework Accelerate`, and on Linux machines, you will likely have many options, including various OpenBLAS options, or Intel's MKL.
 
 **On recent versions of MacOS, `gcc` invokes the Clang compiler rather than the GNU compiler suite.** Apple Clang does not work with the `-fopenmp` flag, and thus building XRTM will not work. We recommend downloading GCC (and gfortran) via [`homebrew`](https://brew.sh), by typing `brew install gcc`. To then call this freshly installed GCC compiler, one needs to add the version number, i.e. `gcc-15`. Use `gcc-15`, `g++-15` etc. to edit the Makefile.
+
+> [!TIP]
+> On MacOS, users will likely need to install the **Xcode command line tools**, otherwise you may find that the compiler can't find some files (e.g. `assert.h`).
 
 Once those are set, simply type `make` to build the XRTM library. Note that you will have to make more substantial changes if you want to compile with e.g. Intel's compiler suite. If you do not have a LaTeX distribution with `pdflatex` on the computer, the build process will exit with an error message, but that only concerns the compilation of the documentation which is part of the makefile; by that point the library will have been built successfully and is ready to use.
 
