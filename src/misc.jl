@@ -83,7 +83,7 @@ function ingest!(
     # will be a number that the @turbo macro below can interpret
     uc = one(eltype(val)) * unit(val[1]) |> obj_unit |> ustrip
 
-    # Get the unit-stripped view to the "val" array
+    # Get the unit-stripped view to the "val" array. This
     ustrip_val = ustrip.(val)
 
     # Copy over, accounting for correct conversion factor
@@ -120,8 +120,45 @@ function check_for_not_finite(x::AbstractArray)
 
 end
 
-function avx_sum_along_columns_between!(y, x, idx1, idx2)
+"""
+    avx_sum_along_columns_between!(
+        y::AbstractVector,
+        x::AbstractMatrix,
+        idx1::Integer,
+        idx2::Integer
+    )
 
+Calculates the along-column sum of matrix `x` between indices `idx1` and `idx2`, to store
+it in the vector `y`. It is assumed that `idx1` < `idx2`. This function makes use of the
+`@turbo` macro of the LoopVectorization package for high performance. The contents of `y`
+are zeroed out prior to the computation. Equivalent to
+`y[:] .= sum(x[:,idx1:idx2], dims=2)`, but roughly 2x faster.
+
+## Example
+Below example shows a matrix with two rows and three columns.
+`avx_sum_along_columns_between!` computes the sums for each of the two rows, between
+column indices 2 and 3, meaning `2+3` and `5+6`, and stores the results in the two-element
+vector `y`.
+```jldoctest; output = false
+x = [1 2 3; 4 5 6]
+y = zeros(Int, 2)
+avx_sum_along_columns_between!(y, x, 2, 3)
+y
+
+# output
+
+2-element Vector{Int64}:
+  5
+ 11
+```
+"""
+function avx_sum_along_columns_between!(
+    y::AbstractVector,
+    x::AbstractMatrix,
+    idx1::Integer,
+    idx2::Integer
+)
+    y[:] .= 0
     @turbo for j in idx1:idx2
         for i in axes(x, 1)
 
@@ -132,7 +169,17 @@ function avx_sum_along_columns_between!(y, x, idx1, idx2)
 
 end
 
+"""
+    avx_add_along_columns!(
+        y::AbstractVector,
+        x::AbstractMatrix
+    )
 
+Adds the along-column sum of matrix `x` to the vector `y`. This function makes use of the
+`@turbo` macro of the LoopVectorization package for high performance. The contents of `y`
+are zeroed out prior to the computation. Equivalent to `y[:] .+= sum(x, dims=2)`,
+but roughly 3x faster.
+"""
 function avx_add_along_columns!(y, x)
     @turbo for j in axes(x, 2)
         for i in axes(x, 1)
@@ -489,10 +536,11 @@ end
 
 
 """
-$(TYPEDSIGNATURES)
+    EQV(T::Unitful.Temperature) -> Unitful.Pressure
 
 Calculates equilibrium vapor pressure from temperature `T`, which can by any Unitful
-temperature quantity, as it is internally converted to Kelvin.
+temperature quantity, as it is internally converted to Kelvin. Returns the value in
+units of $(u"Pa").
 
 For details see Murphy & Koop (2005): doi:10.1256/qj.04.94.
 """
@@ -514,12 +562,12 @@ end
 
 """
     H2O_VMR_to_relative_humidity(
-        H2OVMR::Real,
+        H2O_VMR::Real,
         p::Unitful.Pressure,
         T::Unitful.Temperature
     ) -> Number
 
-Calculates relative humidity given a H₂O volume mixing ratio `H2OVMR`, pressure `p`,
+Calculates relative humidity given a H₂O volume mixing ratio `H2O_VMR`, pressure `p`,
 and temperature `T`. Converts the result to `Unitful.NoUnits`, thus returning a number.
 
 ```jldoctest
@@ -528,12 +576,12 @@ true
 ```
 """
 function H2O_VMR_to_relative_humidity(
-    H2OVMR::Real,
+    H2O_VMR::Real,
     p::Unitful.Pressure,
     T::Unitful.Temperature
 )
 
-    return H2OVMR * p / EQV(T) |> Unitful.NoUnits
+    return H2O_VMR * p / EQV(T) |> Unitful.NoUnits
 end
 
 
