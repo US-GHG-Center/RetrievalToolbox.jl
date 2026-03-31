@@ -24,14 +24,13 @@ function show(io::IO, buf::EarthAtmosphereBuffer)
 
 end
 
-
 """
 $(TYPEDSIGNATURES)
 
 Helper function to populate an `EarthAtmosphereBuffer`, which also includes an
 `EarthAtmosphere` and the corresponding `OpticalProperties` with correctly sized arrays.
 Ensure that the state vector `sv` is the same that was used to generate the RT buffer
-`rt_buf`!
+`rt_buf`! This interface generates a new `EarthAtmosphere` object.
 
 # Details
 
@@ -53,17 +52,6 @@ function EarthAtmosphereBuffer(
     T::Type{<:AbstractFloat}
     )
 
-    N_layer = N_level - 1
-    N_met_layer = N_met_level - 1
-
-    # We can supply both a single spectral window
-    # or a list of them. Maybe this should be a dict?
-    if spectral_windows isa Vector
-        swins = spectral_windows
-    else
-        swins = [spectral_windows]
-    end
-
     if atmospheric_elements isa Vector
         atm_elements = atmospheric_elements
     else
@@ -84,9 +72,67 @@ function EarthAtmosphereBuffer(
         gravity_unit=u"m/s^2"
     )
 
-    # Atmosphere elements into `atmosphere` object
+    # Push atmosphere elements into atmosphere
     for atm in atm_elements
         push!(atmosphere.atm_elements, atm)
+    end
+
+    return EarthAtmosphereBuffer(
+        sv,
+        spectral_windows,
+        surface_types,
+        atmosphere,
+        solar_models,
+        RT_models,
+        RadType,
+        rt_buf,
+        inst_buf,
+        N_level,
+        N_met_level,
+        T
+    )
+
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Helper function to populate an `EarthAtmosphereBuffer`, which also includes an
+`EarthAtmosphere` and the corresponding `OpticalProperties` with correctly sized arrays.
+Ensure that the state vector `sv` is the same that was used to generate the RT buffer
+`rt_buf`! This function requires an existing `EarthAtmosphere` object.
+
+# Details
+
+Please see the on-line documentation (via the Github page) for a more detailed explanation
+on the use of this function.
+"""
+function EarthAtmosphereBuffer(
+    sv::AbstractStateVector,
+    spectral_windows,
+    surface_types::Vector{<:Tuple},
+    atmosphere::EarthAtmosphere,
+    solar_models::Dict{<:AbstractSpectralWindow,<:AbstractSolarModel},
+    RT_models::Vector{Symbol},
+    RadType::Type{<:Radiance},
+    rt_buf::AbstractRTBuffer,
+    inst_buf,
+    N_level::Integer,
+    N_met_level::Integer,
+    T::Type{<:AbstractFloat}
+    )
+
+    N_layer = N_level - 1
+    N_met_layer = N_met_level - 1
+
+    # We can supply both a single spectral window
+    # or a list of them. Maybe this should be a dict?
+    if spectral_windows isa Vector
+        swins = spectral_windows
+    else
+        swins = [spectral_windows]
     end
 
     surfaces = Dict{SpectralWindow, AbstractSurface}()
@@ -255,6 +301,17 @@ function EarthAtmosphereBuffer(
 
             end
 
+            # Create radiance units to be used in the MonochromaticRTMethod object. This
+            # will be strictly derived from the solar model.
+            if solar_models[swin] isa NoSolarModel
+                # For a NoSolarModel solar model, we set this to NoUnits
+                rt_radiance_unit = Unitful.NoUnits
+            else
+                # Otherwise use solar irradiance per steradian
+                rt_radiance_unit = solar_models[swin].irradiance_unit / u"sr"
+            end
+
+
             this_rt = MonochromaticRTMethod(
                 :XRTM,
                 Dict[], # Supply an empty dictionary vector for options at first
@@ -267,7 +324,7 @@ function EarthAtmosphereBuffer(
                 hires_jacobians,
                 hires_wfunctions,
                 Dict{Any, Vector{Int}}(),
-                solar_models[swin].irradiance_unit / u"sr",
+                rt_radiance_unit,
                 solar_scaler
             )
 
