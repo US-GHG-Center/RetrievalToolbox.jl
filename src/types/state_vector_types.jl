@@ -463,6 +463,33 @@ end
 """
 $(TYPEDFIELDS)
 
+State factor type for surface temperature
+"""
+mutable struct SurfaceTemperatureSVE{T <: AbstractFloat} <: AbstractStateVectorElement
+
+    unit::Unitful.Units{U, Unitful.𝚯, nothing} where U
+
+    first_guess::T
+    prior_value::T
+    prior_covariance::T
+    iterations::Vector{T}
+
+    function SurfaceTemperatureSVE(
+        unit::Unitful.Units{U, Unitful.𝚯, nothing} where U,
+        fg::T,
+        prior::T,
+        prior_cov::T
+    ) where {T}
+
+        return new{T}(unit, fg, prior, prior_cov, [fg])
+
+    end
+
+end
+
+"""
+$(TYPEDFIELDS)
+
 State factor type for SIF radiance. This controls the `radiance_at_reference` field of the
 `SIF` object that is referenced here.
 """

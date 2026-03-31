@@ -122,6 +122,11 @@ function _create_weighting_function_dictonary!(
         end
     end
 
+    if any_SVE_is_type(sv, SurfaceTemperatureSVE)
+        @debug "[XRTM] Found SurfaceTemperatureSVE! Need ∂I/∂bsurface"
+        need_dI_dbsurface = true
+    end
+
     if any_SVE_is_type(sv, SurfacePressureSVE)
         @debug "[XRTM] Found SurfacePressureSVE! Need ∂I/∂τ"
         need_dI_dTau = true

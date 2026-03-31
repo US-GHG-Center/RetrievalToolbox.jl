@@ -568,6 +568,51 @@ end
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::MonochromaticRTMethod,
+    sve::SurfaceTemperatureSVE
+    )
+
+    if haskey(rt.wfunctions_map, "dI_dbsurface")
+        # RT object has the right weighting function type
+
+
+        opt = rt.optical_properties
+
+        # Grab the correct index to point to the hires weighting function
+        wf_idx_bsurf =  rt.wfunctions_map["dI_dbsurface"][1]
+        # Grab the derivative w.r.t. the emission radiance
+        ∂I_∂b = rt.hires_wfunctions[wf_idx_bsurf]
+
+        # Get the surface temperature from this SVE, with unit
+        T = get_current_value_with_unit(sve)
+
+
+        for i in axes(jac, 1) # Spectral loop
+
+            ww = opt.spectral_window.ww_grid[i] * opt.spectral_window.ww_unit
+
+            # Note! This function wants Unitful-type quantities, but also returns a
+            # Unitful-type one. We can make a cheeky check here if the unit actually
+            # adds up, such that it becomes a one-less one.
+            ∂b_∂T = dPlanck_radiance_dT(ww, T, rt.radiance_unit) /
+                    rt.radiance_unit * unit(T)
+
+            jac.S[i,1] += ∂I_∂b.S[i,1] * ∂b_∂T
+
+        end
+
+
+    else
+        @warn "[RT] Trying to calculate ∂I/∂Tsurf, but the RT object does not have the \
+            needed key in the weighting function map!"
+
+    end
+
+
+end
+
+function calculate_rt_jacobian!(
+    jac::Radiance,
+    rt::MonochromaticRTMethod,
     sve::AerosolOpticalDepthSVE
 )
 
