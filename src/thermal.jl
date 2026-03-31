@@ -228,7 +228,7 @@ function _dPlanck_radiance_dT(
     p = _dPlanck_radiance_dT(λ, T, DIM_POWER_PER_LENGTH)
     # Then convert to ph/s. Note that we do a silly trick here since `W_to_ph` does not
     # accept W/m^2/sr/µm/K
-    return W_to_ph(p * u"K", λ) / unit(T)
+    return W_to_ph(p * unit(T), λ) / unit(T)
 
 end
 
@@ -253,16 +253,22 @@ function _Planck_radiance(
 
 end
 
-function _Planck_radiance(
+"""
+$(TYPEDSIGNATURES)
+
+First derivative of `_Planck_radiance` with respect to temperature `T`, at some
+wavenumber `ν`. FOR INTERNAL USE MOSTLY.
+"""
+function _dPlanck_radiance_dT(
     ν::Unitful.Wavenumber,
     T::Unitful.Temperature,
     rad_dim::TYPE_PHOTON_PER_WAVENUMBER
     )
 
     # First calculate in Watts
-    p = _Planck_radiance(ν, T, DIM_POWER_PER_WAVENUMBER)
+    p = _dPlanck_radiance_dT(ν, T, DIM_POWER_PER_WAVENUMBER)
     # Then convert to ph/s
-    return W_to_ph(p, ν)
+    return W_to_ph(p * unit(T), ν) / unit(T)
 
 end
 
