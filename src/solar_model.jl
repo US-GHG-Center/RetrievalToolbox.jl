@@ -21,12 +21,29 @@ function show(io::IO, sm::OCOHDFSolarModel)
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Solar irradiance calculation for a `NoSolarModel`-type solar model. Only sets the
+`rt.hires_solar` vector to all zeros! This function supersedes the general one.
+"""
+function calculate_solar_irradiance!(
+    rt::AbstractRTMethod,
+    swin::AbstractSpectralWindow,
+    solar_model::NoSolarModel;
+    doppler_factor=nothing
+)
+
+    rt.hires_solar[:] .= 0
+
+end
+
 
 """
 $(TYPEDSIGNATURES)
 
 Calculates the down-sampled solar spectrum at the high-resolution grid specified within
-the spectral window `swin` and saves it in `rt.hires_solar`.=
+the spectral window `swin` and saves it in `rt.hires_solar`.
 
 # Details
 
