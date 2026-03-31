@@ -252,6 +252,11 @@ function EarthAtmosphereBuffer(
 
         if RT_models[i_swin] == :BeerLambert
 
+            # This only works if we have an actual solar model
+            if solar_models[swin] isa NoSolarModel
+                error("[BUF] BeerLambertRTMethod cannot be used with a NoSolarModel!")
+            end
+
             this_rt = BeerLambertRTMethod(
                 earth_scene,
                 optical_properties[swin],
@@ -313,11 +318,14 @@ function EarthAtmosphereBuffer(
             # Create radiance units to be used in the MonochromaticRTMethod object. This
             # will be strictly derived from the solar model.
             if solar_models[swin] isa NoSolarModel
-                # For a NoSolarModel solar model, we set this to NoUnits
-                rt_radiance_unit = Unitful.NoUnits
+                # For a NoSolarModel solar model, we use the RT buffer radiance units
+                rt_radiance_unit = rt_buf.radiance_unit
+                @debug "[BUF] Solar model is a NoSolarModel. Using RT buffer for \
+                radiance units: $(rt_radiance_unit)"
             else
                 # Otherwise use solar irradiance per steradian
                 rt_radiance_unit = solar_models[swin].irradiance_unit / u"sr"
+                @debug "[BUF] Using solar model for radiance units: $(rt_radiance_unit)"
             end
 
 
