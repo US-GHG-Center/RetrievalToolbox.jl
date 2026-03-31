@@ -459,26 +459,36 @@ function calculate_rt_jacobian!(
     # Calculate unit factor to translate between atmosphere T units and
     # statevector T units
     unit_fac = ustrip(rt.scene.atmosphere.temperature_unit, 1.0 * sve.unit)
+
     # Short-cuts
-    τ = rt.optical_properties.total_tau
-    ω = rt.optical_properties.total_omega
+    atm = rt.scene.atmosphere
+    opt = rt.optical_properties
+    τ = opt.total_tau
+    ω = opt.total_omega
+
+
+    # ====================================================================================
+    # Calculate ∂I/∂T due to spectroscopy, i.e. the impacts of a change in T on the
+    # gas absorption coefficients and thus optical depth τ, and thus also the single-
+    # scatter albedo ω.
+    # ====================================================================================
 
     # Must do this calculation for every gas present
-    for gas in keys(rt.optical_properties.gas_derivatives)
+    for gas in keys(opt.gas_derivatives)
 
         # We can double-check here if a ∂τ/∂T was actually calculated for this gas
-        if !haskey(rt.optical_properties.gas_derivatives[gas], "dTau_dT")
+        if !haskey(opt.gas_derivatives[gas], "dTau_dT")
             @warn "No ∂τ/∂T found for $(gas)"
             continue
         end
 
-        for l in 1:rt.scene.atmosphere.N_layer
+        for l in 1:atm.N_layer
 
             wf_idx_tau = rt.wfunctions_map["dI_dTau"][l]
             # [spectral, stokes]
             ∂I_∂τ = rt.hires_wfunctions[wf_idx_tau]
             # [spectral, layer]
-            ∂τ_∂T = rt.optical_properties.gas_derivatives[gas]["dTau_dT"]
+            ∂τ_∂T = opt.gas_derivatives[gas]["dTau_dT"]
 
             @turbo for i in axes(jac, 1)
                 for s in axes(jac, 2)
@@ -501,7 +511,57 @@ function calculate_rt_jacobian!(
         end
     end
 
+    # ====================================================================================
+    # Calculate ∂I/∂T due to thermal emission in the atmosphere.
+    #   Below section will only be executed if there is some AbstractThermalAtmosphere
+    #   object inside the rt.scene.atmosphere.atm_elements list, and also requires that
+    #   the RT module produces the partial derivatives of the radiance w.r.t. to the
+    #    per-level (thermal) emission.
+    # ====================================================================================
 
+    has_tatm = findanytype(atm.atm_elements, AbstractThermalAtmosphere)
+    has_∂I_∂blev = haskey(rt.wfunctions_map, "dI_dblevel")
+
+    if has_tatm & has_∂I_∂blev
+
+        # We will need the temperature at this specific retrieval level `l`, so let us
+        # create the linear interpolation object.
+
+        T_int = linear_interpolation(
+            atm.met_pressure_levels * atm.met_pressure_unit,
+            atm.temperature_levels * atm.temperature_unit,
+            extrapolation_bc = Line()
+        )
+
+        for l in 1:rt.scene.atmosphere.N_level
+            wf_idx_b = rt.wfunctions_map["dI_dblevel"][l]
+            ∂I_∂b = rt.hires_wfunctions[wf_idx_b]
+
+            # Grab temperature (with units) for level `l`
+            T = T_int(atm.pressure_levels[l] * atm.pressure_unit)
+
+            for i in axes(jac, 1) # Spectral
+
+                # Keep in mind: we get ∂I/∂b from the RT solver, now we must multiply with
+                # ∂b/∂T to get ∂I/∂T. This value depends on both the temperature at level
+                # `l` *and* the spectral point (wavelength or wavenumber) ww:
+                ww = opt.spectral_window.ww_grid[i] * opt.spectral_window.ww_unit
+
+                # Note! This function wants Unitful-type quantities, but also returns a
+                # Unitful-type one. We can make a cheeky check here if the unit actually
+                # adds up, such that it becomes a one-less one.
+                ∂b_∂T = dPlanck_radiance_dT(ww, T, rt.radiance_unit) /
+                    rt.radiance_unit * unit(T)
+
+                # For now, we only care about the intensity component
+                # (thermal emission does not produce polarized light I believe)
+                jac.S[i,1] += ∂I_∂b.S[i,1] * ∂b_∂T * unit_fac
+
+            end
+
+        end
+
+    end
 end
 
 
