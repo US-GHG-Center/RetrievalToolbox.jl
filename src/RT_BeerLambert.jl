@@ -44,12 +44,11 @@ function basic_checks_RT(rt::BeerLambertRTMethod)
 
     # Check if all total optical depth profiles sum to zero
     tmp = rt.optical_properties.tmp_Nhi1
-    tmp[:] .= 0
-    avx_add_along_columns!(tmp, rt.optical_properties.total_tau)
+    avx_sum_along_columns!(tmp, rt.optical_properties.total_tau)
 
     if all(tmp .≈ 0)
         @warn "[RT] All total column optical depths are 0! Did you forget to add any \
-            components into `scene.atmosphere.atm_elements`?"
+            GasAbsorber or other components into `scene.atmosphere.atm_elements`?"
     end
 
 
@@ -599,7 +598,6 @@ function calculate_rt_jacobian!(
     idx2 = sve.end_level - 1
 
     tau_subcolumn = rt.optical_properties.tmp_Nhi1
-    @views tau_subcolumn[:] .= 0.0
 
     avx_sum_along_columns_between!(
         tau_subcolumn,
@@ -608,12 +606,13 @@ function calculate_rt_jacobian!(
         idx2
         )
 
+    ufac = ustrip(sve.unit, 1.0)
     @turbo for i in eachindex(jac.I)
 
         jac.I[i] = -rt.hires_radiance.I[i] * (
             (1.0 / cosd(rt.scene.solar_zenith)) +
                 (1.0 / cosd(rt.scene.observer.viewing_zenith))
-        ) * tau_subcolumn[i] / scale_factor / ustrip(sve.unit, 1.0)
+        ) * tau_subcolumn[i] / scale_factor / ufac
 
     end
 
