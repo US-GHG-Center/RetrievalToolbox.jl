@@ -1,9 +1,10 @@
 """
 An empty `AbstractSolarModel` type for use in applications that do not require any actual
 implementation. For example, if one wishes to calculate only optical properties, but not
-apply any radiative transfer model.
+apply any radiative transfer model. Another example would be RT in thermal spectral
+ranges, where solar irradiance can be omitted.
 """
-struct EmptySolarModel{T} <: AbstractSolarModel end
+struct NoSolarModel <: AbstractSolarModel end
 
 """
 $(TYPEDFIELDS)
