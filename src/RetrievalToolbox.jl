@@ -9,6 +9,7 @@ using DocStringExtensions
 using HDF5
 using HITRAN
 using Interpolations
+using FastInterpolations
 using Lazy
 using LinearAlgebra
 using LoopVectorization
@@ -22,7 +23,6 @@ using SharedArrays
 using Statistics
 using StaticArrays
 using Unitful
-
 
 #=
     Make the "photons" unit available outside of the module scope, otherwise users will

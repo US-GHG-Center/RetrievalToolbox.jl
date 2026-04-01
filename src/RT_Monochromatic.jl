@@ -585,7 +585,6 @@ function calculate_rt_jacobian!(
         # Get the surface temperature from this SVE, with unit
         T = get_current_value_with_unit(sve)
 
-
         for i in axes(jac, 1) # Spectral loop
 
             ww = opt.spectral_window.ww_grid[i] * opt.spectral_window.ww_unit

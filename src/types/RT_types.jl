@@ -14,8 +14,10 @@ as XRTM.
 struct MonochromaticRTMethod{
     U <: AbstractOpticalProperties,
     V <: AbstractSolarModel,
-    R1 <: Radiance,
+    R <: Radiance,
     S <: AbstractStateVector,
+    J <: Union{Nothing, Dict{<:AbstractStateVectorElement, R}},
+    W <: Union{Nothing, Vector{R}}
     } <: AbstractRTMethod
 
     "Which RT model to use, at the moment, only :XRTM is supported"
@@ -31,19 +33,13 @@ struct MonochromaticRTMethod{
     "The state vector"
     state_vector::S
     "Buffer to hold the high-resolution solar irradiance"
-    hires_solar::R1
+    hires_solar::R
     "Buffer to hold the high-resolution at-instrument radiance"
-    hires_radiance::R1
+    hires_radiance::R
     "Buffer to hold the high-resolution radiance Jacobians"
-    hires_jacobians::Union{
-        Nothing,
-        Dict{<:AbstractStateVectorElement, R1}
-        }
+    hires_jacobians::J
     "Buffer to hold the RT-computed weighting functions"
-    hires_wfunctions::Union{
-        Nothing,
-        Vector{R1}
-    }
+    hires_wfunctions::W
     "Mapper dictionary to assign RT weighting functions to required Jacobians"
     wfunctions_map::Dict{Any, Vector{Int}}
     "Radiance unit"
@@ -59,7 +55,7 @@ $(TYPEDFIELDS)
 Analytic radiative transfer method for non-scattering atmospheres according to the
 Beer-Lambert-Bouguer law.
 """
-struct BeerLambertRTMethod <: AbstractRTMethod
+struct BeerLambertRTMethod{R <: Radiance} <: AbstractRTMethod
 
     "`AtmosphereScene` for which the RT is to be computed"
     scene::AtmosphereScene
@@ -70,13 +66,13 @@ struct BeerLambertRTMethod <: AbstractRTMethod
     "The state vector"
     state_vector::AbstractStateVector
     "Buffer to hold the high-resolution solar irradiance"
-    hires_solar::Radiance
+    hires_solar::R
     "Buffer to hold the high-resolution at-instrument radiance"
-    hires_radiance::Radiance
+    hires_radiance::R
     "Buffer to hold the high-resolution radiance Jacobians"
     hires_jacobians::Union{
         Nothing,
-        Dict{<:AbstractStateVectorElement,<:Radiance}
+        Dict{<:AbstractStateVectorElement, R}
         }
     "Radiance unit"
     radiance_unit::Unitful.Units
@@ -91,7 +87,7 @@ $(TYPEDFIELDS)
 Low-Streams Interpolation method as published by O'Dell 2010
 (https://doi.org/10.1029/2009JD012803).
 """
-struct LSIRTMethod <: AbstractRTMethod
+struct LSIRTMethod{R <: Radiance} <: AbstractRTMethod
 
     "Options dictonary to control hi-res RT settings"
     high_options::Union{<:AbstractDict, Vector{<:AbstractDict}}
@@ -102,11 +98,11 @@ struct LSIRTMethod <: AbstractRTMethod
     "√ξ coordinate per spectral point"
     ξ_sqrt::Vector{Float64}
     "Assigment of spectral points of to tau bins"
-    tau_gas_bin_assignment::Vector{Integer}
+    tau_gas_bin_assignment::Vector{Int}
     "Assigment of spectral points of to ξ bins"
-    ξ_sqrt_bin_assignment::Vector{Integer}
+    ξ_sqrt_bin_assignment::Vector{Int}
     "Array to quickly check if this tau/ξ bin is used or not"
-    used_bin::Array{Bool}
+    used_bin::Matrix{Bool}
     "`MonochromaticRTMethod` object to contain the full low-streams results"
     monochromatic_RT::MonochromaticRTMethod
     "`MonochromaticRTMethod` objects to use for binned calculations at window center"
@@ -114,19 +110,20 @@ struct LSIRTMethod <: AbstractRTMethod
     "`MonochromaticRTMethod` objects to use for binned calculations at window edge"
     RT_bin_edge::MonochromaticRTMethod
     "Low-res binned radiances"
-    bin_rad_lo::Array{Radiance}
+    bin_rad_lo::Matrix{R}
     "Low-res binned weighting functions"
-    bin_wf_lo::Array{Vector{Radiance}}
+    bin_wf_lo::Matrix{Vector{R}}
     "High-res binned results"
-    bin_rad_hi::Array{Radiance}
+    bin_rad_hi::Matrix{R}
     "High-res binned weighting functions"
-    bin_wf_hi::Array{Vector{Radiance}}
+    bin_wf_hi::Matrix{Vector{R}}
     "Low-res binned results for edge bin"
-    bin_edge_rad_lo::Array{Radiance}
+    bin_edge_rad_lo::Matrix{R}
     "Low-res binned weighting functions for edge bin"
-    bin_edge_wf_lo::Array{Vector{Radiance}}
+    bin_edge_wf_lo::Matrix{Vector{R}}
     "High-res binned results for edge bin"
-    bin_edge_rad_hi::Array{Radiance}
+    bin_edge_rad_hi::Matrix{R}
     "High-res binned weighting functions for edge bin"
-    bin_edge_wf_hi::Array{Vector{Radiance}}
+    bin_edge_wf_hi::Matrix{Vector{R}}
+
 end
