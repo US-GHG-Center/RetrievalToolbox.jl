@@ -604,6 +604,22 @@ function atmosphere_element_statevector_update!(
 
 end
 
+
+function atmosphere_element_statevector_update!(
+    atm_element::ThermalSurfaceIsotropic,
+    sve::SurfaceTemperatureSVE
+)
+
+    # Convert surface temperature from SVE to same unit as ThermalSurfaceIsotropic and
+    # set value
+    val = get_current_value_with_unit(sve)
+
+    @debug "[ATMOS] Updating $(atm_element) to $(val)"
+    atm_element.temperature =  val |> atm_element.temperature_unit |> ustrip
+
+end
+
+
 """
 $(TYPEDSIGNATURES)
 
