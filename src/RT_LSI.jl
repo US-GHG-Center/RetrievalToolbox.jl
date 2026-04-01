@@ -237,22 +237,19 @@ function LSIRTMethod(
         Create result arrays
     =#
 
-
-
-
-    bin_rad_lo = Array{typeof(rt.hires_radiance)}(undef, N_tau_bins, N_ξ_bins)
-    bin_wf_lo = Array{Vector{typeof(rt.hires_radiance)}}(undef, N_tau_bins, N_ξ_bins)
-    bin_rad_hi = Array{typeof(rt.hires_radiance)}(undef, N_tau_bins, N_ξ_bins)
-    bin_wf_hi = Array{Vector{typeof(rt.hires_radiance)}}(undef, N_tau_bins, N_ξ_bins)
-    bin_edge_rad_lo = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
-    bin_edge_wf_lo = Array{Vector{typeof(rt.hires_radiance)}}(undef, 1, 1)
-    bin_edge_rad_hi = Array{typeof(rt.hires_radiance)}(undef, 1, 1)
-    bin_edge_wf_hi = Array{Vector{typeof(rt.hires_radiance)}}(undef, 1, 1)
-
     # Element type of radiance array (e.g. Float64)
     Trad = eltype(rt.hires_radiance)
     # Short-cut to the type of the radiance, allows us to construct new ones
     RadType = typeof(rt.hires_radiance).name.wrapper
+
+    bin_rad_lo = Array{RadType}(undef, N_tau_bins, N_ξ_bins)
+    bin_wf_lo = Array{Vector{RadType}}(undef, N_tau_bins, N_ξ_bins)
+    bin_rad_hi = Array{RadType}(undef, N_tau_bins, N_ξ_bins)
+    bin_wf_hi = Array{Vector{RadType}}(undef, N_tau_bins, N_ξ_bins)
+    bin_edge_rad_lo = Array{RadType}(undef, 1, 1)
+    bin_edge_wf_lo = Array{Vector{RadType}}(undef, 1, 1)
+    bin_edge_rad_hi = Array{RadType}(undef, 1, 1)
+    bin_edge_wf_hi = Array{Vector{RadType}}(undef, 1, 1)
 
     # Allocate radiances
     for ar in [bin_rad_lo, bin_rad_hi, bin_edge_rad_lo, bin_edge_rad_hi]
@@ -705,21 +702,23 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
 
     used_τ_bins = findall(lsi.used_bin[:,1] .| lsi.used_bin[:,2])
 
-    itp_centering_ε = LinearInterpolation(
+    itp_centering_ε = linear_interp(
         log.([mean_τ[τ_bin] for τ_bin in used_τ_bins]),
-        [ε_τ[τ_bin].S[:,:] for τ_bin in used_τ_bins],
-        extrapolation_bc=Linear()
-        )
+        [ε_τ[τ_bin].S[:,:] for τ_bin in used_τ_bins];
+        extrap=ExtendExtrap()
+    )
 
     # Do the same for weighting functions, but loop over the weighting function index l
-    itp_centering_∂ε_I = [
-        LinearInterpolation(
+    itp_centering_∂ε_I = Vector{LinearInterpolant}(undef, N_wf)
+    for l in 1:N_wf
+
+        itp_centering_∂ε_I[l] = linear_interp(
             log.([mean_τ[τ_bin] for τ_bin in used_τ_bins]),
-            [∂ε_τ[τ_bin][l].S[:,:] for τ_bin in used_τ_bins],
-            extrapolation_bc=Linear()
-            )
-            for l in 1:N_wf
-    ]
+            [∂ε_τ[τ_bin][l].S[:,:] for τ_bin in used_τ_bins];
+            extrap=ExtendExtrap()
+        )
+
+    end
 
 
     # Equation A3 in O'Dell
