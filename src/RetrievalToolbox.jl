@@ -101,50 +101,48 @@ function __init__()
         compiled and linked library.
     =#
 
-    have_XRTM = false
-
-    if !haskey(ENV, "XRTM_PATH")
-
-        @debug "XRTM_PATH environment variable was not found! Not loading XRTM!"
-
-    else
-
-        # Try some possibilities where XRTM could be hiding
-        xrtm_path_options = String[]
-
-        push!(xrtm_path_options, ENV["XRTM_PATH"])
-        push!(xrtm_path_options, joinpath(ENV["XRTM_PATH"], "interfaces"))
-
-        # Loop through options and try to include the XRTM.jl file
-        for s in xrtm_path_options
-
-            xrtm_path = joinpath(s, "XRTM.jl")
-
-            if isfile(xrtm_path)
-                @debug "Loading XRTM from $(s)"
-                include(xrtm_path)
-
-                # Also set the environment variable for this Julia session to find the
-                # compiled XRTM library itself.
-                push!(Base.DL_LOAD_PATH, s)
-                # Must set this global, because it is a module-wide variable unfortunately
-                have_XRTM = true
-                break
-            else
-                @debug "[XRTM] No XRTM.jl in $(s)"
-            end
-        end
-
-        return nothing
-
-    end
-
-    if !(have_XRTM)
-        @debug "Could not find XRTM module!"
-        @debug "Calls to XRTM library functions will crash the session!"
-    end
+    # Optional XRTM
+    _load_xrtm_if_available()
 
 end
+
+"""
+Attempt to load the XRTM radiative transfer library if XRTM_PATH is set.
+"""
+function _load_xrtm_if_available()
+
+
+    if !haskey(ENV, "XRTM_PATH")
+        @debug "XRTM_PATH not set; XRTM will not be loaded"
+        return
+    end
+
+    xrtm_path_options = [
+        ENV["XRTM_PATH"],
+        joinpath(ENV["XRTM_PATH"], "interfaces")
+    ]
+
+    for search_path in xrtm_path_options
+        xrtm_file = joinpath(search_path, "XRTM.jl")
+
+        if isfile(xrtm_file)
+            @debug "Loading XRTM from $(search_path)"
+            try
+                include(xrtm_file)
+                push!(Base.DL_LOAD_PATH, search_path)
+                @debug "XRTM loaded successfully"
+                return
+            catch e
+                @warn "Failed to load XRTM from $(search_path): $e"
+                return
+            end
+        end
+    end
+
+    @debug "XRTM not found in any expected location. \
+        Set XRTM_PATH to the directory containing XRTM.jl"
+end
+
 
 
 
