@@ -397,7 +397,7 @@ function TSISSolarModel(
         irradiance_unit = u"W/m^2/cm^-1"
 
         # Turn µm into cm^-1 and reverse array
-        @views ww[:] = ww[:] / 1e4
+        @views ww[:] = 1e4 ./ ww[:]
         reverse!(ww)
         ww_unit = u"cm^-1"
 
