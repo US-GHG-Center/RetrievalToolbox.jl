@@ -111,6 +111,11 @@ Attempt to load the XRTM radiative transfer library if XRTM_PATH is set.
 """
 function _load_xrtm_if_available()
 
+    # Skip during precompilation
+    if ccall(:jl_generating_output, Cint, ()) != 0
+        @debug "Skipping XRTM load during precompilation"
+        return
+    end
 
     if !haskey(ENV, "XRTM_PATH")
         @debug "XRTM_PATH not set; XRTM will not be loaded"
