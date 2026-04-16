@@ -1036,11 +1036,10 @@ function _run_XRTM!(
             # We can choose to either calculate sun-normalized radiances,
             # meaning that the solar irradiance is 1.0 everywhere, or to
 
-            if haskey(options_dict, "sun_normalized")
-                # Sun-normalized
-                (options_dict["sun_normalized"] == true) && XRTM.set_F_0(xrtm, 1.0)
+            if haskey(options_dict, "sun_normalized") && (options_dict["sun_normalized"])
+                XRTM.set_F_0(xrtm, 1.0)
             else
-                # Use solar model, intensity component
+                # Otherwise .. we use the contents of the solar hires container
                 XRTM.set_F_0(xrtm, rt.hires_solar.S[i_spectral, 1])
             end
         end
