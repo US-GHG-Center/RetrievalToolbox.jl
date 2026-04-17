@@ -612,8 +612,8 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         XRTM.destroy(xrtm_high)
     end
 
-    @info "[RT] Total time low bin RT:  $(total_time_low) s"
-    @info "[RT] Total time high bin RT: $(total_time_high) s"
+    @info @sprintf "[RT][LSI] Total time low bin RT:  %0.1f s" total_time_low
+    @info @sprintf "[RT][LSI] Total time high bin RT: %0.1f s" total_time_high
 
     #=
         Construct the error array for each bin, as well as calculate the total gas
@@ -922,31 +922,6 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
         ∂ε_itp_log
     )
 
-    #=
-    InteractiveUtils.code_warntype(_lsi_correct_stokes!,
-        (
-            typeof(lsi.monochromatic_RT.hires_radiance),
-            typeof(lsi.monochromatic_RT.hires_wfunctions),
-            typeof(lsi.monochromatic_RT.optical_properties.spectral_window.ww_grid),
-            typeof(ww_c),
-            typeof(ww_edge),
-            typeof(lsi.tau_gas),
-            typeof(lsi.ξ_sqrt),
-            typeof(error_edge),
-            typeof(error_center),
-            typeof(∂_error_edge),
-            typeof(∂_error_center),
-            typeof(ε_itp),
-            typeof(ε_itp_log),
-            typeof(∂ε_itp),
-            typeof(∂ε_itp_log)
-        )
-
-    )
-
-
-    exit(0)
-    =#
     # After the correction of radiances and WFs has taken place, we must produce
     # the new Jacobians, derived from the weighting functions.
     orig_rt = lsi.monochromatic_RT
