@@ -9,6 +9,7 @@ using DocStringExtensions
 using HDF5
 using HITRAN
 using Interpolations
+using FastInterpolations
 using Lazy
 using LinearAlgebra
 using LoopVectorization
@@ -22,7 +23,6 @@ using SharedArrays
 using Statistics
 using StaticArrays
 using Unitful
-
 
 #=
     Make the "photons" unit available outside of the module scope, otherwise users will
@@ -111,6 +111,11 @@ Attempt to load the XRTM radiative transfer library if XRTM_PATH is set.
 """
 function _load_xrtm_if_available()
 
+    # Skip during precompilation
+    if ccall(:jl_generating_output, Cint, ()) != 0
+        @debug "Skipping XRTM load during precompilation"
+        return
+    end
 
     if !haskey(ENV, "XRTM_PATH")
         @debug "XRTM_PATH not set; XRTM will not be loaded"
