@@ -67,7 +67,7 @@ To produce a model atmosphere with meaningful meteorological profiles (specific 
 
     my_source_atmosphere = RE.create_example_atmosphere("US-midwest-summer", 10)
 
-Modelling gas absorption in RerievalToolbox requires spectroscopy. These are fundamental to most atmospheric gas retrievals, as they allow us to translate atmospheric abundance to optical transmission for given wavelengths (or wavenumbers). Note, the following function downloads line lists from the online [HITRAN](https://hitran.org) library, and only works with an active internet connection.
+Modelling gas absorption in RetrievalToolbox requires spectroscopy. These are fundamental to most atmospheric gas retrievals, as they allow us to translate atmospheric abundance to optical transmission for given wavelengths (or wavenumbers). Note, the following function downloads line lists from the online [HITRAN](https://hitran.org) library, and only works with an active internet connection.
 
     my_spectroscopy = RE.create_ABSCO_from_HITRAN(
         gas_name,
