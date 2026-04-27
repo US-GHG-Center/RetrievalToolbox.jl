@@ -248,17 +248,13 @@ And finally, we can plot the at-instrument radiance which is temporarily stored 
 
 ## Building XRTM and making RetrievalToolbox aware of its location
 
-RetrievalToolbox makes use of the XRTM library to perform the various radiative transfer calculations which require scattering from, e.g. molecular Rayleigh scattering or aerosols. While it is possible to use RetrievalToolbox with a built-in Beer-Lambert-Bouguer method, many retrieval applications will need to account for scattering and thus require the XRTM library. XRTM is published at (https://github.com/gmcgarragh/xrtm/), and we also maintain a fork at (https://github.com/RetrievalToolbox/xrtm). Depending on your needs and the way how you create your own algorithm, you might prefer one vs. the other option.
+RetrievalToolbox makes use of the XRTM library to perform the various radiative transfer calculations which require scattering from, e.g. molecular Rayleigh scattering or aerosols, or to account for thermal emission when considering infra-red wavelength ranges. While it is possible to use RetrievalToolbox with a built-in Beer-Lambert-Bouguer method, many retrieval applications will need to account for scattering and thus require the XRTM library. XRTM is published at (https://github.com/gmcgarragh/xrtm/), however we maintain a fork at (https://github.com/RetrievalToolbox/xrtm). RetrievalToolbox is currently tested only with our own fork of XRTM, thus we recommend using that.
 
 To build XRTM, you need somewhat recent versions of GCC, gfortran and make. First, clone the repository into some location on your computing environment:
 
-`git clone https://github.com/gmcgarragh/xrtm`
-
-or
-
 `git clone https://github.com/RetrievalToolbox/xrtm`
 
-Note that as of May 2025, the first repository does not compile on MacOS without modifications to the makefile. The second repository, however, should compile successfully. In either case, you must take a copy of the example makefile and save it as `make.inc`. So switch to the XRTM directory (`cd xrtm`) and
+You must take a copy of the example makefile and save it as `make.inc`. So switch to the XRTM directory (`cd xrtm`) and
 
 `cp make.inc.example make.inc`
 
@@ -291,7 +287,7 @@ ENV["XRTM_PATH"] = "/path/to/xrtm"
 using RetrievalToolbox
 ```
 
-**Important!** The second repository (https://github.com/RetrievalToolbox/xrtm) contains a small, but very impactful code modification. In `xrtm/src/xrtm.h` the pre-processor directive was changed to say
+**Important!** Our repository (https://github.com/RetrievalToolbox/xrtm) contains a small, but very impactful code modification. In `xrtm/src/xrtm.h` the pre-processor directive was changed to say
 ``` c
 #define DO_NOT_ADD_SFI_SS 1
 ```
