@@ -528,8 +528,8 @@ function calculate_rt_jacobian!(
         # create the linear interpolation object.
 
         T_int = linear_interpolation(
-            atm.met_pressure_levels * atm.met_pressure_unit,
-            atm.temperature_levels * atm.temperature_unit,
+            atm.met_pressure * atm.met_pressure_unit,
+            atm.temperature * atm.temperature_unit,
             extrapolation_bc = Line()
         )
 

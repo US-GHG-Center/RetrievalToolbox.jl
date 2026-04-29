@@ -2,8 +2,8 @@
 $(TYPEDSIGNATURES)
 
 Converts a symbol to its corresponding one that carries the unit information. E.g.
-`:irradiance` returns `:irradiance_unit`, or `:temperature_levels` returns
-`:temperature_unit`
+`:irradiance` returns `:irradiance_unit`, or `:pressure_levels` returns
+`:pressure_unit`
 """
 function _field_unit_conversion(x::Symbol)
 

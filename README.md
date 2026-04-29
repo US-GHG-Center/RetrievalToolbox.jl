@@ -7,6 +7,19 @@ RetrievalToolbox is a library for building trace gas retrieval algorithms and re
 
 RetrievalToolbox was developed at the Earth System Science Interdisciplinary Center (ESSIC) at the University of Maryland College Park, and at NASA Goddard Space Flight Center.
 
+## Recent noteworthy changes
+
+### 0.4.0
+
+The `EarthAtmosphere` type was restructured. Meteorological profiles now no longer have level/layer descriptions to reduce confusion about whether they are considered to be on levels or layers. That distinction is not truly used in RetrievalToolbox at the moment. The `*_layers` vectors for meteorological profiles have been removed.
+
+ * `met_pressure_levels` → `met_pressure`
+ * `temperature_levels` → `temperature`
+ * `specific_humidity_levels` → `specific_humidity`
+ * `altitude_levels` → `altitude`
+ * `gravity_levels` → `gravity`
+
+A warning has been implemented that warns users if they attempt to access e.g. `met_pressure_levels`, however the correct `met_pressure` is then accessed internally. This warning may be removed in a future version.
 
 ## Documentation and Learning
 
@@ -25,7 +38,7 @@ _Users are very welcome to submit their working set-ups to be listed here!_
 ## Installation
 
 > [!TIP]
-> For users who do not currently have Julia installed: it is **highly** recommended to install Julia via [JuliaUp](https://github.com/JuliaLang/juliaup), the Julia version multiplexer which allows to easily update Julia versions as well as to seamlessly switch between different versions. We suggest using Julia version 1.10 and up, at some point RetrievalToolbox will likely enforce a minimum version.
+> For users who do not currently have Julia installed: it is **highly** recommended to install Julia via [JuliaUp](https://github.com/JuliaLang/juliaup), the Julia version multiplexer which allows to easily update Julia versions as well as to seamlessly switch between different versions. We suggest using Julia version 1.10 and up, preferably 1.12, at some point RetrievalToolbox will likely enforce a minimum version.
 
 RetrievalToolbox can be installed directly from Julia by typing (via http)
 
@@ -152,14 +165,14 @@ First, we compute the so-called *incides*, which is the term used for arrays of 
 
 Copy over the meteorological data we have stored in the source atmosphere:
 
-    my_buffer.scene.atmosphere.met_pressure_levels[:] =
-        my_source_atmosphere.met_pressure_levels[:]
+    my_buffer.scene.atmosphere.met_pressure[:] =
+        my_source_atmosphere.met_pressure[:]
 
-    my_buffer.scene.atmosphere.specific_humidity_levels[:] =
-        my_source_atmosphere.specific_humidity_levels[:]
+    my_buffer.scene.atmosphere.specific_humidity[:] =
+        my_source_atmosphere.specific_humidity[:]
 
-    my_buffer.scene.atmosphere.temperature_levels[:] =
-        my_source_atmosphere.temperature_levels[:]
+    my_buffer.scene.atmosphere.temperature[:] =
+        my_source_atmosphere.temperature[:]
 
 Set our custom pressure grid at which the gas VMRs are defined (all in Pa):
 

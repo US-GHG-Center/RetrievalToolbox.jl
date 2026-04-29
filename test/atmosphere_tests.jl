@@ -13,9 +13,9 @@
         # Make sure the type is right
         @test atm isa EarthAtmosphere
         # Check gravity calculation (must monotonically decrease with leve)
-        @test all(diff(atm.gravity_levels) .> 0)
+        @test all(diff(atm.gravity) .> 0)
         # Check altitude levels (must monotonically increase with level)
-        @test all(diff(atm.altitude_levels) .< 0)
+        @test all(diff(atm.altitude) .< 0)
 
     end
 
@@ -58,21 +58,29 @@ end
     # Try creating an empty atmosphere
     atm = create_empty_EarthAtmosphere(6, 11, Float64)
 
+    # Try the deprecation warnings
+    atm.met_pressure_levels[1] = 1.0
+    atm.temperature_levels[1] = 1.0
+    atm.specific_humidity_levels[1] = 1.0
+    atm.altitude_levels[1] = 1.0
+    atm.gravity_levels[1] = 1.0
+
+
     # Fill met p with values
     met_p = [1., 10., 50., 100., 300., 400., 500., 600., 800., 900., 1000.] * u"hPa"
-    ingest!(atm, :met_pressure_levels, met_p)
+    ingest!(atm, :met_pressure, met_p)
 
     # Calculate z from p using simple barometric formula
     # (discouraged otherwise!)
     met_z = @. 44330.0u"m" * (1.0 - met_p / met_p[end])
-    ingest!(atm, :altitude_levels, met_z)
+    ingest!(atm, :altitude, met_z)
 
     # Calculate g from z!
     calculate_gravity_from_z!(atm)
 
     # Add some very simple temperature profile
     met_t = LinRange(210.0u"K", 250u"K", atm.N_met_level)
-    ingest!(atm, :temperature_levels, met_t)
+    ingest!(atm, :temperature, met_t)
 
 end
 
