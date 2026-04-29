@@ -517,9 +517,9 @@ function _calculate_radiances_and_wfs_XRTM!(
         altitude_int = linear_interpolation(
             ustrip.(
                 Ref(atm.pressure_unit),
-                atm.met_pressure_levels * atm.met_pressure_unit
+                atm.met_pressure * atm.met_pressure_unit
             ),
-            atm.altitude_levels,
+            atm.altitude,
             extrapolation_bc = Line()
             )
 
@@ -919,8 +919,8 @@ function _run_XRTM!(
     if "source_thermal" in options_dict["options"]
 
         T_int = linear_interpolation(
-            rt.scene.atmosphere.met_pressure_levels,
-            rt.scene.atmosphere.temperature_levels * rt.scene.atmosphere.temperature_unit,
+            rt.scene.atmosphere.met_pressure,
+            rt.scene.atmosphere.temperature * rt.scene.atmosphere.temperature_unit,
             extrapolation_bc = Line()
         )
 

@@ -84,12 +84,12 @@
 
     calculate_indices!(my_buffer)
 
-    my_buffer.scene.atmosphere.met_pressure_levels[:] =
-        my_source_atmosphere.met_pressure_levels[:]
-    my_buffer.scene.atmosphere.specific_humidity_levels[:] =
-        my_source_atmosphere.specific_humidity_levels[:]
-    my_buffer.scene.atmosphere.temperature_levels[:] =
-        my_source_atmosphere.temperature_levels[:]
+    my_buffer.scene.atmosphere.met_pressure[:] =
+        my_source_atmosphere.met_pressure[:]
+    my_buffer.scene.atmosphere.specific_humidity[:] =
+        my_source_atmosphere.specific_humidity[:]
+    my_buffer.scene.atmosphere.temperature[:] =
+        my_source_atmosphere.temperature[:]
 
     my_buffer.scene.atmosphere.pressure_levels[:] = logrange(10, 1000_00, N_level) |> collect
 

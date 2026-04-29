@@ -32,21 +32,15 @@ function create_empty_EarthAtmosphere(
         zeros(T, Nlev - 1),
         pressure_unit,
         Nlev_met,
-        Nlev_met - 1,
         zeros(T, Nlev_met),
-        zeros(T, Nlev_met - 1),
         met_pressure_unit,
         zeros(T, Nlev_met),
-        zeros(T, Nlev_met - 1),
         temperature_unit,
         zeros(T, Nlev_met),
-        zeros(T, Nlev_met - 1),
         specific_humidity_unit,
         zeros(T, Nlev_met),
-        zeros(T, Nlev_met - 1),
         altitude_unit,
         zeros(T, Nlev_met),
-        zeros(T, Nlev_met - 1),
         gravity_unit
     )
 
@@ -55,17 +49,12 @@ end
 """
 $(TYPEDSIGNATURES)
 
-In-place calculation of mid-layer values for all relevant profiles in an `EarthAtmosphere`
-object (p, p MET, q, T, z, g).
+In-place calculation of mid-layer values for the retrieval pressure grid of the
+`EarthAtmosphere` object.
 """
 function calculate_layers!(atm::EarthAtmosphere)
 
     levels_to_layers!(atm.pressure_layers, atm.pressure_levels)
-    levels_to_layers!(atm.met_pressure_layers, atm.met_pressure_levels)
-    levels_to_layers!(atm.specific_humidity_layers, atm.specific_humidity_levels)
-    levels_to_layers!(atm.temperature_layers, atm.temperature_levels)
-    levels_to_layers!(atm.altitude_layers, atm.altitude_levels)
-    levels_to_layers!(atm.gravity_layers, atm.gravity_levels)
 
 end
 
@@ -162,9 +151,9 @@ function calculate_gravity_from_z!(atm::EarthAtmosphere; g::Unitful.Acceleration
 
     for l in 1:atm.N_met_level
 
-        z = atm.altitude_levels[l] * atm.altitude_unit
+        z = atm.altitude[l] * atm.altitude_unit
         glevel = g * (EARTH_RADIUS / (EARTH_RADIUS + z))^2 |> atm.gravity_unit
-        atm.gravity_levels[l] = glevel |> ustrip
+        atm.gravity[l] = glevel |> ustrip
 
     end
 
@@ -235,27 +224,21 @@ function calculate_altitude_and_gravity!(scene::EarthScene)
     atm = scene.atmosphere
     loc = scene.location
 
-    # Need to calculate layer-based values for T and q!
-    calculate_layers!(atm)
-
     # Calculate z and g levels
     calculate_altitude_and_gravity_levels!(
-        atm.altitude_levels,
-        atm.gravity_levels,
-        atm.met_pressure_levels,
-        atm.temperature_layers,
-        atm.specific_humidity_layers,
-        atm.met_pressure_levels[end],
+        atm.altitude,
+        atm.gravity,
+        atm.met_pressure,
+        atm.temperature,
+        atm.specific_humidity,
+        atm.met_pressure[end],
         loc
     )
 
-    # At this point, atm.altitude_levels is in `m`, and atm.gravity_levels in `m/s^2`, so
+    # At this point, atm.altitude is in `m`, and atm.gravity_levels in `m/s^2`, so
     # must potentially convert back to whatever units the `atm` object demands.
-    atm.altitude_levels[:] .*= (1.0u"m" / atm.altitude_unit)
-    atm.gravity_levels[:] .*= (1.0u"m/s^2" / atm.gravity_unit)
-
-    # Must calculate layer-based values for gravity and altitude.
-    calculate_layers!(atm)
+    atm.altitude[:] .*= (1.0u"m" / atm.altitude_unit)
+    atm.gravity[:] .*= (1.0u"m/s^2" / atm.gravity_unit)
 
 end
 
@@ -264,7 +247,7 @@ end
 $(TYPEDSIGNATURES)
 
 Calculates altitude and gravity levels for Earth-type atmospheres, in-place. For now, this
-function over-writes `altitude_levels` and `gravity_levels` in units of `m` and `m/s^2`
+function over-writes `z` (altitude) and `g` (gravity) in units of `m` and `m/s^2`
 respectively!
 
 # Details
@@ -274,54 +257,45 @@ calculates the altitude and gravity profiles (on levels) corresponding to the pr
 levels. These outputs should then be used to construct atmosphere objects
 (EarthAtmosphere).
 
-At this point, `p_levels` must be in [Pa], `T_layers` in [K], `SH_layers` in [1], and the
+At this point, `p` must be in [Pa], `T` in [K], `q` in [1], and the
 `location.altitude` in [m]. Alternatively, Unitful arrays with units can be used.
 """
 function calculate_altitude_and_gravity_levels!(
-    z_levels::AbstractVector,
-    g_levels::AbstractVector,
-    p_levels::AbstractVector,
-    T_layers::AbstractVector,
-    SH_layers::AbstractVector,
+    z::AbstractVector,
+    g::AbstractVector,
+    p::AbstractVector,
+    T::AbstractVector,
+    q::AbstractVector,
     p_surf::Number,
     location::EarthLocation
     )
 
     Rd = GAS_CONSTANT / MM_DRY_AIR
 
-    N_layers = length(T_layers)
+    N_levels = length(T)
 
-    z_levels[end] = location.altitude * location.altitude_unit |> u"m" |> ustrip
-    g_levels[end] = JPL_gravity(location.latitude, location.altitude) |> u"m/s^2" |> ustrip
+    z[end] = location.altitude * location.altitude_unit |> u"m" |> ustrip
+    g[end] = JPL_gravity(location.latitude, location.altitude) |> u"m/s^2" |> ustrip
 
-    for i in N_layers:-1:1
+    for i in N_levels:-1:2
 
-        if i == N_layers
-            dP = p_surf - p_levels[i]
-            logratio = log(p_surf / p_levels[i])
+        if i == N_levels
+            dP = p_surf - p[i]
+            logratio = log(p_surf / p[i])
         else
-            dP = p_levels[i+1] - p_levels[i]
-            logratio = log(p_levels[i+1] / p_levels[i])
+            dP = p[i+1] - p[i]
+            logratio = log(p[i+1] / p[i])
         end
 
-        # This value has a unit
-        this_g_layer = JPL_gravity(location.latitude, z_levels[i+1])
-
         # Apply temperature unit here
-        Tv = T_layers[i]u"K" * (1.0 + SH_layers[i] * (1.0 - MM_H2O_TO_AIR) / MM_H2O_TO_AIR)
+        Tv = T[i]u"K" * (1.0 + q[i] * (1.0 - MM_H2O_TO_AIR) / MM_H2O_TO_AIR)
 
         # This value also has a unit
-        dz = logratio * Tv * Rd / this_g_layer
-        # .. so does this
-        this_g_layer = JPL_gravity(location.latitude, z_levels[i+1]u"m" + 0.5 * dz)
-        # .. and this
-        dz = logratio * Tv * Rd / this_g_layer
-        #constant = dP / (MM_DRY_AIR * this_g_layer)
+        dz = logratio * Tv * Rd / (g[i]u"m/s^2")
 
         # Here we must cast back to m and m/s^2
-
-        z_levels[i] = z_levels[i+1]u"m" + dz |> u"m" |> ustrip
-        g_levels[i] = JPL_gravity(location.latitude, z_levels[i]) |> u"m/s^2" |> ustrip
+        z[i-1] = z[i]u"m" + dz |> u"m" |> ustrip
+        g[i-1] = JPL_gravity(location.latitude, z[i-1]) |> u"m/s^2" |> ustrip
 
     end
 
@@ -640,15 +614,16 @@ function create_pressure_weights(
     # so we must grab the (potential) high-resolution MET profiles and
     # sample them at the retrieval pressure layer values.
 
-    q_int = linear_interpolation(
-        atm.met_pressure_levels,
-        atm.specific_humidity_levels,
+    # Interpolate ln(q) rather than q, to make sure it does not go negative..
+    ln_q_int = linear_interpolation(
+        atm.met_pressure,
+        log.(atm.specific_humidity),
         extrapolation_bc = Line()
         )
 
     g_int = linear_interpolation(
-        atm.met_pressure_levels,
-        atm.gravity_levels,
+        atm.met_pressure,
+        atm.gravity,
         extrapolation_bc = Line()
         )
 
@@ -671,8 +646,11 @@ function create_pressure_weights(
         # (gravity) profiles.
         for (j, this_p) in enumerate(p_vals)
 
-            c_sub += (1.0 - q_int(this_p)*atm.specific_humidity_unit) /
-            (g_int(this_p) * atm.gravity_unit * MM_DRY_AIR)
+            this_q = exp(ln_q_int(this_p))
+            this_g = g_int(this_p)
+
+            c_sub += (1.0 - this_q * atm.specific_humidity_unit) /
+                (this_g * atm.gravity_unit * MM_DRY_AIR)
 
         end
 
@@ -838,7 +816,7 @@ function atmosphere_statevector_update!(
 
     # If this is the first iteration, we simply add the current value (first guess)
     ΔT = ustrip(atm.temperature_unit, get_current_value_with_unit(sve))
-    @views atm.temperature_levels[:] .+= ΔT
+    @views atm.temperature[:] .+= ΔT
 
 end
 
@@ -874,7 +852,7 @@ function atmosphere_statevector_rollback!(
     =#
 
     ΔT = ustrip(atm.temperature_unit, get_current_value_with_unit(sve))
-    @views atm.temperature_levels[:] .-= ΔT
+    @views atm.temperature[:] .-= ΔT
 
 end
 
@@ -903,13 +881,11 @@ function update_specific_humidity_from_H2O!(atm::EarthAtmosphere)
                 sh_met_levels = atmospheric_profile_interpolator_linear(
                     atm.pressure_levels,
                     sh_from_h2o,
-                    atm.met_pressure_levels
+                    atm.met_pressure
                 )
 
                 # Copy values over to atmosphere object
-                @views atm.specific_humidity_levels[:] .= sh_met_levels
-                # Calculate the mid-layer values
-                @views atm.specific_humidity_layers[:] = levels_to_layers(sh_met_levels)
+                @views atm.specific_humidity[:] .= sh_met_levels
 
                 #= NOTE
                     This does NOT update gravity and altitude!
@@ -1063,13 +1039,13 @@ function create_example_atmosphere(
         gravity_unit=u"m/s^2" # Gravity unit
     )
 
-    ingest!(atm, :met_pressure_levels,
+    ingest!(atm, :met_pressure,
         csv.pressure * csv_units[:pressure])
-    ingest!(atm, :temperature_levels,
+    ingest!(atm, :temperature,
         csv.temperature * csv_units[:temperature])
-    ingest!(atm, :specific_humidity_levels,
+    ingest!(atm, :specific_humidity,
         csv.specific_humidity * csv_units[:specific_humidity])
-    ingest!(atm, :altitude_levels,
+    ingest!(atm, :altitude,
         csv.altitude * csv_units[:altitude])
 
     # For this example atmosphere, use a simple approach to calculate gravity based

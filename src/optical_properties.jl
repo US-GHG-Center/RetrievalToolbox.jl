@@ -414,7 +414,7 @@ function calculate_gas_optical_depth_profiles!(
 
 
     # Checking for zero-value gravity!
-    if any(atm.gravity_levels .≈ 0)
+    if any(atm.gravity .≈ 0)
         @warn "Found a zero-valued gravity level! RESULTS WILL BE `Inf`!"
         @warn "Make sure you called `calculate_altitude_and_gravity!` beforehand!"
     end
@@ -430,12 +430,12 @@ function calculate_gas_optical_depth_profiles!(
 
     # Tau gas is zero'd out always!
     for gas in keys(opt.gas_tau)
-        @views opt.gas_tau[gas] .= 0.0
+        opt.gas_tau[gas] .= 0.0
     end
 
     # Air columns zero'd out as well!
-    @views opt.nair_dry[:] .= 0.0
-    @views opt.nair_wet[:] .= 0.0
+    opt.nair_dry[:] .= 0.0
+    opt.nair_wet[:] .= 0.0
 
     # Manually set the temperature perturbation size
     T_perturb = 10.0 # in [K]
@@ -468,13 +468,13 @@ function calculate_gas_optical_depth_profiles!(
 
     if return_dVMR
         for gas in keys(opt.gas_derivatives)
-            @views opt.gas_derivatives[gas]["dTau_dVMR"][:,:,:] .= 0.0
+            opt.gas_derivatives[gas]["dTau_dVMR"][:,:,:] .= 0.0
         end
     end
 
     if return_dT
         for gas in keys(opt.gas_derivatives)
-            @views opt.gas_derivatives[gas]["dTau_dT"][:,:] .= 0.0
+            opt.gas_derivatives[gas]["dTau_dT"][:,:] .= 0.0
         end
     end
 
@@ -487,10 +487,10 @@ function calculate_gas_optical_depth_profiles!(
     # We must carry the conversion factor between MET p grid and retrieval p grid, so
     # we know we get the correct unit later on.
     p_met_ufac = 1.0 * atm.met_pressure_unit / atm.pressure_unit |> upreferred
-    p_met = atm.met_pressure_levels
-    T = atm.temperature_levels
-    sh = atm.specific_humidity_levels
-    grav = atm.gravity_levels
+    p_met = atm.met_pressure
+    T = atm.temperature
+    sh = atm.specific_humidity
+    grav = atm.gravity
     wl = swin.ww_grid
 
 
@@ -824,18 +824,18 @@ function calculate_rayleigh_optical_depth_profiles!(
     # Create unit-ful quantities here so that the lower-lying function
     # can assess units and conversions correctly.
 
-    T = atm.temperature_levels * atm.temperature_unit
-    grav = atm.gravity_levels * atm.gravity_unit
+    T = atm.temperature * atm.temperature_unit
+    grav = atm.gravity * atm.gravity_unit
     plev = atm.pressure_levels * atm.pressure_unit
     play = atm.pressure_layers * atm.pressure_unit
-    met_plev = atm.met_pressure_levels * atm.met_pressure_unit
+    met_p = atm.met_pressure * atm.met_pressure_unit
 
     # Dispatch to high-performance function
     _calculate_rayleigh_optical_depth_profiles!(
             opt.rayleigh_tau,
             plev,
             play,
-            met_plev,
+            met_p,
             T,
             grav,
             opt.spectral_window.ww_grid * opt.spectral_window.ww_unit
@@ -850,7 +850,8 @@ end
 function refractive_index_peck_reeder(λ::Unitful.Length)
 
     if λ < 0.185u"µm" | λ > 1.69u"µm"
-        @debug "[OPT] Warning: Peck-Reeder formula for refractive index not in valid range. "
+        @debug "[OPT] Warning: Peck-Reeder formula for refractive index \
+            not in valid range."
     end
 
     # Convert to microns, as required by the formula
@@ -876,8 +877,8 @@ function create_refracted_sza(
     sza_per_layer = zeros(atm.N_layer)
 
     T_int = linear_interpolation(
-        atm.met_pressure_levels,
-        atm.temperature_levels,
+        atm.met_pressure,
+        atm.temperature,
         extrapolation_bc = Line()
         )
 
@@ -948,8 +949,8 @@ function create_sphericity_factors!(
     # Create interpolation object for altitude
     # (we need altitudes for RT grid)
     altitude_int = linear_interpolation(
-        ustrip.(Ref(atm.pressure_unit), atm.met_pressure_levels * atm.met_pressure_unit),
-        atm.altitude_levels,
+        ustrip.(Ref(atm.pressure_unit), atm.met_pressure * atm.met_pressure_unit),
+        atm.altitude,
         extrapolation_bc = Line()
         )
 
