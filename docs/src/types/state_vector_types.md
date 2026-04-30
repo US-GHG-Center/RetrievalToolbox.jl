@@ -128,3 +128,9 @@ RE.ZeroLevelOffsetPolynomialSVE
 ```@docs
 RE.TemperatureOffsetSVE
 ```
+
+## Surface temperature
+
+```@docs
+RE.SurfaceTemperatureSVE
+```

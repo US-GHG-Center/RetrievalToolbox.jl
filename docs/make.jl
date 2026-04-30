@@ -11,7 +11,7 @@ else
 end
 
 
-using Documenter, RetrievalToolbox
+using Documenter, Unitful, RetrievalToolbox
 const RE = RetrievalToolbox
 
 ENV["GKSwstype"] = "100" # Inform Plots.jl about headless mode.
@@ -20,6 +20,13 @@ DocMeta.setdocmeta!(
     RetrievalToolbox,
     :DocTestSetup,
     :(using RetrievalToolbox);
+    recursive=true
+)
+
+DocMeta.setdocmeta!(
+    RetrievalToolbox,
+    :DocTestSetup,
+    :(using Unitful);
     recursive=true
 )
 
@@ -38,13 +45,6 @@ makedocs(
                 "Scattering Phasefunction" => joinpath("concepts" , "phasefunction.md"),
             ],
         "Design" => joinpath("design", "design.md"),
-        "Functions" =>
-            [
-                "State Vector Functions" => joinpath("functions", "state_vector_functions.md"),
-                "Atmosphere Functions" => joinpath("functions", "atmosphere_functions.md"),
-                "Instrument Functions" => joinpath("functions", "instrument_functions.md"),
-                "Inversion Functions" => joinpath("functions", "inversion_functions.md"),
-            ],
         "Types" =>
             [
                 "Atmosphere Types" => joinpath("types", "atmosphere_types.md"),
@@ -53,6 +53,14 @@ makedocs(
                 "Radiative Transfer Method Types" => joinpath("types", "RT_types.md"),
                 "State Vector Types" => joinpath("types", "state_vector_types.md"),
                 "Surface Types" => joinpath("types", "surface_types.md"),
+                "Thermal Types" => joinpath("types", "thermal_types.md"),
+            ],
+        "Functions" =>
+            [
+                "State Vector Functions" => joinpath("functions", "state_vector_functions.md"),
+                "Atmosphere Functions" => joinpath("functions", "atmosphere_functions.md"),
+                "Instrument Functions" => joinpath("functions", "instrument_functions.md"),
+                "Inversion Functions" => joinpath("functions", "inversion_functions.md"),
             ],
         "Working with Julia" =>
             [
