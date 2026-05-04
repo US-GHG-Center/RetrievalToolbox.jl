@@ -322,11 +322,17 @@ function calculate_altitude_and_gravity_levels!(
 
     for i in N_levels:-1:2
 
+        logratio = log(p[i] / p[i-1])
+
         # Add some allocation free warnings?
-        (T[i] ≈ 0) && @warn "Temperature at MET level $(i) is roughly zero! Check if you \
+        (T[i] ≈ 0) && @warn "[ATM] Temperature at MET level $(i) is roughly zero! Check if you \
             have inserted a reasonable temperature profile!"
 
-        logratio = log(p[i] / p[i-1])
+        !isfinite(logratio) && @warn "[ATM] Non-finite in calculating pressure ratio for \
+            levels $(i) and $(i-1)! Check your MET pressures!"
+
+        (g[i] ≈ 0) && @warn "[ATM] Gravity for MET level $(i) is roughly zero! Something \
+            went wrong here..?"
 
         # This one has a unit (hopefully 'K')
         Tv = T[i] * T_unit * (1.0 + q[i] * q_unit * ε)
