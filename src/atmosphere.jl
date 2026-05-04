@@ -213,32 +213,46 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculates altitude and gravity for an `EarthScene`, assuming that all other
-needed quantities have been inserted accordingly, namely: pressure levels,
-temperatures layers, specific humidity layers and location. Note! Layer-based values are
-calculated in this function call and overwrite existing values!
+Calculates altitude and gravity for an `EarthScene`, assuming that all other needed
+quantities have been inserted accordingly, namely: pressure levels, temperatures layers,
+specific humidity layers and location. Most importantly, the retrieval grid must have
+at least the lowest level defined, since that is used as the surface pressure for which
+the location altitude is valid.
 """
 function calculate_altitude_and_gravity!(scene::EarthScene)
 
     # Rebind for convenience
     atm = scene.atmosphere
-    loc = scene.location
 
-    # Calculate z and g levels
+    if atm.pressure_levels[end] ≈ 0
+        @warn "[ATM] Surface pressure in retrieval grid is roughly zero! \
+            This function does not work without a properly set-up retrieval \
+            pressure grid!"
+    end
+
+    # surface pressure with units
+    p_surf = atm.pressure_levels[end] * atm.pressure_unit
+
+    # Dispatch to explicit function to reduce allocations. This is needed since
+    # EarthScene has a lot of `Abstract..` types in its definition, so if we use the
+    # scene.atmosphere object directly here, we get a lot of type instability.
+    # This reduces overall computation time from e.g. ~50µm down to ~6µs, with minimal
+    # allocations ~250 bytes.
+
     calculate_altitude_and_gravity_levels!(
         atm.altitude,
+        atm.altitude_unit,
         atm.gravity,
+        atm.gravity_unit,
         atm.met_pressure,
+        atm.met_pressure_unit,
         atm.temperature,
+        atm.temperature_unit,
         atm.specific_humidity,
-        atm.met_pressure[end],
-        loc
+        atm.specific_humidity_unit,
+        p_surf,
+        scene.location
     )
-
-    # At this point, atm.altitude is in `m`, and atm.gravity_levels in `m/s^2`, so
-    # must potentially convert back to whatever units the `atm` object demands.
-    atm.altitude[:] .*= (1.0u"m" / atm.altitude_unit)
-    atm.gravity[:] .*= (1.0u"m/s^2" / atm.gravity_unit)
 
 end
 
@@ -246,56 +260,82 @@ end
 """
 $(TYPEDSIGNATURES)
 
-Calculates altitude and gravity levels for Earth-type atmospheres, in-place. For now, this
-function over-writes `z` (altitude) and `g` (gravity) in units of `m` and `m/s^2`
-respectively!
+Calculates altitude and gravity levels, in-place. Must have valid temperature, pressure
+and specific humidity profiles as well as matching units for each.
 
 # Details
 
-Given some atmospheric inputs (p, T, q) and the scene latitude and altitude, this function
-calculates the altitude and gravity profiles (on levels) corresponding to the pressure
-levels. These outputs should then be used to construct atmosphere objects
-(EarthAtmosphere).
+Given some atmospheric inputs (p, T, q) and the scene latitude and altitude inside some
+`EarthLocation`, this function first computes the gravity at the `EarthLocation`, and then
+calculates altitude and gravity at the bottom-most meteorological pressure (`p`). Note
+that this altitude `z[end]` **can become negative**. For now, this is accepted to be OK,
+since the altitude values are only used for geometry calculations for radiative transfer,
+so as long as the negative altitude does not exceed the Earth radius, those calculations
+should work out.
 
-At this point, `p` must be in [Pa], `T` in [K], `q` in [1], and the
-`location.altitude` in [m]. Alternatively, Unitful arrays with units can be used.
+Moving on, the function simply climbs up the atmosphere from the lowest MET pressure, up
+to the highest one, calculating the altitude increments and then the gravity at those new
+altitude values.
 """
 function calculate_altitude_and_gravity_levels!(
     z::AbstractVector,
+    z_unit::Unitful.LengthUnits,
     g::AbstractVector,
+    g_unit::Unitful.AccelerationUnits,
     p::AbstractVector,
+    p_unit::Unitful.PressureUnits,
     T::AbstractVector,
+    T_unit::Unitful.TemperatureUnits,
     q::AbstractVector,
-    p_surf::Number,
+    q_unit::Unitful.DimensionlessUnits,
+    p_surf::Unitful.Pressure,
     location::EarthLocation
     )
 
+    if p_surf[end] ≈ 0u"Pa"
+        @warn "[ATM] Surface pressure is roughly zero! This function does not work \
+            without a properly set-up retrieval pressure grid!"
+    end
+
     Rd = GAS_CONSTANT / MM_DRY_AIR
+    ε = (1.0 - MM_H2O_TO_AIR) / MM_H2O_TO_AIR
 
     N_levels = length(T)
 
-    z[end] = location.altitude * location.altitude_unit |> u"m" |> ustrip
-    g[end] = JPL_gravity(location.latitude, location.altitude) |> u"m/s^2" |> ustrip
+    #=
+        First, establish the lowest MET altitude and gravity
+
+        We assume that the supplied location altitude is the surface elevation, so
+        there should not exist some altitude LOWER than that. Hence, if the supplied
+        surface pressure `p_surf` is LOWER than the lowest met pressure level, that
+        met pressure level thus is BELOW the surface. This happens to be OK.
+    =#
+
+    g_surface = JPL_gravity(location.latitude, location.elevation * location.elevation_unit)
+    logratio = log(p_surf / (p[end] * p_unit))
+    Tv = T[end] * T_unit * (1.0 + q[end] * q_unit * ε)
+    dz = logratio * Tv * Rd / g_surface |> z_unit
+
+    z[end] = ((location.elevation * location.elevation_unit |> z_unit) + dz) |> ustrip
+    g[end] = JPL_gravity(location.latitude, z[end] * z_unit) |> g_unit |> ustrip
+
 
     for i in N_levels:-1:2
 
-        if i == N_levels
-            dP = p_surf - p[i]
-            logratio = log(p_surf / p[i])
-        else
-            dP = p[i+1] - p[i]
-            logratio = log(p[i+1] / p[i])
-        end
+        # Add some allocation free warnings?
+        (T[i] ≈ 0) && @warn "Temperature at MET level $(i) is roughly zero! Check if you \
+            have inserted a reasonable temperature profile!"
 
-        # Apply temperature unit here
-        Tv = T[i]u"K" * (1.0 + q[i] * (1.0 - MM_H2O_TO_AIR) / MM_H2O_TO_AIR)
+        logratio = log(p[i] / p[i-1])
 
-        # This value also has a unit
-        dz = logratio * Tv * Rd / (g[i]u"m/s^2")
+        # This one has a unit (hopefully 'K')
+        Tv = T[i] * T_unit * (1.0 + q[i] * q_unit * ε)
+        # Tv has a unit, and we use the supplied gravity unit to then cast to
+        # the supplied altitude unit and strip them before storing as `dz`
+        dz = logratio * Tv * Rd / (g[i] * g_unit) |> z_unit |> ustrip
 
-        # Here we must cast back to m and m/s^2
-        z[i-1] = z[i]u"m" + dz |> u"m" |> ustrip
-        g[i-1] = JPL_gravity(location.latitude, z[i-1]) |> u"m/s^2" |> ustrip
+        z[i-1] = z[i] + dz # Add to the last altitude (now has same units)
+        g[i-1] = JPL_gravity(location.latitude, z[i-1]) |> g_unit |> ustrip
 
     end
 

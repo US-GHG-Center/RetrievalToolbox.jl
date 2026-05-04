@@ -961,7 +961,7 @@ function create_sphericity_factors!(
     # r_e: Earth radius in units of atmosphere altitude
     r_e = ustrip(atm.altitude_unit, EARTH_RADIUS)
     # P: altitude (from Earth radius) of scene location in units of atm. altitude
-    P = ustrip(atm.altitude_unit, scene.location.altitude_unit * scene.location.altitude)
+    P = ustrip(atm.altitude_unit, scene.location.elevation_unit * scene.location.elevation)
     # r_p: distance between observation and Earth center, now in units of atm. altitude.
     r_p = r_e + P
 
