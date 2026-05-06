@@ -99,6 +99,10 @@ We can now attach the spectroscopy object to something that represents a gaseous
         Unitful.percent # Unit of VMR profile
     )
 
+.. and add the gas to the atmosphere object.
+
+    push!(my_source_atmosphere.atm_elements, my_gas)
+
 A spectral window is needed to determine the underlying spectral grid on which the monochromatic radiative transfer calculations will be performed. Below function helps with creating that object.
 
     my_spectral_window = RE.spectralwindow_from_ABSCO(
@@ -146,7 +150,7 @@ The following lines set up so-called buffer objects. They are placeholders that 
         my_state_vector,
         my_spectral_window, # The spectral window (or a list of multiple)
         [(:Lambert, 1)], # Surface types, and degree of polynomial
-        [my_gas], # List of elements that are part of the atmosphere
+        my_source_atmosphere, # Our pre-built atmosphere object (from above)
         Dict(my_spectral_window => RE.UnitSolarModel()), # Create solar models, map to spectral windows
         [:BeerLambert], # Which RT model to use for each spectral window?
         RE.ScalarRadiance, # Use ScalarRadiance for high-res radiance calculations
@@ -162,17 +166,6 @@ The following steps are usually part of a separate, user-defined and therefore c
 First, we compute the so-called *incides*, which is the term used for arrays of integers that map the results from the radiative transfer calculations to the corresponding positions in the buffer arrays. While this assignment might be trivial for an application with only one spectral window, it is a vital bookkeeping mechanism to keep track of the results for multiple spectral windows.
 
     RE.calculate_indices!(my_buffer)
-
-Copy over the meteorological data we have stored in the source atmosphere:
-
-    my_buffer.scene.atmosphere.met_pressure[:] =
-        my_source_atmosphere.met_pressure[:]
-
-    my_buffer.scene.atmosphere.specific_humidity[:] =
-        my_source_atmosphere.specific_humidity[:]
-
-    my_buffer.scene.atmosphere.temperature[:] =
-        my_source_atmosphere.temperature[:]
 
 Set our custom pressure grid at which the gas VMRs are defined (all in Pa):
 

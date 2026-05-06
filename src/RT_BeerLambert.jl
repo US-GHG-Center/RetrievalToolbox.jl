@@ -219,9 +219,7 @@ function calculate_radiances_and_jacobians!(
 
     # Total column optical depth
     total_column_od = rt.optical_properties.tmp_Nhi2
-    @views total_column_od[:] .= 0.0
-
-    @views rt.hires_radiance.I[:] .= 0.0
+    total_column_od[:] .= 0.0
 
     @turbo for l in 1:rt.scene.atmosphere.N_layer
         for i in eachindex(rt.hires_radiance.I)

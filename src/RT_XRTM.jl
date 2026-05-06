@@ -37,6 +37,13 @@ function _check_XRTM_configuration(
         end
     end
 
+    # XRTM does not support solar zenith angles outside of (0, 90]
+    if (rt.scene.solar_zenith_angle < 0) | (rt.scene.solar_zenith_angle >= 90)
+
+        error("[XRTM] XRTM does not support solar zenith angles >= 90 or < 0!")
+
+    end
+
 
 
 
@@ -477,7 +484,13 @@ function _calculate_radiances_and_wfs_XRTM!(
 
     # Set the output zenith angles
     out_thetas = Float64[]
-    push!(out_thetas, rt.scene.observer.viewing_zenith)
+    if rt.scene.observer isa UplookingGroundObserver
+        # For uplooking observers we stare straight into the sun
+        push!(out_thetas, rt.scene.solar_zenith)
+    else
+        # For downlooking observers we choose the observer viewing zenith
+        push!(out_thetas, rt.scene.observer.viewing_zenith)
+    end
     for xrtm in xrtm_l
 
         XRTM.set_fourier_tol(xrtm, 1e-4)
@@ -832,7 +845,9 @@ function _run_XRTM!(
         end
 
     elseif rt.scene.observer isa UplookingGroundObserver
-        out_phis[1,1] = 0.0
+        # We stare right into the sun
+        out_phis[1,1] = 0.0 # ???
+
     end
 
     # Zero out all radiance containers, unless user declares otherwise

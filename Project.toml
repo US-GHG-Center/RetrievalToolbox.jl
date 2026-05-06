@@ -1,6 +1,6 @@
 name = "RetrievalToolbox"
 uuid = "46b81e12-0ded-426f-b207-2eae42eca022"
-version = "0.4.0"
+version = "0.5.0-DEV"
 authors = ["Peter Somkuti"]
 
 [deps]

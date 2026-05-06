@@ -16,25 +16,25 @@ struct EarthAtmosphere{T<:AbstractFloat} <: AbstractAtmosphere
     "Pressure unit"
     pressure_unit::Unitful.PressureUnits
 
-    "Number of meteorological levels in this atmosphere"
+    "Number of meteorological model levels in this atmosphere"
     N_met_level::Int
-    "Meteorological pressure level locations"
+    "Meteorological vertical pressure model coordinate"
     met_pressure::Vector{T}
     "Pressure units for meteorology"
     met_pressure_unit::Unitful.PressureUnits
-    "Temperatures at meteorology pressure levels"
+    "Temperatures at meteorology model pressure levels"
     temperature::Vector{T}
     "Temperature unit"
     temperature_unit::Unitful.Units{U, Unitful.𝚯, nothing} where U
-    "Specific humidity at meteorology pressure levels"
+    "Specific humidity at meteorology model pressure levels"
     specific_humidity::Vector{T}
     "Specific humidity unit"
     specific_humidity_unit::Unitful.DimensionlessUnits
-    "Altitude at meteorology pressure levels"
+    "Altitude at meteorology model pressure levels"
     altitude::Vector{T}
     "Altitude units"
     altitude_unit::Unitful.LengthUnits
-    "Gravity at meteorology pressure levels"
+    "Gravity at meteorology model pressure levels"
     gravity::Vector{T}
     "Gravity unit"
     gravity_unit::Unitful.AccelerationUnits
@@ -48,7 +48,7 @@ $(SIGNATURES)
 """
 function show(io::IO, ::MIME"text/plain", atm::EarthAtmosphere)
 
-    println(io, "EarthAtmosphere (Nlay=$(atm.N_layer))")
+    println(io, "EarthAtmosphere (Nlev=$(atm.N_level))")
 
 end
 
@@ -59,7 +59,7 @@ $(SIGNATURES)
 """
 function show(io::IO, atm::EarthAtmosphere)
 
-    println(io, "EarthAtmosphere (Nlay=$(atm.N_layer))")
+    println(io, "EarthAtmosphere (Nlev=$(atm.N_level))")
 
 end
 

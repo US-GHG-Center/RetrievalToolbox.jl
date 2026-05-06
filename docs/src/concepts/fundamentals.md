@@ -12,7 +12,7 @@ Users are required to write their own applications (forward models) to make use 
 
 ### How to Build a Retrieval Algorithm
 
-This section here will **illustrate** how the software library is designed to be used in order to build a retrieval algorithm. Note that the emphasis is on "illustrate" (the code below does will not run), since even the most basic retrieval algorithm requires a moderate amount of set-up and arranging of the appropriate inputs.
+This section here will **illustrate** how the software library is designed to be used in order to build a retrieval algorithm. Note that the emphasis is on "illustrate" (the code below will not run), since even the most basic retrieval algorithm requires a moderate amount of set-up and arranging of the appropriate inputs.
 
 At the most basic level, users must provide the following components to build a simple retrieval algorithm: a *solver* object, a *state vector*, and a *forward model*. The forward model may be any user-defined function that takes only the state vector object (see [State Vector Types](@ref sv_types)) as its mandatory argument, along with any optional keyword arguments. It also must return a `Bool` (`true` or `false`), since the solver
 routines check whether the forward model was executed successfully or not.
@@ -27,7 +27,7 @@ function forward_model!(
     sv::RE.AbstractStateVector;
     rad::RE.Radiance, jac::RE.Radiance)::Bool
     # .. calculate instrument-level observation based on `sv`
-    #    and store the result in `rad`, Jacobians in `jac`
+    #    and store the radiance result in `rad`, Jacobians in `jac`
     return true
 end
 ```

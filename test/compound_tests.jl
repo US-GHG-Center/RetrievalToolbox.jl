@@ -32,6 +32,8 @@
         Unitful.percent # Unit of VMR profile
     )
 
+    push!(my_source_atmosphere.atm_elements, my_gas)
+
     my_spectral_window = spectralwindow_from_ABSCO(
         "$(gas_name)_window",
         wavelength_start |> ustrip,
@@ -71,7 +73,7 @@
         my_state_vector,
         my_spectral_window,
         [(:Lambert, 1)],
-        [my_gas],
+        my_source_atmosphere,
         Dict(my_spectral_window => UnitSolarModel()),
         [:BeerLambert],
         ScalarRadiance, # Use ScalarRadiance for high-res radiance calculations
@@ -83,13 +85,6 @@
     )
 
     calculate_indices!(my_buffer)
-
-    my_buffer.scene.atmosphere.met_pressure[:] =
-        my_source_atmosphere.met_pressure[:]
-    my_buffer.scene.atmosphere.specific_humidity[:] =
-        my_source_atmosphere.specific_humidity[:]
-    my_buffer.scene.atmosphere.temperature[:] =
-        my_source_atmosphere.temperature[:]
 
     my_buffer.scene.atmosphere.pressure_levels[:] = logrange(10, 1000_00, N_level) |> collect
 
