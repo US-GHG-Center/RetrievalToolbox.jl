@@ -37,6 +37,13 @@ function _check_XRTM_configuration(
         end
     end
 
+    # XRTM does not support solar zenith angles outside of (0, 90]
+    if (rt.scene.solar_zenith_angle < 0) | (rt.scene.solar_zenith_angle >= 90)
+
+        error("[XRTM] XRTM does not support solar zenith angles >= 90 or < 0!")
+
+    end
+
 
 
 
