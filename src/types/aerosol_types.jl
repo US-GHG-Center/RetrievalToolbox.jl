@@ -1,5 +1,5 @@
 """
-    MieMomAerosolProperty{T<:Real} <: AbstractAerosolProperty
+    MieMomAerosolProperty{T <: Real} <: AbstractAerosolProperty
 
 # Fields
 
