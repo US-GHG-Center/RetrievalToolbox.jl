@@ -268,6 +268,6 @@ end
 
 
 
-@info "Loaded RetrievalToolbox.jl, $(Dates.now())"
+@debug "Loaded RetrievalToolbox.jl, $(Dates.now())"
 
 end # module
