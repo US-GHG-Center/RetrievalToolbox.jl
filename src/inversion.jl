@@ -769,3 +769,45 @@ function compute_finite_difference_jacobian(
     return result_1, result_2, result_FD
 
 end
+
+"""
+    insert_gas_covariance_matrix!(
+        Sa::AbstractMatrix,
+        gas::GasAbsorber,
+        sv::AbstractStateVector
+        ) -> nothing
+
+Inserts a prior covariance matrix for a retrieved gas VMR profile into a full covariance
+matrix, as used e.g. by a solver. If `gas` is controlled by a set of `GasVMRProfileSVE`
+inside of `sv`, and has ``N`` volume mixing ratio levels, then `cov` must be a
+``N \times N`` matrix.
+"""
+function insert_gas_prior_covariance_matrix!(
+    Sa::AbstractMatrix,
+    gas::GasAbsorber,
+    sv::AbstractStateVector,
+    cov::AbstractMatrix
+    )
+
+    # Grab the indices for the profile SVEs fo this gas
+    idx_list = idx_for_profile_sve(gas, sv)
+
+    # Check the shape/size, can't have an `Sa` that's smaller than the number of indices
+    # returned from above..
+    if !(length(idx_list) <= size(Sa, 1) == size(Sa, 2))
+        error("""
+            [SV] Issue with inserting prior covariance matrix! Size of `Sa` is:
+            [$(size(Sa, 1)), $(size(Sa, 2))], but we have N=$(length(idx_list)) indices
+            belonging to gas $(gas)!
+            """)
+    end
+
+    # Copy over all elements from the requested covariance matrix `cov` into `Sa`, which
+    # usually will be `solver.prior_covariance`.
+    for (i1, sv_idx1) in enumerate(idx_list)
+        for (i2, sv_idx2) in enumerate(idx_list)
+            Sa[sv_idx1, sv_idx2] = cov[i1, i2]
+        end
+    end
+
+end
