@@ -88,7 +88,9 @@ RE.SurfacePressureSVE
 ## Surface albedo polynomial
 
 For a Lambertian surface model, in particular a `LambertianPolynomialSurface`, users can
-retrieve the polynomial coefficients. This state vector element has to be attached to a spectral window, since surfaces themselves are attached to a spectral window. Like all polynomial-related
+retrieve the polynomial coefficients. `LambertianPolynomialSurface` is used together with a `BeerLambertRTMethod`, and thus only meaningful for a Beer-Lambert type radiative transfer scheme.
+
+This state vector element has to be attached to a spectral window, since surfaces themselves are attached to a spectral window. Like all polynomial-related
 quantities, any state vector element must relate to a particular coefficient order. A convenience constructor exists which populates the `unit` field appropriately, given the coefficient order. One might call, for example
 
 ```julia
@@ -110,6 +112,15 @@ RE.SurfaceAlbedoPolynomialSVE
 ```
 
 In order to update the surface(s) given some state vector, a helper function exists which performs the in-place update within a `RE.EarthScene` object: `RE.surfaces_statevector_update!`.
+
+## Surface BRDF polynomial
+
+For a [`MonochromaticRTMethod`](@ref), in particular when using the XRTM radiative transfer library, users must specify [`BRDFSurface`](@ref) surface types. The following state vector element allows to retrieve the polynomial coefficients of a BRDF kernel (supported kernels are listed in [Surface types](@ref surface_types)).
+
+```@docs
+RE.BRDFPolynomialSVE
+```
+
 
 ## Dispersion polynomial
 
