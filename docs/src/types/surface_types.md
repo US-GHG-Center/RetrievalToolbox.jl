@@ -8,7 +8,7 @@ The [`BeerLambertRTMethod`](@ref) currently supports only the [`NoSurface`](@ref
 
 The [`MonochromaticRTMethod`](@ref) using the XRTM solver requires a different set of surface properties as they are set-up to be potentially polarized BRDFs with strong angular dependence, and they can be recognized by the "Kernel" suffix in the surface type name.
 
-Currently supported BRDF kernels for [`BRDFSurface'](@ref) are:
+Currently supported BRDF kernels for `BRDFSurface' are:
 
 * [`LambertianPolynomialKernel`](@ref), a (spectrally varying) Lambertian surface
 * [`RPVPolynomialKernel`](@ref), a (spectrally varying) surface characterized by the Rahman-Pinty-Verstraete[^RPV1993] kernel
