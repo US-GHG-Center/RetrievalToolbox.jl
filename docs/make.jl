@@ -47,6 +47,7 @@ makedocs(
         "Design" => joinpath("design", "design.md"),
         "Types" =>
             [
+                "Aerosol Types" => joinpath("types", "aerosol_types.md"),
                 "Atmosphere Types" => joinpath("types", "atmosphere_types.md"),
                 "Buffer Types" => joinpath("types", "buffer_types.md"),
                 "Dispersion Types" => joinpath("types", "dispersion_types.md"),

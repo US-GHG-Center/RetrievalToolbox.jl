@@ -13,6 +13,9 @@ Currently supported BRDF kernels for `BRDFSurface' are:
 * [`LambertianPolynomialKernel`](@ref), a (spectrally varying) Lambertian surface
 * [`RPVPolynomialKernel`](@ref), a (spectrally varying) surface characterized by the Rahman-Pinty-Verstraete[^RPV1993] kernel
 
+!!! warning
+    Currently, there are no checks on duplicate kernels in a `BRDFSurface` object. Users who insert multiple BRDF kernels of the same type in a `BRDFSurface` will likely see undefined behavior later on. **We strongly recommend not to use duplicate BRDF kernel types!**
+
 
 ```@autodocs
 Modules = [RetrievalToolbox]

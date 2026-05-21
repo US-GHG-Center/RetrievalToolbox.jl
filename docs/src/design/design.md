@@ -126,7 +126,7 @@ Once these are created, users must then fill in the various objects who may have
 
 ## Executing the forward model will mutate some objects
 
-!!! warn
+!!! warning
     For the sake of performance and thus the necessity of buffers, many objects will inevitably be mutated!
 
 Most forward model implementations will over-write the vectors that carry the radiative transfer results, the optical depth profiles, the mappings between spectral sample and positions in the result buffers, and so forth. Hence calling `solver.forward_model(solver.state_vector; fm_kwargs...)` will mutate various parts of the buffer! As such, users should be always aware of order of operations within their forward model as well as their entire algorithm.
