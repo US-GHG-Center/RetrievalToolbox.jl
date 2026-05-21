@@ -1,8 +1,13 @@
 """
-$(TYPEDFIELDS)
+    RetrievalStateVector <: AbstractStateVector
 
-A type to hold a collection of state vector elements
-for use in a retrieval.
+A type to hold a collection of state vector elements for use in a retrieval.
+
+# Fields
+
+- `state_vector_elements::Vector{AbstractStateVectorElement}`: list of state vector
+elements
+
 """
 struct RetrievalStateVector <: AbstractStateVector
 
@@ -11,24 +16,37 @@ struct RetrievalStateVector <: AbstractStateVector
 end
 
 """
-$(TYPEDFIELDS)
+    ForwardModelStateVector <: AbstractStateVector
 
-A type to hold a collection of state vector elements
-for use in forward model runs (TOA spectrum simulations).
+A type to hold a collection of state vector elements for use in forward model runs (TOA
+spectrum simulations). This is usually empty and can be used to pass into functions that
+require some `AbstractStateVector`.
 """
 struct ForwardModelStateVector <: AbstractStateVector end
 
 
 """
+    GasVMRProfileSVE{T <: Real} <: AbstractStateVectorElement
+
 A type to represent a gas profile to be retrieved
+
+# Fields
+
+- `level::Integer`: Atmospheric level affected by this SVE
+- `gas::GasAbsorber`: Gas object whose VMR profile to be retrieved
+- `unit::Unitful.DimensionlessUnits`: Require dimensionless unit (e.g. `Unitful.percent`, or
+  u\"1\")
+- `first_guess::T`: First guess VMR
+- `prior_value::T`: Prior VMR
+- `prior_covariance::T`: Prior VMR covariance
+- `iterations::Vector{T}`: Per-iteration VMR values
 """
-mutable struct GasVMRProfileSVE{T} <: AbstractStateVectorElement
-    "The atmospheric level affected by this SVE"
+mutable struct GasVMRProfileSVE{T <: Real} <: AbstractStateVectorElement
+
     level::Integer
-    "The gas object whose VMR profile to be retrieved"
     gas::GasAbsorber
-    "Require dimensionless unit (e.g. Unitful.percent, or u\"1\")"
     unit::Unitful.DimensionlessUnits
+
     "First guess VMR"
     first_guess::T
     "Prior VMR"
@@ -40,31 +58,34 @@ mutable struct GasVMRProfileSVE{T} <: AbstractStateVectorElement
 end
 
 """
-$(TYPEDFIELDS)
+    GasLevelScalingFactorSVE{T <: Real} <: AbstractStateVectorElement
 
 A type to represent a state vector element which scales a gas profile sub-column at the
 retrieval grid by its current value. `start_level` must be lower value (higher up in the
 atmosphere) than the `end_level`.
+
+# Fields
+
+- `start_level::Int`: Start index of the sub-column (inclusive)
+- `end_level::Int`: Stop index of the sub-column (inclusive)
+- `gas::GasAbsorber`: The gas object whose volume mixing ratio profile is scaled
+- `unit::Unitful.DimensionlessUnits`: Require dimensionless unit (e.g. `Unitful.percent`, or u\"1\")
+- `first_guess::T`: First guess value
+- `prior_value::T`: Prior value
+- `prior_covariance::T`: Prior covariance
+- `iterations::Vector{T}`: Per-iteration values
+
 """
-mutable struct GasLevelScalingFactorSVE{T} <: AbstractStateVectorElement
+mutable struct GasLevelScalingFactorSVE{T <: Real} <: AbstractStateVectorElement
 
-    "Start index of the sub-column (inclusive)"
     start_level::Int
-    "Stop index of the sub-column (inclusive)"
     end_level::Int
-    "The gas object whose volume mixing ratio is scaled"
     gas::GasAbsorber
-
-    "Require dimensionless unit (e.g. Unitful.percent, or u\"1\")"
     unit::Unitful.DimensionlessUnits
 
-    "First guess value"
     first_guess::T
-    "Prior value"
     prior_value::T
-    "Prior covariance value"
     prior_covariance::T
-    "Vector to hold per-iteration values"
     iterations::Vector{T}
 
     function GasLevelScalingFactorSVE(
@@ -96,30 +117,34 @@ end
 
 
 """
-$(TYPEDFIELDS)
+    SurfaceAlbedoPolynomialSVE{
+        T1<:Real,
+        T2<:AbstractSpectralWindow
+        } <: AbstractStateVectorElement
 
 State vector type for Lambertian surface albedo polynomials
+
+# Fields
+
+- `swin::T2`: Spectral window to which this SVE is attached to
+- `coefficient_order::Int`: Polynomial coefficient order (0-indexed, order 0 means constant)
+- `unit::Unitful.Units`: Depending on the coefficient order \"o\", this unit should be L^{-o}
+- `first_guess::T1`: First guess value
+- `prior_value::T1`: Prior value
+- `prior_covariance::T1`: Prior covariance value
+- `iterations::Vector{T1}`: Vector to hold per-iteration values
 """
 mutable struct SurfaceAlbedoPolynomialSVE{
-    T1<:AbstractFloat,
+    T1<:Real,
     T2<:AbstractSpectralWindow
     } <: AbstractStateVectorElement
 
-    "Spectral window to which this SVE is attached to"
     swin::T2
-    "Polynomial coefficient order (0-indexed, order 0 means constant)"
     coefficient_order::Int
-
-    "Depending on the coefficient order \"o\", this unit should be L^{-o}"
     unit::Unitful.Units
-
-    "First guess value"
     first_guess::T1
-    "Prior value"
     prior_value::T1
-    "Prior covariance value"
     prior_covariance::T1
-    "Vector to hold per-iteration values"
     iterations::Vector{T1}
 
     function SurfaceAlbedoPolynomialSVE(
@@ -542,6 +567,9 @@ mutable struct SolarSpectralShiftSVE{T} <: AbstractStateVectorElement
 
 end
 
+"""
+$(TYPEDFIELDS)
+"""
 mutable struct AerosolOpticalDepthSVE{T} <: AbstractStateVectorElement
 
     aerosol::AbstractAerosolType
@@ -567,6 +595,9 @@ mutable struct AerosolOpticalDepthSVE{T} <: AbstractStateVectorElement
 
 end
 
+"""
+$(TYPEDFIELDS)
+"""
 mutable struct AerosolHeightSVE{T} <: AbstractStateVectorElement
 
     aerosol::AbstractAerosolType
@@ -592,6 +623,9 @@ mutable struct AerosolHeightSVE{T} <: AbstractStateVectorElement
 
 end
 
+"""
+$(TYPEDFIELDS)
+"""
 mutable struct AerosolWidthSVE{T} <: AbstractStateVectorElement
 
     aerosol::AbstractAerosolType
