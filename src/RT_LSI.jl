@@ -1137,8 +1137,6 @@ function _lsi_correct_stokes!(
         end
     end
 
-    return
-
     for idx_spec in 1:N_hires
 
         ww = ww_array[idx_spec]
