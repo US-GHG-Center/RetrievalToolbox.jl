@@ -42,7 +42,7 @@ an error!
 For now, this surface temperature is applied scene-wide, so each surface that is coupled
 to spectral windows, will be considered to have this surface temperature.
 """
-struct ThermalSurfaceIsotropic{T} <: AbstractThermalSurface
+mutable struct ThermalSurfaceIsotropic{T} <: AbstractThermalSurface
 
     temperature :: T
     temperature_unit :: Unitful.TemperatureUnits
