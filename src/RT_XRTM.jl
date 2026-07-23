@@ -289,6 +289,8 @@ function create_XRTM(
         which we derive here from the RT object
     =#
 
+    @debug "[XRTM] Creating XRTM object .."
+
 
     options = options_dict["options"]
     solvers = options_dict["solvers"]
@@ -315,13 +317,15 @@ function create_XRTM(
         max_coef = size(rt.optical_properties.total_coef, 1)
     end
 
+    @debug "[XRTM] Maximum number of coefs: $(max_coef)"
+
     # XRTM wants half-space streams, but we are more used to
     # full-space notation..
     if !(options_dict["streams"] isa Integer)
-        @error "XRTM streams needs to be an integer!"
+        @error "[XRTM] XRTM streams needs to be an integer!"
     end
     if (options_dict["streams"] < 2)
-        @error "XRTM streams must be > 1!"
+        @error "[XRTM] XRTM streams must be > 1!"
     end
 
     n_quad = options_dict["streams"] // 2
@@ -339,7 +343,7 @@ function create_XRTM(
     elseif ("vector" in options) & (rt.hires_radiance isa VectorRadiance)
         n_stokes = 3
     else
-        @error "Incompatible XRTM option: if `vector` is set, you must also supply a
+        @error "[XRTM] Incompatible XRTM option: if `vector` is set, you must also supply a
                 VectorRadiance type."
         return false
     end
@@ -370,7 +374,7 @@ function create_XRTM(
             push!(kernels, get_XRTM_name(kernel))
         end
     else
-        @error "XRTM is currently only set up to use `BRDFSurface`-type surfaces!"
+        @error "[XRTM] XRTM is currently only set up to use `BRDFSurface`-type surfaces!"
         return false
     end
 
@@ -381,6 +385,8 @@ function create_XRTM(
     #=
         Create the XRTM handler object with options and parameters as decided above.
     =#
+
+    @debug "[XRTM] Calling XRTM.create .."
 
     xrtm = XRTM.create(
         options,
@@ -396,6 +402,8 @@ function create_XRTM(
         n_out_levels,
         n_out_thetas
         )
+
+    @debug "[XRTM] .. XRTM object created!"
 
     return xrtm
 
@@ -421,6 +429,8 @@ function _calculate_radiances_and_wfs_XRTM!(
     options_dict::AbstractDict;
     xrtm_in::Union{Nothing, Ptr{Nothing}, Vector{Ptr{Nothing}}}=nothing
     )
+
+    @debug "[XRTM] Calculating radiances and weighting functions with XRTM!"
 
     atm = rt.scene.atmosphere
     # These are the raw XRTM solvers, thus: rt.model_options["solvers]
@@ -449,6 +459,7 @@ function _calculate_radiances_and_wfs_XRTM!(
     if "sos" in solvers
         # Successive orders of scattering:
         # orders, maximum tau, radiance minimum tolerance
+        @debug "[XRTM] Setting SOS solver parameters"
         for xrtm in xrtm_l
             XRTM.set_sos_params(xrtm, 2, 10.0, 1e10)
         end
@@ -456,6 +467,7 @@ function _calculate_radiances_and_wfs_XRTM!(
 
     if "pade_add" in solvers
         if haskey(options_dict, "pade_add")
+            @debug "[XRTM] Setting options for Padé solver"
 
             pade_s = options_dict["pade_add"][1]
             pade_r = options_dict["pade_add"][2]
@@ -464,12 +476,13 @@ function _calculate_radiances_and_wfs_XRTM!(
                 XRTM.set_pade_params(xrtm, pade_s, pade_r)
             end
         else
-            @debug "[XRTM] Padé parameters not supplied via `pade_add`. " *
-            "XRTM will use its own lookup table."
+            @debug "[XRTM] Padé parameters not supplied via `pade_add`. \
+                XRTM will use its own lookup table."
         end
     end
 
     # Set the output level(s)
+    @debug "[XRTM] Setting output level(s)"
     if observer isa SatelliteObserver
         for xrtm in xrtm_l
             XRTM.set_out_levels(xrtm, Int32[0])
@@ -483,6 +496,7 @@ function _calculate_radiances_and_wfs_XRTM!(
     end
 
     # Set the output zenith angles
+    @debug "[XRTM] Setting output zenith angles"
     out_thetas = Float64[]
     if rt.scene.observer isa UplookingGroundObserver
         # For uplooking observers we stare straight into the sun
@@ -491,6 +505,8 @@ function _calculate_radiances_and_wfs_XRTM!(
         # For downlooking observers we choose the observer viewing zenith
         push!(out_thetas, rt.scene.observer.viewing_zenith)
     end
+
+    @debug "[XRTM] Setting various things (Fourier tols, F_iso, phi_0, ..)"
     for xrtm in xrtm_l
 
         XRTM.set_fourier_tol(xrtm, 1e-4)
@@ -513,6 +529,10 @@ function _calculate_radiances_and_wfs_XRTM!(
 
     # Pseudo-spherical approximation can be used on request
     if "psa" in options
+
+        @debug "[XRTM] User wants pseud-spherical approx., so setting planet radius \
+            and altitude levels."
+
         # Set plantary radius and altitude levels
         p_radius = ustrip(rt.scene.atmosphere.altitude_unit, EARTH_RADIUS)
 
@@ -545,8 +565,10 @@ function _calculate_radiances_and_wfs_XRTM!(
     # Set derivatives, if requested. These are simply set once since they stay the same
     # for all spectral points.
     if "calc_derivs" in options
+        @debug "[XRTM] Setting derivative inputs .."
 
         if haskey(rt.wfunctions_map, "dI_dTau")
+            @debug "[XRTM] Setting ∂I/∂τ inputs"
             # Set one layer derivative per derivative index
             # NOTE -- this code here assumes that "dI_dTau" really means
             # one derivative per layer, and that they are ordered
@@ -559,6 +581,7 @@ function _calculate_radiances_and_wfs_XRTM!(
         end
 
         if haskey(rt.wfunctions_map, "dI_dOmega")
+            @debug "[XRTM] Setting ∂I/∂ω inputs"
             # Set one layer derivative per derivative index
             # NOTE -- this code here assumes that "dI_dOmega" really means
             # one derivative per layer, and that they are ordered
@@ -571,8 +594,8 @@ function _calculate_radiances_and_wfs_XRTM!(
         end
 
         if haskey(rt.wfunctions_map, "dI_dblevel")
-            #error("Not implemented/tested yet!")
-
+            
+            @debug "[XRTM] Setting ∂I/∂b-level inputs"
             tmp = zeros(rt.scene.atmosphere.N_level) # This allocates, sadly
 
             for (lev, idx) in enumerate(rt.wfunctions_map["dI_dblevel"])
@@ -588,6 +611,8 @@ function _calculate_radiances_and_wfs_XRTM!(
 
         if haskey(rt.wfunctions_map, "dI_dbsurface")
 
+            @debug "[XRTM] Setting ∂I/∂b-surface input"
+
             idx = rt.wfunctions_map["dI_dbsurface"][1]
 
             for xrtm in xrtm_l
@@ -597,6 +622,9 @@ function _calculate_radiances_and_wfs_XRTM!(
         end
 
         if haskey(rt.wfunctions_map, "dI_dSurface")
+
+            @debug "[XRTM] Setting ∂I/∂Surface inputs"
+
             for (k, idx) in enumerate(rt.wfunctions_map["dI_dSurface"])
                 for xrtm in xrtm_l
                     XRTM.set_kernel_ampfac_l_1(xrtm, k-1, idx-1, 1.0)
@@ -627,6 +655,7 @@ function _calculate_radiances_and_wfs_XRTM!(
     =#
 
     if isnothing(xrtm_in)
+        @debug "[XRTM] Destroying XRTM objects!"
         for xrtm in xrtm_l
             XRTM.destroy(xrtm)
         end
@@ -646,6 +675,7 @@ function _run_XRTM!(
     options_dict::AbstractDict
 )
 
+    @debug "[XRTM] Running XRTM radiance calculations!"
 
     #=
         Basic checks
@@ -703,6 +733,7 @@ function _run_XRTM!(
         # fully isotropic scattering, while at the same time (hopefully) setting the
         # single-scatter albedo to 0, so the scattering contribution will be zero.
         coef_arr = ones(1, n_elem, N_layer)
+        @debug "[XRTM] Setting number coefs per layer: 1 for all (we have no scattering coefs!)"
         for xrtm in xrtm_l
             XRTM.set_coef_n(xrtm, n_coef_arr, coef_arr)
         end
@@ -725,6 +756,7 @@ function _run_XRTM!(
             all aerosols which might have several thousand coefficients.
 
         =#
+        @debug "[XRTM] Calculating the needed ACTIVE scattering coefs"
         n_coef_arr = _calculate_needed_n_coef(rt)
 
         # Users might want to override the number of coefs used
@@ -758,6 +790,7 @@ function _run_XRTM!(
                 6 for polarized RT."
         end
 
+        @debug "[XRTM] Setting per-layer ACTIVE coefs."
         for xrtm in xrtm_l
             XRTM.set_coef_n(
                 xrtm,
@@ -791,6 +824,7 @@ function _run_XRTM!(
                     continue
                 end
 
+                @debug "[XRTM] Setting aerosol coefficient derivative inputs"
                 for (l, wf_idx) in enumerate(rt.wfunctions_map[aer])
 
                     create_aerosol_coef_deriv_inputs!(
@@ -882,6 +916,8 @@ function _run_XRTM!(
 
     for (k, kernel) in enumerate(surface.kernels)
 
+        @debug "[XRTM] Setting surface kernel parameters"
+
         if kernel isa RPVPolynomialKernel
             #=
                 Rahman (or RPV) kernel parameters are:
@@ -954,6 +990,11 @@ function _run_XRTM!(
         XRTM_PROGRESS = true
     end
 
+    if haskey(ENV, "JULIA_DEBUG") && (ENV["JULIA_DEBUG"] == "all")
+        @debug "[XRTM] Julia running in debug-mode - no XRTM progress bar!"
+        XRTM_PROGRESS = false
+    end
+
     prog = Progress(length(spec_iterator);
         dt=0.25, barlen=10, desc=desc_str,
         enabled=XRTM_PROGRESS
@@ -976,7 +1017,12 @@ function _run_XRTM!(
         Hires spectral loop
         ===================
     =#
+
+    @debug "[XRTM] Entering monochromatic loop, prepare for significant output.."
+
     Threads.@threads for i_spectral in spec_iterator
+
+        @debug "Processing spectral point $(i_spectral)"
 
         #=
             Notes on threading
@@ -1050,7 +1096,7 @@ function _run_XRTM!(
 
             # We can choose to either calculate sun-normalized radiances,
             # meaning that the solar irradiance is 1.0 everywhere, or to
-
+            @debug "[XRTM] Setting top-of-atmosphere incident radiance (F_0)"
             if haskey(options_dict, "sun_normalized") && (options_dict["sun_normalized"])
                 XRTM.set_F_0(xrtm, 1.0)
             else
@@ -1069,6 +1115,7 @@ function _run_XRTM!(
             tmp_vec_lay[l] = max(1e-10, tmp_vec_lay[l])
         end
 
+        @debug "[XRTM] Setting inputs for τ"
         XRTM.set_ltau_n(xrtm, tmp_vec_lay)
 
         #=
@@ -1082,6 +1129,7 @@ function _run_XRTM!(
             tmp_vec_lay[l] = max(0.0, min(0.999999, tmp_vec_lay[l]))
         end
 
+        @debug "[XRTM] Setting inputs for ω"
         XRTM.set_omega_n(xrtm, tmp_vec_lay)
 
         # If XRTM options specify thermal sources, we add the isotropic thermal radiance
@@ -1099,6 +1147,8 @@ function _run_XRTM!(
             # We set the isotropic emission to 0 at first. It has to be set to something,
             # otherwise XRTM complains.
             @views tmp_vec_lev[:] .= 0.
+
+            @debug "[XRTM] Setting inputs for isotropic emission in layers"
             XRTM.set_levels_b(xrtm, tmp_vec_lev)
 
             if findanytype(rt.scene.atmosphere.atm_elements, ThermalAtmosphereIsotropic)
@@ -1146,6 +1196,7 @@ function _run_XRTM!(
 
             # Set surface emission to 0 at first
             # (it has to be set to something, otherwise XRTM complains)
+            @debug "[XRTM] Setting inputs for isotropic emission at surface"
             XRTM.set_surface_b(xrtm, 0.0)
 
             for atm in filter(x -> x isa ThermalSurfaceIsotropic,
@@ -1184,6 +1235,7 @@ function _run_XRTM!(
                 break
             end
 
+            @debug "[XRTM] Setting surface kernel amplitude factor for $(kernel)"
             XRTM.set_kernel_ampfac(xrtm, k-1, ampfac)
         end
 
@@ -1194,6 +1246,7 @@ function _run_XRTM!(
         # Let XRTM know which layers involve weighting functions
         if first_XRTM_call[myid] & have_jacobians
             # This function needs to be called only once (as per XRTM manual)
+            @debug "[XRTM] Updating layers to be varied!"
             XRTM.update_varied_layers(xrtm)
         end
 
@@ -1212,6 +1265,7 @@ function _run_XRTM!(
             # upwelling intensity, downwelling intensity,
             # upwelling weighting functions, downwelling weighting functions
 
+            @debug "[XRTM] Calculating radiance for solver $(solver)!"
             I_up, I_dn, K_up, K_dn = XRTM.radiance(
                 xrtm,
                 solver,
@@ -1234,6 +1288,7 @@ function _run_XRTM!(
             # Flip the sign of Stokes-U due to convention difference
 
             if (n_stokes >= 3) && flip_U
+                @debug "[XRTM] Flipping radiances and Jacobians for U component!"
                 for s in [3]
                     I_up[s,:,:,:] .*= -1
                     I_dn[s,:,:,:] .*= -1
