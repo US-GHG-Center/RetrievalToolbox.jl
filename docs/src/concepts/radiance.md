@@ -1,4 +1,4 @@
-# Working with radiance types
+# [Working with radiance types](@id radiance_types_intro)
 
 There are, at the moment, two radiance types that users can utilize to store calculated or measured radiance: `ScalarRadiance` and `VectorRadiance`. Both very similar to generic arrays, in fact they inherit many of the properties and functions from Julia's arrays.
 

@@ -41,6 +41,7 @@ makedocs(
             [
                 "Fundamentals" => joinpath("concepts", "fundamentals.md"),
                 "Core Concepts" => joinpath("concepts", "core_concepts.md"),
+                "Custom Instrument Models" => joinpath("concepts", "custom_instrument.md"),
                 "Radiance" => joinpath("concepts", "radiance.md"),
                 "Scattering Phasefunction" => joinpath("concepts" , "phasefunction.md"),
             ],

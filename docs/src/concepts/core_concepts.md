@@ -31,9 +31,9 @@ The polynomial coefficients ``c`` are usually either available in the published 
 
 Dispersions in RetrievalToolbox are implemented under the abstract type umbrella of `AbstractDispersion`, and the type documentation can be found here: [dispersion types](@ref dispersion_types).
 
-## Instrument Spectral Response Function (formerly ILS)
+## [Instrument Spectral Response Function (formerly ILS)](@id ISRF_concept)
 
-RetrievalToolbox is *mostly* instrument. There is no particular function provided that generates instrument-level radiances for a specific instrument, given the high-resolution model output. In practice, this is also not necessary. In almost all situations, it is sufficient to provide a 1-dimensional **instrument spectral response function**, or **ISRF**, which provides the response of a particular instrument spectral sample (see [section above](@ref samples)) to light that enters the instrument.
+RetrievalToolbox is *mostly* instrument-agnostic. There is no particular function provided that generates instrument-level radiances for a specific instrument, given the high-resolution model output. In practice, this is also not necessary. In almost all situations, it is sufficient to provide a 1-dimensional **instrument spectral response function**, or **ISRF**, which provides the response of a particular instrument spectral sample (see [section above](@ref samples)) to light that enters the instrument.
 
 Then the instrument-level radiance is obtained by producing the sum of the model radiance in some spectral interval, weighted by the ISRF. In general terms, the radiance measured by the instrument at some wavelength ``\lambda`` (or wavenumber ``\nu``) is considered as
 
