@@ -681,11 +681,6 @@ function perform_LSI_correction!(lsi::LSIRTMethod)
     # the mean optical depth
     _lsi_center_correction!(ε_τ, ∂ε_τ, mean_τ, τ_gas, lsi, N_wf, N_stokes)
 
-    #InteractiveUtils.code_warntype(_lsi_center_correction!,
-    #    (typeof(ε_τ), typeof(∂ε_τ), typeof(mean_τ), typeof(τ_gas), typeof(lsi), typeof(N_wf), typeof(N_stokes))
-    #)
-    #exit(0)
-
     #=
         Create an interpolation object, so we can estimate the error ε for any τ. This is
         ONLY used for the "centering correction", where we adjust the errors in a given
