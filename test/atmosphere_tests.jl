@@ -59,6 +59,7 @@ end
     atm = create_empty_EarthAtmosphere(6, 11, Float64)
 
     # Try the deprecation warnings
+    @info "[TEST] Trying out the deprecation warnings. The next warnings are expected!"
     atm.met_pressure_levels[1] = 1.0
     atm.temperature_levels[1] = 1.0
     atm.specific_humidity_levels[1] = 1.0
