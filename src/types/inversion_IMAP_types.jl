@@ -1,8 +1,21 @@
 """
 A type to facilitate inversions using the Iterative Maximum A-posteriori (IMAP) solver
-method. See Frankenberg et al. (2005) (https://doi.org/10.5194/acp-5-9-2005) for details.
+method. See [Frankenberg et al. (2005)](https://doi.org/10.5194/acp-5-9-2005) for details.
+This function includes a constructor which populates the supplied prior covariance matrix
+with the prior covariance values of the state vector elements. Any off-diagonal covarainces
+must be added **manually**, and **after** the solver object has been instantiated.
 
-$(TYPEDFIELDS)
+* `forward_model::Function`: The forward model function, only takes AbstractStateVector as argument
+* `state_vector::AbstractStateVector`: The state vector
+* `prior_covariance::AbstractMatrix`: Prior covariance matrix
+* `max_iterations::Integer`: Number of allowed maximal iterations
+* `dsigma_scale::AbstractFloat`: Delta-sigma scale value used for convergence checking
+* `dispersions::Dict{<:AbstractSpectralWindow, <:AbstractDispersion}`: Dispersion objects needed to link forward model output to measurement spectral samples
+* `indices::Dict{<:AbstractSpectralWindow, <:AbstractVector}`: Indices refer to where in the buffer we store radiances/jacobians
+* `radiance::Radiance`: Radiance values (current iteration only)
+* `jacobians::Dict{<:AbstractStateVectorElement, <:Radiance}`: Jacobian values (current iteration only)
+* `measured::Dict{<:AbstractDispersion, <:AbstractVector}`: Measured radiance (full-detector range)
+* `instrument_noise::Dict{<:AbstractDispersion, <:AbstractVector}`: Measurement noise belonging to the measured radiance (full-detector range)
 
 # Forward model function
 
@@ -17,29 +30,21 @@ arguments may follow. For example
         return true
     end
 ```
+
+See the online documentation (Types -> Solver Types) for more details.
+
 """
 struct IMAPSolver <: AbstractSolver
-    "The forward model function, only takes AbstractStateVector as argument"
     forward_model::Function
-    "The state vector"
     state_vector::AbstractStateVector
-    "Prior covariance matrix"
     prior_covariance::AbstractMatrix
-    "Number of allowed maximal iterations"
     max_iterations::Int
-    "Delta-sigma scale value used for convergence checking"
     dsigma_scale::AbstractFloat
-    "Dispersion objects needed to link forward model output to measurement spectral samples"
     dispersions::Dict{<:AbstractSpectralWindow, <:AbstractDispersion}
-    "Indices refer to where in the buffer we store radiances/jacobians"
     indices::Dict{<:AbstractSpectralWindow, <:AbstractVector}
-    "Radiance values (current iteration only)"
     radiance::Radiance
-    "Jacobian values (current iteration only)"
     jacobians::Dict{<:AbstractStateVectorElement, <:Radiance}
-    "Measured radiance (full-detector range)"
     measured::Dict{<:AbstractDispersion, <:AbstractVector}
-    "Measurement noise belonging to the measured radiance (full-detector range)"
     instrument_noise::Dict{<:AbstractDispersion, <:AbstractVector}
 
     function IMAPSolver(

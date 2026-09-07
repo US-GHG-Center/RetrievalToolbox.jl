@@ -1,10 +1,14 @@
 """
-$(TYPEDSIGNATURES)
+    next_iteration!(
+        s::IMAPSolver;
+        fm_kwargs=()
+    ) -> Bool
 
-For a IMAPSolver type, calculate the next iteration, compute the relevant quantities and
-update the state vector. The first argument `s` is to be the `IMAPSolver` object. The
+For an IMAPSolver type object, calculates the next iteration, computes the relevant quantities and
+updates the state vector. The first argument `s` is to be the `IMAPSolver` object. The
 optional keyword argument, `fm_kwargs`, collects all other arguments that are supplied
-into the forward model by splatting.
+into the forward model by splatting. Returns `true` if the iteration was computed successfully,
+`false` otherwise.
 """
 function next_iteration!(s::IMAPSolver; fm_kwargs=())
 
@@ -27,8 +31,8 @@ function next_iteration!(s::IMAPSolver; fm_kwargs=())
         inv(s.prior_covariance)
     catch e
         # Inversion fails
-        @error "Inverting prior covariance matrix failed."
-        @error "$(e)"
+        @error "[INV] Inverting prior covariance matrix failed."
+        @error "[INV] $(e)"
         return false
     end
 
@@ -40,8 +44,8 @@ function next_iteration!(s::IMAPSolver; fm_kwargs=())
         inv(Shat_inv)
     catch e
         # Inversion fails (this might happen due to bad Jacobians)
-        @error "Inverting posterior covariance matrix failed."
-        @error "$(e)"
+        @error "[INV] Inverting posterior covariance matrix failed."
+        @error "[INV] $(e)"
         return false
     end
 
@@ -78,9 +82,13 @@ end
 
 
 """
-$(TYPEDSIGNATURES)
+    check_convergence(
+        s::IMAPSolver;
+        verbose=false
+    ) -> Bool
 
-Checks for convergence of an `IMAPSolver` type object.
+Checks for convergence of an `IMAPSolver` type object and returns `true` if the
+convergence criteria are met, `false` otherwise.
 """
 function check_convergence(s::IMAPSolver; verbose=false)
 
@@ -124,14 +132,16 @@ function check_convergence(s::IMAPSolver; verbose=false)
 end
 
 """
-$(TYPEDSIGNATURES)
+    calculate_OE_quantities(
+        s::IMAPSolver
+    ) -> Union{OEQuantities, Bool}
 
 Given an IMAPSolver, this function calculates the usual post-retrieval error analytics,
 such as the AK matrix. Returns an `OEQuantities` object if successful, or `nothing` if
 the solver object is not valid or there are no iterations inside the state vector.
 
 All of this is taken from Rodgers (2000) Chapter 3.2, and
-Frankenberg et al. (2005). https://doi.org/10.5194/acp-5-9-2005
+Frankenberg et al. (2005). [10.5194/acp-5-9-2005](https://doi.org/10.5194/acp-5-9-2005)
 
 There are a decent number of array allocations inside this function, but given the
 (generally) smaller size, and the fact that they only need to be created once the
