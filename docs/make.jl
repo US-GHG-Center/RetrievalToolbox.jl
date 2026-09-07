@@ -54,6 +54,7 @@ makedocs(
                 "Dispersion Types" => joinpath("types", "dispersion_types.md"),
                 "Radiative Transfer Method Types" => joinpath("types", "RT_types.md"),
                 "State Vector Types" => joinpath("types", "state_vector_types.md"),
+                "Solver Types" => joinpath("types", "solver_types.md"),
                 "Surface Types" => joinpath("types", "surface_types.md"),
                 "Thermal Types" => joinpath("types", "thermal_types.md"),
             ],

@@ -1,4 +1,4 @@
-# Inversion functions
+# Inversion Functions
 
 Here are listed all the generic inversion functions that act on any type of `AbstractSolver`. Ideally, users should use these functions to calculate or extract the various quantities of interest from the solver objects. In doing so, it is more likely that users can then more easily switch out solvers without having to adjust other parts of their algorithm.
 

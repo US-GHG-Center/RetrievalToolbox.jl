@@ -133,7 +133,7 @@ Most forward model implementations will over-write the vectors that carry the ra
 
 The most immediate impacts of the mutability of certain objects is seen in the state of the atmosphere. For example: a forward model that is set up to adjust the atmosphere for the retrieval of a temperature profile offset ([`TemperatureOffsetSVE`](@ref)) will update in-place the temperature profile of the atmosphere object using the `atmosphere_statevector_update!` function. It is also expected that the forward model then also reverts to its original state via the `atmosphere_statevector_rollback!` function. Thus, when optical properties are calculated, it matters whether that calculation takes place between those two function calls or after and they will *not* produce the same result!
 
-See the [Atmosphere functions](@ref) section of the documentation for more details.
+See the [Atmosphere Functions](@ref) section of the documentation for more details.
 
 ## Explicit and lengthy or simplified and short?
 
@@ -160,7 +160,7 @@ When the RetrievalToolbox module is imported, all types inside the RetrievalTool
 
 Creating a spectral window object from 1.49 µm through 1.55 µm with 10 nm spacing could, for example, look like this (with loaded `Unitful`):
 
-```@repl swin; continued = true
+```@example example; continued = true
 using RetrievalToolbox # hide
 const RE = RetrievalToolbox # hide
 using Unitful # hide
@@ -177,20 +177,20 @@ swin = RE.SpectralWindow(
 
 As can be seen in the type definition, the spectral grid can be accessed via `swin.ww_grid`.
 
-```@repl swin
+```@example swin; continued = true
 swin.ww_grid;
 show(swin.ww_grid')
 ```
 
 Now the magic accessor allows users to access the same field using the more "natural" wavelength term
 
-```@repl swin
+```@example swin; continued = true
 swin.wavelength_grid;
 show(swin.wavelength_grid')
 ```
 
 or even the Unicode symbol λ:
-```@repl swin
+```@example swin; continued = true
 swin.λ_grid;
 show(swin.λ_grid')
 ```
@@ -199,7 +199,7 @@ Note that `swin.λ_grid` or `swin.wavelength_grid` do not perform a calculation 
 
 Since types with some spectral dimension must also have a corresponding unit field, `ww_unit`, the `getproperty` function is able to check whether the requested spectral unit is appropriate. Trying to access `swin.wavenumber_grid` or `swin.ν_grid` will fail:
 
-```@repl swin
+```@example swin; continued = true
 swin.wavenumber_grid # or swin.ν_grid
 ```
 
