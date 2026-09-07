@@ -47,6 +47,38 @@ function GasVMRProfileSVE(
     type::DataType=Float64
     )
 
+    @warn "This function will be deprecated soon! Please use \
+        `GasVMRProfileSVE(gas, unit; type)`"
+
+    return [
+        GasVMRProfileSVE(
+            l,
+            gas,
+            unit,
+            zero(type),
+            zero(type),
+            zero(type),
+            [zero(type)]
+        )
+    for l in 1:N]
+
+end
+
+
+"""
+$(TYPEDSIGNATURES)
+
+Returns `N` different `GasVMRProfileSVE` state vector elements, one for each level of
+the retrieval atmosphere.
+"""
+function GasVMRProfileSVE(
+    gas::GasAbsorber,
+    unit::Unitful.DimensionlessUnits;
+    type::DataType=Float64
+    )
+
+    N = length(gas.vmr_levels)
+
     return [
         GasVMRProfileSVE(
             l,

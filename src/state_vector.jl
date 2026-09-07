@@ -66,13 +66,17 @@ $(TYPEDSIGNATURES)
 Re-sets the contents of the state vector `sv` by emptying the `.iterations` vectors of
 each state vector element, and then adding a single new iteration that is the first-guess.
 """
-function reset!(sv::AbstractStateVector)
+function reset!(sv::RetrievalStateVector)
 
     for sve in sv.state_vector_elements
         empty!(sve.iterations)
         append!(sve.iterations, sve.first_guess)
     end
 
+end
+
+function reset!(sv::ForwardModelStateVector)
+    # Does nothing
 end
 
 """
@@ -131,6 +135,15 @@ function any_SVE_is_type(
             return true
         end
     end
+
+    return false
+
+end
+
+function any_SVE_is_type(
+    SV::ForwardModelStateVector,
+    t::Type{T}
+    ) where T<:AbstractStateVectorElement
 
     return false
 

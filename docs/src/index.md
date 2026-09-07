@@ -9,5 +9,9 @@ To users that are (relatively) new to Julia, we have also integrated a few docum
 
 In the current version of the software library, the following are not (yet) supported:
 
-* True infra-red radiative transfer that includes thermal emission
+* Spectrally varying aerosol scattering properties:
+  * At the moment, aerosol scattering properties, as represented by the phase matrix (or phase function) expansion coefficients, are evaluated only for the center of spectral bands.
 * Limb soundings
+
+!!! warning
+    API documentation is not complete at this time. We recommend users to study the example implementations found on the main repository page, or reach out directly or via the [GitHub Issues Tracker](https://github.com/RetrievalToolbox/ACOS-Goddard/issues).

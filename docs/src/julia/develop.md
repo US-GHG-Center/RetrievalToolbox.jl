@@ -201,7 +201,7 @@ Here is a summary of the important steps when creating a new type that fits into
     1. Investigate the RetrievalToolbox type hierarchy to understand where your new type fits in best.
     2. Write the new type definition, making sure that you understand which type fields are potentially needed by other functions, or if they can safely omitted if they serve no purpose for your new type.
     3. Write all needed functions to implement the desired behavior for your new type
-        a. This requires knowing which functions may use your new type. The Julia function `methodswith` can be useful in finding that out. E.g. `methodswith(RE.SIFRadiance, RetrievalToolbox)` will list all functions that have at least one `SIFRadiance` function argument.
+        - This requires knowing which functions may use your new type. The Julia function `methodswith` can be useful in finding that out. E.g. `methodswith(RE.SIFRadiance, RetrievalToolbox)` will list all functions that have at least one `SIFRadiance` function argument.
     4. Run tests!
 
 

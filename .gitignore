@@ -14,3 +14,5 @@ Manifest.toml
 launch.json
 settings.json
 data/SIF/Fluorescence*.csv
+demo_spectroscopy.jld2
+*.sqlite

@@ -2,6 +2,7 @@ using Pkg
 
 if isfile(joinpath(@__DIR__, "..", "Project.toml"))
     # Local development - use the local package
+    @info "Using local development!"
     Pkg.develop(PackageSpec(path=joinpath(@__DIR__, "..")))
 else
     # CI/remote
@@ -10,7 +11,7 @@ else
 end
 
 
-using Documenter, RetrievalToolbox
+using Documenter, Unitful, RetrievalToolbox
 const RE = RetrievalToolbox
 
 ENV["GKSwstype"] = "100" # Inform Plots.jl about headless mode.
@@ -19,6 +20,13 @@ DocMeta.setdocmeta!(
     RetrievalToolbox,
     :DocTestSetup,
     :(using RetrievalToolbox);
+    recursive=true
+)
+
+DocMeta.setdocmeta!(
+    RetrievalToolbox,
+    :DocTestSetup,
+    :(using Unitful);
     recursive=true
 )
 
@@ -33,24 +41,29 @@ makedocs(
             [
                 "Fundamentals" => joinpath("concepts", "fundamentals.md"),
                 "Core Concepts" => joinpath("concepts", "core_concepts.md"),
+                "Custom Instrument Models" => joinpath("concepts", "custom_instrument.md"),
                 "Radiance" => joinpath("concepts", "radiance.md"),
                 "Scattering Phasefunction" => joinpath("concepts" , "phasefunction.md"),
             ],
         "Design" => joinpath("design", "design.md"),
-        "Functions" =>
-            [
-                "State Vector Functions" => joinpath("functions", "state_vector_functions.md"),
-                "Atmosphere Functions" => joinpath("functions", "atmosphere_functions.md"),
-                "Instrument Functions" => joinpath("functions", "instrument_functions.md")
-            ],
         "Types" =>
             [
+                "Aerosol Types" => joinpath("types", "aerosol_types.md"),
                 "Atmosphere Types" => joinpath("types", "atmosphere_types.md"),
                 "Buffer Types" => joinpath("types", "buffer_types.md"),
                 "Dispersion Types" => joinpath("types", "dispersion_types.md"),
                 "Radiative Transfer Method Types" => joinpath("types", "RT_types.md"),
                 "State Vector Types" => joinpath("types", "state_vector_types.md"),
+                "Solver Types" => joinpath("types", "solver_types.md"),
                 "Surface Types" => joinpath("types", "surface_types.md"),
+                "Thermal Types" => joinpath("types", "thermal_types.md"),
+            ],
+        "Functions" =>
+            [
+                "State Vector Functions" => joinpath("functions", "state_vector_functions.md"),
+                "Atmosphere Functions" => joinpath("functions", "atmosphere_functions.md"),
+                "Instrument Functions" => joinpath("functions", "instrument_functions.md"),
+                "Inversion Functions" => joinpath("functions", "inversion_functions.md"),
             ],
         "Working with Julia" =>
             [

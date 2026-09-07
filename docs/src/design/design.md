@@ -1,5 +1,7 @@
 # Design
 
+This section explains various design choices of RetrievalToolbox, and how users may want to consider them when writing their own retrieval application.
+
 ## Namespace
 
 The RetrievalToolbox module exports many functions, types and variables - some of those might share names with functions from other modules or your own user code. While not strictly necessary, we generally recommend to load the module and then declare an alias to then call the module functions through it.
@@ -21,7 +23,7 @@ One of Julia's most prominent features is the flexibility that comes with its [r
 RetrievalToolbox defines a number of abstract types and then lots of composite types, which are akin to `struct` types in C. They usually sit below abstract types in the type hierarchy and represent some granular concept that is useful for trace gas retrievals.
 
 For example, the `GaussAerosol` type belongs to the `AbstractAerosolType` which itself belongs to `AbstractAtmosphereElement`, and describes some aerosol whose vertical distribution in the model atmosphere is described by a Gaussian. The full type hierarchy here is `GaussAerosol ⊂ AbstractAerosolType ⊂ AbstractAtmosphereElement`.
-When users create a model atmosphere, they must add some `AbstractAtmosphereElement` to the list of atmosphere elements. At that stage, we do not care what _specific_ object that might be, as long as it satisfies the requirement that it has to be a type that is a subtype of `AbstractAtmosphereElement`.
+When users create a model atmosphere, they may want to add some `AbstractAtmosphereElement` to the list of atmosphere elements. At that stage, we do not care what _specific_ object that might be, as long as it satisfies the requirement that it has to be a type that is a subtype of `AbstractAtmosphereElement`.
 
 Now how does Julia's type system and the **multiple dispatch** paradigm help us here. First, it allows for some convenience. We can use some list of atmospheric elements that we want represented in our model atmosphere: aerosols and Rayleigh scattering. Those two are quite different in practical terms, even though they might act in similar ways on our various calculations. So if we have some list of `AbstractAtmosphereElement` objects
 
@@ -29,10 +31,11 @@ Now how does Julia's type system and the **multiple dispatch** paradigm help us 
 atm_list = [aerosol1, aerosol2, RayleighScattering()]
 ```
 
-we would ideally want to perform some action with each of those elements, such as calculating their contribution to the optical depth profiles of our model atmosphere. Some naïve way of doing that would be to iterate through each element and perform the appropriate action:
+we would ideally want to perform some action with each of those elements, such as calculating their contribution to the optical depth profiles of our model atmosphere. Some naïve way of doing that would be to iterate through each element and perform the appropriate action (note that the above code is for illustration only, and does not run):
 
 ```julia
 for atm in atm_list
+
     if is_an_aerosol(atm)
         tau = calculate_gauss_aerosol_tau(atm)
     end
@@ -54,7 +57,7 @@ for atm in atm_list
 end
 ```
 
-and as long as there is a function `calculate_tau` which implements the calculate for the requested type, above code will execute and keep this top-level loop nice and tidy.
+and as long as there is a function `calculate_tau` which implements the calculation for the requested type, above code will execute and keep this top-level loop nice and tidy.
 
 While the above example allows for some convenience, the strength of multiple dispatch also lies in how users can expand code without having to change code deep within a module they use. For example, let us imagine a new aerosol type that a user wants to integrate in their retrieval application: `MyAerosolType`. A new list of atmosphere elements would be created, like so
 
@@ -96,11 +99,41 @@ Currently, the top-level buffer is the `EarthAtmosphereBuffer` which itself incl
 
 Buffers are represented by their own types, listed here: [Buffer Types](@ref buffer_types).
 
-### Order of instantiation in a retrieval algorithm
+## Order of instantiation in a retrieval algorithm
+
+The various interlocking objects in RetrievalToolbox require a certain order in which they are created such that other, dependent objects can be created correctly. Below is is the current suggestion as to how to approach the instantiation of those objects to write a new retrieval algorithm:
+
+* Spectral window(s)
+
+* Dispersion objects (pointing to spectral windows)
+
+* Create a list of `AbstractAtmosphereElement` and add ..
+    * Spectroscopy and then gases
+    * Aerosol types
+    * Rayleigh scattering
+
+* Solar model(s)
+
+* Instrument spectral response function(s)
+
+* State vector elements, collected into a `RetrievalStateVector` ([`State Vector Types`](@ref sv_types))
+
+* Buffer objects
+  * RT buffer ([`ScalarRTBuffer`](@ref), [`VectorRTBuffer`](@ref))
+  * Earth atmosphere buffer via the helper function [`EarthAtmosphereBuffer()`](@ref), making sure to use all the objects created above in the way indicated by the documentation
+
+Once these are created, users must then fill in the various objects who may have mostly placeholder values, with meaningful data. That includes prior and first-guess values for all state vector elements, gas volume mixing ratio profiles for each considered gas, meteorological profiles (pressure grid, humidity, temperature), radiance measurements and noise estimates, and so on.
 
 ## Executing the forward model will mutate some objects
 
-Kinda bad for e.g. gas scale factors that mean factors of some initial atmospheric state.
+!!! warning
+    For the sake of performance and thus the necessity of buffers, many objects will inevitably be mutated!
+
+Most forward model implementations will over-write the vectors that carry the radiative transfer results, the optical depth profiles, the mappings between spectral sample and positions in the result buffers, and so forth. Hence calling `solver.forward_model(solver.state_vector; fm_kwargs...)` will mutate various parts of the buffer! As such, users should be always aware of order of operations within their forward model as well as their entire algorithm.
+
+The most immediate impacts of the mutability of certain objects is seen in the state of the atmosphere. For example: a forward model that is set up to adjust the atmosphere for the retrieval of a temperature profile offset ([`TemperatureOffsetSVE`](@ref)) will update in-place the temperature profile of the atmosphere object using the `atmosphere_statevector_update!` function. It is also expected that the forward model then also reverts to its original state via the `atmosphere_statevector_rollback!` function. Thus, when optical properties are calculated, it matters whether that calculation takes place between those two function calls or after and they will *not* produce the same result!
+
+See the [Atmosphere Functions](@ref) section of the documentation for more details.
 
 ## Explicit and lengthy or simplified and short?
 
@@ -109,23 +142,25 @@ and less verbose is an option - sometimes.
 
 ## Wrapper functions and specific dispatch
 
+TODO
+
 ## Considering quantities with physical units
 
-Explain types and dedicated type fields for units. Pay attention to supplying quantities with the right units!
+TODO
 
 ## Wavelengths and wavenumbers
 
 RetrievalToolbox supports two fundamental spectral unit types: wavelength and wavenumber. Users might want to build an algorithm pipeline that is specific to some instrument, which natively produces spectra in either wavelength or wavenumber units. In order to make the native spectral unit be visible as such, RetrievalToolbox provides dynamic accessors which allow users to reference the spectral unit of objects using their natural wording or symbol.
 
-Rather than writing duplicate types and functions, RetrievalToolbox employs _magic accessor_ methods. Any quantity that represents a spectral unit, is typed `ww` or, for example, `ww_unit` or `ww_reference`. The two-letter combination `ww` is thus reserved in the RetrievalToolbox codebase, and no type fields should contain this combination of letters.
+Rather than writing duplicate types and functions, RetrievalToolbox employs _magic accessor_ methods. Any quantity that represents a spectral unit, is typed `ww` or, for example, `ww_unit` or `ww_reference`. The two-letter combination `ww` is thus reserved in the RetrievalToolbox codebase, and no other type fields should contain this combination of letters.
 
 The `ww` should be considered a placeholder, which represents either a wavelength- or a wavenumber-related quantity. Any type that contains a field or quantity `ww` must also contain a field named `ww_unit`. Other fields are optional.
 
-When the RetrievalToolbox module is imported, all types inside the RetrievalToolbox namespace are scanned for type fields that contain the substring `ww`. For each type that contains such a field, a new accessor function is dynamically created, which allows users to access the spectral type fields with the appropriate symbol. Illustrative examples follow.
+When the RetrievalToolbox module is imported, all types inside the RetrievalToolbox namespace are scanned for type fields that start with the substring `ww`. For each type that contains such a field, a new accessor function is dynamically created, which allows users to access the spectral type fields with the appropriate symbol. Illustrative examples follow.
 
 Creating a spectral window object from 1.49 µm through 1.55 µm with 10 nm spacing could, for example, look like this (with loaded `Unitful`):
 
-```@repl swin; continued = true
+```@example example; continued = true
 using RetrievalToolbox # hide
 const RE = RetrievalToolbox # hide
 using Unitful # hide
@@ -142,20 +177,20 @@ swin = RE.SpectralWindow(
 
 As can be seen in the type definition, the spectral grid can be accessed via `swin.ww_grid`.
 
-```@repl swin
+```@example swin; continued = true
 swin.ww_grid;
 show(swin.ww_grid')
 ```
 
 Now the magic accessor allows users to access the same field using the more "natural" wavelength term
 
-```@repl swin
+```@example swin; continued = true
 swin.wavelength_grid;
 show(swin.wavelength_grid')
 ```
 
 or even the Unicode symbol λ:
-```@repl swin
+```@example swin; continued = true
 swin.λ_grid;
 show(swin.λ_grid')
 ```
@@ -164,7 +199,7 @@ Note that `swin.λ_grid` or `swin.wavelength_grid` do not perform a calculation 
 
 Since types with some spectral dimension must also have a corresponding unit field, `ww_unit`, the `getproperty` function is able to check whether the requested spectral unit is appropriate. Trying to access `swin.wavenumber_grid` or `swin.ν_grid` will fail:
 
-```@repl swin
+```@example swin; continued = true
 swin.wavenumber_grid # or swin.ν_grid
 ```
 
@@ -193,6 +228,12 @@ When users write top-level retrieval scripts for some specific scenario, it is u
 
 ### Custom forward model
 
+TODO
+
 ### Lack of an instrument type
 
+TODO
+
 ### Custom ingestion of needed inputs
+
+TODO

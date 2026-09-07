@@ -19,9 +19,11 @@ function clear!(rt::BeerLambertRTMethod)
     # Radiances can be accessed like 2D arrays
     rt.hires_radiance[:,:] .= 0
 
-    # Jacobians are dictionaries StateVectorElement -> Radiance
-    for (k,v) in rt.hires_jacobians
-        v[:,:] .= 0
+    if rt.state_vector isa RetrievalStateVector
+        # Jacobians are dictionaries StateVectorElement -> Radiance
+        for (k,v) in rt.hires_jacobians
+            v[:,:] .= 0
+        end
     end
 
 end
@@ -36,16 +38,17 @@ function clear!(rt::MonochromaticRTMethod)
     # Radiances can be accessed like 2D arrays
     rt.hires_radiance[:,:] .= 0
 
-    # Weighting functions are vectors of radiances
-    for v in rt.hires_wfunctions
-        v[:,:] .= 0
-    end
+    if rt.state_vector isa RetrievalStateVector
+        # Weighting functions are vectors of radiances
+        for v in rt.hires_wfunctions
+            v[:,:] .= 0
+        end
 
-    # Jacobians are dictionaries StateVectorElement -> Radiance
-    for (k,v) in rt.hires_jacobians
-        v[:,:] .= 0
+        # Jacobians are dictionaries StateVectorElement -> Radiance
+        for (k,v) in rt.hires_jacobians
+            v[:,:] .= 0
+        end
     end
-
 end
 
 """
@@ -72,27 +75,31 @@ function check_non_finites(rt::MonochromaticRTMethod)
             end
         end
 
-        # Loop through Jacobian attached to state vector element
-        for (sve, jac) in rt.hires_jacobians
-            for i in axes(jac, 1) # Loop through spectral index
-                if !isfinite(jac[i,s])
-                    if !haskey(jacobian_bad_pos, sve)
-                        jacobian_bad_pos[sve] = Int[]
+        if rt.state_vector isa RetrievalStateVector
+
+            # Loop through Jacobian attached to state vector element
+            for (sve, jac) in rt.hires_jacobians
+                for i in axes(jac, 1) # Loop through spectral index
+                    if !isfinite(jac[i,s])
+                        if !haskey(jacobian_bad_pos, sve)
+                            jacobian_bad_pos[sve] = Int[]
+                        end
+                        push!(jacobian_bad_pos[sve], i)
+                        all_finite = false
                     end
-                    push!(jacobian_bad_pos[sve], i)
-                    all_finite = false
                 end
             end
-        end
 
-        #=
-        if !(all_finite)
-            @warn "Non-finite(s) in hi-res radiance for Stokes component $(s): " *
-                "$(radiance_bad_pos)"
-            @warn "Non-finite(s) in hi-res Jacobian $(sve) for Stokes component $(s): " *
-                "$(jacobian_bad_pos)"
+            #=
+            if !(all_finite)
+                @warn "Non-finite(s) in hi-res radiance for Stokes component $(s): " *
+                    "$(radiance_bad_pos)"
+                @warn "Non-finite(s) in hi-res Jacobian $(sve) for Stokes component $(s): " *
+                    "$(jacobian_bad_pos)"
+            end
+            =#
+
         end
-        =#
     end
 
 

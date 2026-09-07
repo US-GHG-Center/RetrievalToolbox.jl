@@ -1,8 +1,13 @@
 """
-For an LMSolver type, calculate the next iteration, compute the
-relevant quantities and update the state vector.
+    next_iteration!(
+        s::LMSolver,
+        fm_kwargs=()
+    ) -> Bool
 
-$(SIGNATURES)
+For an LMSolver type, calculate the next iteration, compute the
+relevant quantities and update the state vector. Returns `true` if
+the iteration was computed successfully (including a successful call
+of the forward model), or `false` otherwise.
 """
 function next_iteration!(
     s::LMSolver;
@@ -118,7 +123,7 @@ function next_iteration!(
             # This is the new SV update: K and radiances from last valid iteration,
             # but new γ!
 
-            Δx = solve_LM_scaled(
+            Δx = _solve_LM_scaled(
                 s.gamma,
                 s.prior_covariance,
                 K_last,
@@ -192,7 +197,7 @@ end
 
 """
 """
-function solve_LM_scaled(
+function _solve_LM_scaled(
     γ::Real,
     Sa::AbstractMatrix,
     K::AbstractMatrix,
@@ -236,9 +241,14 @@ end
 
 
 """
-Checks for convergence of an IMAPSolver type.
+    check_convergence(
+        s::LMSolver;
+        verbose=false
+    ) -> Bool
 
-$(TYPEDSIGNATURES)
+Checks for convergence of an IMAPSolver type and returns `true` if the
+convergence criteria are met, or `false` otherwise. Passing `verbose=true`
+enables printing out the Δσ² diagnostic.
 """
 function check_convergence(s::LMSolver; verbose=false)
 
@@ -279,13 +289,16 @@ function check_convergence(s::LMSolver; verbose=false)
 end
 
 """
-Given an IMAPSolver, this function calculates the usual
-post-retrieval error analytics, such as the AK matrix. All of this
-is taken from Rodgers (2000) Chapter 3.2, and Frankenberg et al. (2005).
-https://doi.org/10.5194/acp-5-9-2005
+    calculate_OE_quantities(
+        s::LMSolver
+    ) -> Union{OEQuantities, Nothing}
 
-$(SIGNATURES)
+Given an LMSolver, this function calculates the usual
+post-retrieval error analytics, such as the AK matrix and returns
+an `OEQuantities` object, or `nothing` if the calculation fails.
 
+All of this is taken from Rodgers (2000) Chapter 3.2, and additionally the ACOS ATBD
+found (here)[https://docserver.gesdisc.eosdis.nasa.gov/public/project/OCO/OCO-2-3_Documents.pdf] 
 There are a decent number of array allocations inside this function,
 but given the (generally) smaller size, and the fact that they only
 need to be created once the retrieval has converged, the performance

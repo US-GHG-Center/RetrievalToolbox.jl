@@ -7,7 +7,9 @@ using CSV
 using Dates
 using DocStringExtensions
 using HDF5
+using HITRAN
 using Interpolations
+using FastInterpolations
 using Lazy
 using LinearAlgebra
 using LoopVectorization
@@ -22,11 +24,9 @@ using Statistics
 using StaticArrays
 using Unitful
 
-
 #=
-    Make the "photons" unit available outside of
-    the module scope, otherwise users will have to
-    use RetrievalToolbox.ph instead of u"ph".
+    Make the "photons" unit available outside of the module scope, otherwise users will
+    have to use RetrievalToolbox.ph instead of u"ph".
 =#
 export ph
 
@@ -34,15 +34,41 @@ export ph
 @unit ph "ph" Photons 1u"1" true;
 Unitful.register(RetrievalToolbox)
 
-# Spectral radiance
-rad_W = u"W/m^2/sr/µm"
-rad_ph = u"ph/s/m^2/sr/µm"
+#=
+    Spectral (ir)radiance units
+    =======================
 
-# Spectral irradiance
-irrad_W = u"W/m^2/µm"
-irrad_ph = u"ph/s/m^2/µm"
+    Below variables are used to allow lower-lying functions of RetrievalToolbox to
+    differentiate between the various spectral radiance units. This is needed because some
+    of the physical calculations may produce quantities in only one particular unit and
+    coordinate system (e.g. thermal emission may produce W m⁻² sr⁻¹ μm⁻¹), but the user
+    specified their radiance units in the other coordinate system or units (ph s⁻¹ m⁻²
+    sr⁻¹ (cm⁻¹)⁻¹).
+=#
 
-# Definite unit types analogous to e.g. Unitful.LengthUnits
+# Radiance
+rad_W_wl = u"W/m^2/sr/µm"
+rad_ph_wl = u"ph/s/m^2/sr/µm"
+rad_W_wn = u"W/m^2/sr/cm^-1"
+rad_ph_wn = u"ph/s/m^2/sr/cm^-1"
+
+# Irradiance
+irrad_W_wl = u"W/m^2/µm"
+irrad_ph_wl = u"ph/s/m^2/µm"
+irrad_W_wn = u"W/m^2/cm^-1"
+irrad_ph_wn = u"ph/s/m^2/cm^-1"
+
+const DIM_POWER_PER_LENGTH = dimension(rad_W_wl) # M T⁻³ L⁻¹
+const DIM_PHOTON_PER_LENGTH = dimension(rad_ph_wl) # T⁻¹ L⁻¹
+const DIM_POWER_PER_WAVENUMBER = dimension(rad_W_wn) # M T⁻³ L
+const DIM_PHOTON_PER_WAVENUMBER = dimension(rad_ph_wn) # T⁻¹ L
+
+# Extract dimension types from the four possible target unit dimensions
+const TYPE_POWER_PER_LENGTH = typeof(DIM_POWER_PER_LENGTH)
+const TYPE_POWER_PER_WAVENUMBER = typeof(DIM_POWER_PER_WAVENUMBER)
+const TYPE_PHOTON_PER_LENGTH = typeof(DIM_PHOTON_PER_LENGTH)
+const TYPE_PHOTON_PER_WAVENUMBER = typeof(DIM_PHOTON_PER_WAVENUMBER)
+
 
 Unitful.register(@__MODULE__)
 
@@ -75,50 +101,53 @@ function __init__()
         compiled and linked library.
     =#
 
-    have_XRTM = false
-
-    if !haskey(ENV, "XRTM_PATH")
-
-        @debug "XRTM_PATH environment variable was not found! Not loading XRTM!"
-
-    else
-
-        # Try some possibilities where XRTM could be hiding
-        xrtm_path_options = String[]
-
-        push!(xrtm_path_options, ENV["XRTM_PATH"])
-        push!(xrtm_path_options, joinpath(ENV["XRTM_PATH"], "interfaces"))
-
-        # Loop through options and try to include the XRTM.jl file
-        for s in xrtm_path_options
-
-            xrtm_path = joinpath(s, "XRTM.jl")
-
-            if isfile(xrtm_path)
-                @debug "Loading XRTM from $(s)"
-                include(xrtm_path)
-
-                # Also set the environment variable for this Julia session to find the
-                # compiled XRTM library itself.
-                push!(Base.DL_LOAD_PATH, s)
-                # Must set this global, because it is a module-wide variable unfortunately
-                have_XRTM = true
-                break
-            else
-                @debug "[XRTM] No XRTM.jl in $(s)"
-            end
-        end
-
-        return nothing
-
-    end
-
-    if !(have_XRTM)
-        @debug "Could not find XRTM module!"
-        @debug "Calls to XRTM library functions will crash the session!"
-    end
+    # Optional XRTM
+    _load_xrtm_if_available()
 
 end
+
+"""
+Attempt to load the XRTM radiative transfer library if XRTM_PATH is set.
+"""
+function _load_xrtm_if_available()
+
+    # Skip during precompilation
+    if ccall(:jl_generating_output, Cint, ()) != 0
+        @debug "Skipping XRTM load during precompilation"
+        return
+    end
+
+    if !haskey(ENV, "XRTM_PATH")
+        @debug "XRTM_PATH not set; XRTM will not be loaded"
+        return
+    end
+
+    xrtm_path_options = [
+        ENV["XRTM_PATH"],
+        joinpath(ENV["XRTM_PATH"], "interfaces")
+    ]
+
+    for search_path in xrtm_path_options
+        xrtm_file = joinpath(search_path, "XRTM.jl")
+
+        if isfile(xrtm_file)
+            @debug "Loading XRTM from $(search_path)"
+            try
+                include(xrtm_file)
+                push!(Base.DL_LOAD_PATH, search_path)
+                @debug "XRTM loaded successfully"
+                return
+            catch e
+                @warn "Failed to load XRTM from $(search_path): $e"
+                return
+            end
+        end
+    end
+
+    @debug "XRTM not found in any expected location. \
+        Set XRTM_PATH to the directory containing XRTM.jl"
+end
+
 
 
 
@@ -152,6 +181,7 @@ include("types/instrument_types.jl")
 include("types/radiance_types.jl")
 include("types/RT_types.jl")
 include("types/sif_types.jl")
+include("types/thermal_types.jl")
 
 include("types/inversion_types.jl")
 
@@ -176,6 +206,7 @@ include("state_vector_zero_level_offset.jl")
 include("state_vector_gas_scale.jl")
 include("state_vector_gas_profile.jl")
 include("state_vector_solar_scale.jl")
+include("state_vector_surface_temperature.jl")
 include("state_vector_temperature_offset.jl")
 include("state_vector_aerosol_od.jl")
 include("state_vector_aerosol_height.jl")
@@ -204,6 +235,7 @@ include("radiance.jl")
 include("RT.jl")
 include("radiance_correction.jl")
 include("SIFRadiance.jl")
+include("thermal.jl")
 
 include("inversion.jl")
 
@@ -236,6 +268,6 @@ end
 
 
 
-@info "Loaded RetrievalToolbox.jl, $(Dates.now())"
+@debug "Loaded RetrievalToolbox.jl, $(Dates.now())"
 
 end # module

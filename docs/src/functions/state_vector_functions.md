@@ -1,5 +1,12 @@
 # State Vector Functions
 
+Below functions act on state vector elements (`AbstractStateVectorElement`), and (generally) nothing else. Their main purpose is mostly provide context-specific information about a given state vector element that may be needed to trigger other computations.
+
+For example, the function `calculate_jacobian_before_isrf` is defined for all state vector elements (default implementation returns `true`) to indicate whether the Jacobians needs to be calculated before any instrument response functions are applied. The `ZeroLevelOffsetPolynomialSVE` type for example, represents an additive radiance contribution that can be added to the model radiance **after** the application instrument response function(s). While the result does not change, omitting the instrument function application for these state vector elements will reduce the overall computational effort.
+
+Similarly, the function `is_aerosol_SVE` (default: `false`) tells the underlying radiative transfer code whether this particular state vector element is related to aerosols, and thus requires different handling in the allocation of linearized inputs to the RT solver.
+
+
 ## Aerosol Height
 ```@autodocs
 Modules = [RetrievalToolbox]

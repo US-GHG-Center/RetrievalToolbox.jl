@@ -1,4 +1,4 @@
-# Atmosphere functions
+# Atmosphere Functions
 
 Functions below are designed to operate on atmosphere object, and for the time being
 mostly on `EarthAtmosphere` ones.

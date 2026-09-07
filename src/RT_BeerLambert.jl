@@ -34,13 +34,44 @@ function show(io::IO, rt::BeerLambertRTMethod)
 end
 
 
+function basic_checks_RT(rt::BeerLambertRTMethod)
+
+    # See if all solar irradiance are 0s
+    if all(rt.hires_solar .≈ 0)
+        @warn "[RT] All high-resolution solar irradiance values are 0! \
+            Did you forget to call `calculate_solar_irradiance!`?"
+    end
+
+    # Check if all total optical depth profiles sum to zero
+    tmp = rt.optical_properties.tmp_Nhi1
+    avx_sum_along_columns!(tmp, rt.optical_properties.total_tau)
+
+    if all(tmp .≈ 0)
+        @warn "[RT] All total column optical depths are 0! Did you forget to add any \
+            GasAbsorber or other components into `scene.atmosphere.atm_elements`?"
+    end
+
+
+end
+
+
 """
 $(TYPEDSIGNATURES)
 
 Calculates radiances and Jacobians for a `BeerLambertRTMethod` object. This
 further dispatches to the correct function for the specific observer type.
 """
-function calculate_radiances_and_jacobians!(rt::BeerLambertRTMethod)
+function calculate_radiances_and_jacobians!(
+    rt::BeerLambertRTMethod;
+    skip_checks=false
+    )
+
+
+    # Do some very basic checks here, mostly to let users know in case they forgot
+    # something elementary.
+    if !skip_checks
+        basic_checks_RT(rt)
+    end
 
     # Make explicit dispatch to function, depending on observer mode
     calculate_radiances_and_jacobians!(rt, rt.scene.observer)
@@ -163,11 +194,12 @@ function calculate_radiances_and_jacobians!(
         RT object (not the RT buffer though!)
     =#
 
-
     # Calculate jacobians
-    for (i, sve) in enumerate(rt.state_vector.state_vector_elements)
-        if calculate_jacobian_before_isrf(sve)
-            calculate_rt_jacobian!(rt.hires_jacobians[sve], rt, sve)
+    if rt.state_vector isa RetrievalStateVector
+        for (i, sve) in enumerate(rt.state_vector.state_vector_elements)
+            if calculate_jacobian_before_isrf(sve)
+                calculate_rt_jacobian!(rt.hires_jacobians[sve], rt, sve)
+            end
         end
     end
 
@@ -187,9 +219,7 @@ function calculate_radiances_and_jacobians!(
 
     # Total column optical depth
     total_column_od = rt.optical_properties.tmp_Nhi2
-    @views total_column_od[:] .= 0.0
-
-    @views rt.hires_radiance.I[:] .= 0.0
+    total_column_od[:] .= 0.0
 
     @turbo for l in 1:rt.scene.atmosphere.N_layer
         for i in eachindex(rt.hires_radiance.I)
@@ -210,10 +240,12 @@ function calculate_radiances_and_jacobians!(
     end
 
 
-   # Calculate jacobians
-    for (i, sve) in enumerate(rt.state_vector.state_vector_elements)
-        if calculate_jacobian_before_isrf(sve)
-            calculate_rt_jacobian!(rt.hires_jacobians[sve], rt, sve)
+    # Calculate jacobians
+    if rt.state_vector isa RetrievalStateVector
+        for (i, sve) in enumerate(rt.state_vector.state_vector_elements)
+            if calculate_jacobian_before_isrf(sve)
+                calculate_rt_jacobian!(rt.hires_jacobians[sve], rt, sve)
+            end
         end
     end
 
@@ -564,7 +596,6 @@ function calculate_rt_jacobian!(
     idx2 = sve.end_level - 1
 
     tau_subcolumn = rt.optical_properties.tmp_Nhi1
-    @views tau_subcolumn[:] .= 0.0
 
     avx_sum_along_columns_between!(
         tau_subcolumn,
@@ -573,12 +604,13 @@ function calculate_rt_jacobian!(
         idx2
         )
 
+    ufac = ustrip(sve.unit, 1.0)
     @turbo for i in eachindex(jac.I)
 
         jac.I[i] = -rt.hires_radiance.I[i] * (
             (1.0 / cosd(rt.scene.solar_zenith)) +
                 (1.0 / cosd(rt.scene.observer.viewing_zenith))
-        ) * tau_subcolumn[i] / scale_factor / ustrip(sve.unit, 1.0)
+        ) * tau_subcolumn[i] / scale_factor / ufac
 
     end
 

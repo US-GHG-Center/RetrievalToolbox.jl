@@ -1,4 +1,4 @@
-# Working with radiance types
+# [Working with radiance types](@id radiance_types_intro)
 
 There are, at the moment, two radiance types that users can utilize to store calculated or measured radiance: `ScalarRadiance` and `VectorRadiance`. Both very similar to generic arrays, in fact they inherit many of the properties and functions from Julia's arrays.
 
@@ -12,7 +12,7 @@ Both `ScalarRadiance` and `VectorRadiance` have only one field, named `S` which 
 
 For a very basic example, let us first generate some scalar radiance object using the internal constructor.
 
-```@repl rad
+```@example rad
 using RetrievalToolbox # hide
 const RE = RetrievalToolbox # hide
 T = Float64;
@@ -24,13 +24,13 @@ s = RE.ScalarRadiance(T, N)
 
 Similarly, we can create a vector radiance that represents the first three components of the Stokes vector:
 
-```@repl rad; continued = true
+```@example rad; continued = true
 v = RE.VectorRadiance(T, N)
 ```
 
 Functions that manipulate radiance can easily access the Stokes components inside either `s` or `v` via the explicit dot syntax.
 
-```@repl rad; continued = true
+```@example rad; continued = true
 s.I[:] .= 0.1;
 v.I[:] .= 0.2;
 v.Q[:] .= -0.3;
@@ -42,7 +42,7 @@ The main reason why the underlying object `.S` is an Array/Vector-type for both 
 
 For example, let's write a function that simply doubles all components of a radiance object:
 
-```@repl rad; continued = true
+```@example rad; continued = true
 using LoopVectorization
 
 function double_rad!(r::Radiance)
@@ -69,17 +69,17 @@ The ability to write a two-dimensional loop body even for the one-dimensional sc
 
 For example, the following works without issues
 
-```@repl rad; continued = true
+```@example rad; continued = true
 s + s
 ```
 
-```@repl rad; continued = true
+```@example rad; continued = true
 v - 2*v
 ```
 
 This next example, however, will fail since the shapes are incompatible:
 
-```@repl rad; continued = true
+```@example rad; continued = true
 show(size(s))
 show(size(v))
 s + v
@@ -88,7 +88,7 @@ s + v
 When it so happens that two or more radiance objects have to be used in mathematical operations, a few simple checks can be done to make sure that compatible operations are performed.
 
 
-```@repl rad; continued = true
+```@example rad; continued = true
 new_rad = VectorRadiance(T, N); # T,N from above..
 r1 = s; r2 = v; # or can use r1 = v; r2 = s;
 

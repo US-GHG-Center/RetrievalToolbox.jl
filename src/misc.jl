@@ -2,8 +2,8 @@
 $(TYPEDSIGNATURES)
 
 Converts a symbol to its corresponding one that carries the unit information. E.g.
-`:irradiance` returns `:irradiance_unit`, or `:temperature_levels` returns
-`:temperature_unit`
+`:irradiance` returns `:irradiance_unit`, or `:pressure_levels` returns
+`:pressure_unit`
 """
 function _field_unit_conversion(x::Symbol)
 
@@ -83,7 +83,7 @@ function ingest!(
     # will be a number that the @turbo macro below can interpret
     uc = one(eltype(val)) * unit(val[1]) |> obj_unit |> ustrip
 
-    # Get the unit-stripped view to the "val" array
+    # Get the unit-stripped view to the "val" array. This
     ustrip_val = ustrip.(val)
 
     # Copy over, accounting for correct conversion factor
@@ -120,8 +120,45 @@ function check_for_not_finite(x::AbstractArray)
 
 end
 
-function avx_sum_along_columns_between!(y, x, idx1, idx2)
+"""
+    avx_sum_along_columns_between!(
+        y::AbstractVector,
+        x::AbstractMatrix,
+        idx1::Integer,
+        idx2::Integer
+    )
 
+Calculates the along-column sum of matrix `x` between indices `idx1` and `idx2`, to store
+it in the vector `y`. It is assumed that `idx1` < `idx2`. This function makes use of the
+`@turbo` macro of the LoopVectorization package for high performance. The contents of `y`
+are zeroed out prior to the computation. Equivalent to
+`y[:] .= sum(x[:,idx1:idx2], dims=2)`, but roughly 2x faster.
+
+## Example
+Below example shows a matrix with two rows and three columns.
+`avx_sum_along_columns_between!` computes the sums for each of the two rows, between
+column indices 2 and 3, meaning `2+3` and `5+6`, and stores the results in the two-element
+vector `y`.
+```jldoctest; output = false
+x = [1 2 3; 4 5 6]
+y = zeros(Int, 2)
+avx_sum_along_columns_between!(y, x, 2, 3)
+y
+
+# output
+
+2-element Vector{Int64}:
+  5
+ 11
+```
+"""
+function avx_sum_along_columns_between!(
+    y::AbstractVector,
+    x::AbstractMatrix,
+    idx1::Integer,
+    idx2::Integer
+)
+    y[:] .= 0
     @turbo for j in idx1:idx2
         for i in axes(x, 1)
 
@@ -132,7 +169,17 @@ function avx_sum_along_columns_between!(y, x, idx1, idx2)
 
 end
 
+"""
+    avx_add_along_columns!(
+        y::AbstractVector,
+        x::AbstractMatrix
+    )
 
+Adds the along-column sum of matrix `x` to the vector `y`. This function makes use of the
+`@turbo` macro of the LoopVectorization package for high performance. The contents of `y`
+are zeroed out prior to the computation. Equivalent to `y[:] .+= sum(x, dims=2)`,
+but roughly 3x faster.
+"""
 function avx_add_along_columns!(y, x)
     @turbo for j in axes(x, 2)
         for i in axes(x, 1)
@@ -487,14 +534,114 @@ function specific_humidity_to_H2O_VMR(
     return h2o
 end
 
+
+"""
+    EQV(T::Unitful.Temperature) -> Unitful.Pressure
+
+Calculates equilibrium vapor pressure from temperature `T`, which can by any Unitful
+temperature quantity, as it is internally converted to Kelvin. Returns the value in
+units of $(u"Pa").
+
+For details see Murphy & Koop (2005): doi:10.1256/qj.04.94.
+"""
+function EQV(T::Unitful.Temperature)
+
+    TK = T |> u"K" |> ustrip
+
+    log_e = (
+        54.842763
+        - 6763.22 / TK - 4.21 * log(TK)
+        + 0.000367 * TK + tanh(0.0415 * (TK - 218.8))
+        * (53.878 - 1331.22 / TK - 9.44523 * log(TK) + 0.014025 * TK)
+    )
+
+    return exp(log_e) * u"Pa"
+
+end
+
+
+"""
+    H2O_VMR_to_relative_humidity(
+        H2O_VMR::Real,
+        p::Unitful.Pressure,
+        T::Unitful.Temperature
+    ) -> Number
+
+Calculates relative humidity given a H₂O volume mixing ratio `H2O_VMR`, pressure `p`,
+and temperature `T`. Converts the result to `Unitful.NoUnits`, thus returning a number.
+
+```jldoctest
+julia> H2O_VMR_to_relative_humidity(0.025, 1013e2u"Pa", 300u"K") ≈ 0.71604995533615401
+true
+```
+"""
+function H2O_VMR_to_relative_humidity(
+    H2O_VMR::Real,
+    p::Unitful.Pressure,
+    T::Unitful.Temperature
+)
+
+    return H2O_VMR * p / EQV(T) |> Unitful.NoUnits
+end
+
+
 """
 $(TYPEDSIGNATURES)
 
 Calculates the standard deviation of a Gaussian for a given full width at half the maximum
 value.
 """
-function FWHM_to_sigma(FWHM::Number)
+function FWHM_to_sigma(FWHM::T) where {T<:Real}
 
     return FWHM / 2 / (sqrt(2 * log(2)))
+
+end
+
+
+
+
+"""
+    W_to_ph(
+        L_in::Unitful.Quantity,
+        λ::Unitful.Length
+    ) -> Unitful quantity with units $(u"ph/s/m^2/sr/µm")
+
+Converts a spetral radiance `L_in` in units of power per area, per steradian per
+wavelength into spectral radiance in units of $(u"ph/s/m^2/sr/µm"). Users can then cast
+this into a quantity of other wavelength units. The function interface allows `L_in` to be
+any Unitful quantity, however the function checks whether `L_in` is dimensionally
+compatible with spectral radiance type units of power per wavelength.
+
+# Example
+"""
+function W_to_ph(L_in::Unitful.Quantity, λ::Unitful.Length)
+
+    @assert dimension(L_in) == DIM_POWER_PER_LENGTH "Input radiance `L_in` must be of \
+        dimension $(DIM_POWER_PER_LENGTH), but got $(dimension(L_in))"
+    return L_in * λ / (PLANCK * SPEED_OF_LIGHT) |> u"ph/s/m^2/sr/µm"
+
+end
+
+
+"""
+    W_to_ph(
+        L_in::Unitful.Quantity,
+        ν::Unitful.Wavenumber
+    ) -> Unitful quantity with units ph s⁻¹ m⁻² sr⁻¹ (cm⁻¹)⁻¹
+
+Converts a spetral radiance in units of power per area, per steradian per wavelength into
+spectral radiance in units of ph s⁻¹ m⁻² sr⁻¹ (cm⁻¹)⁻¹. Users can then cast this into a
+quantity of other wavelength units. The function interface allows `L_in` to be
+any Unitful quantity, however the function checks whether `L_in` is dimensionally
+compatible with spectral radiance type units of power per wavenumber.
+
+# Example
+
+"""
+function W_to_ph(L_in, ν::Unitful.Wavenumber)
+
+    @assert dimension(L_in) == DIM_POWER_PER_WAVENUMBER "Input radiance `L_in` must be \
+        of dimension $(DIM_POWER_PER_WAVENUMBER), but got $(dimension(L_in))"
+    return L_in / (ν * PLANCK * SPEED_OF_LIGHT) |> u"ph/s/m^2/sr/(cm^-1)"
 
 end

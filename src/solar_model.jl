@@ -1,7 +1,7 @@
 """
-Pretty printing for OCO solar model types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Pretty printing for OCO solar model types
 """
 function show(io::IO, ::MIME"text/plain", sm::OCOHDFSolarModel)
 
@@ -10,9 +10,9 @@ function show(io::IO, ::MIME"text/plain", sm::OCOHDFSolarModel)
 end
 
 """
-Brief pretty printing for OCO solar model types
+$(TYPEDSIGNATURES)
 
-$(SIGNATURES)
+Brief pretty printing for OCO solar model types
 """
 function show(io::IO, sm::OCOHDFSolarModel)
 
@@ -21,22 +21,37 @@ function show(io::IO, sm::OCOHDFSolarModel)
 end
 
 
+"""
+$(TYPEDSIGNATURES)
+
+Solar irradiance calculation for a `NoSolarModel`-type solar model. Only sets the
+`rt.hires_solar` vector to all zeros! This function supersedes the general one.
+"""
+function calculate_solar_irradiance!(
+    rt::AbstractRTMethod,
+    swin::AbstractSpectralWindow,
+    solar_model::NoSolarModel;
+    doppler_factor=nothing
+)
+
+    rt.hires_solar[:] .= 0
+
+end
+
 
 """
-Calculates the down-sampled solar spectrum at the
-high-resolution grid specified within the spectral
-window `swin` and saves it in `rt.hires_solar`.
-
 $(TYPEDSIGNATURES)
+
+Calculates the down-sampled solar spectrum at the high-resolution grid specified within
+the spectral window `swin` and saves it in `rt.hires_solar`.
 
 # Details
 
-In this function, the solar Doppler shift is considered via
-sampling the original solar spectrum at acccording wavelengths.
-The Doppler factor is defined as the relative velocity between
-the observation point on Earth (for Earth-Backscatter spectra),
-and a negative sign indicates the observation point moving closer
-to the sun, as a fraction of the speed of light in vacuum.
+In this function, the solar Doppler shift is considered via sampling the original solar
+spectrum at acccording wavelengths. The Doppler factor is defined as the relative velocity
+between the observation point on Earth (for Earth-Backscatter spectra), and a negative
+sign indicates the observation point moving closer to the sun, as a fraction of the speed
+of light in vacuum.
 """
 function calculate_solar_irradiance!(
     rt::AbstractRTMethod,
@@ -57,17 +72,20 @@ function calculate_solar_irradiance!(
 
     end
 
-    # Doppler effect depends on the spectral unit.
+    # Doppler effect depends on the spectral unit. This calculation only makes sense for
+    # solar models that have the .ww field.
 
-    if solar_model.ww_unit isa Unitful.LengthUnits
-        # Very cheeky way of moving from λ -> λ * (1 + Doppler)
-        @turbo for i in eachindex(solar_model.ww)
-            solar_model.ww[i] *= (1 + doppler_factor)
-        end
-    elseif solar_model.ww_unit isa Unitful.WavenumberUnits
-        # Very cheeky way of moving from ν -> ν / (1 + Doppler)
-        @turbo for i in eachindex(solar_model.ww)
-            solar_model.ww[i] /= (1 + doppler_factor)
+    if hasproperty(solar_model, :ww)
+        if solar_model.ww_unit isa Unitful.LengthUnits
+            # Very cheeky way of moving from λ -> λ * (1 + Doppler)
+            @turbo for i in eachindex(solar_model.ww)
+                solar_model.ww[i] *= (1 + doppler_factor)
+            end
+        elseif solar_model.ww_unit isa Unitful.WavenumberUnits
+            # Very cheeky way of moving from ν -> ν / (1 + Doppler)
+            @turbo for i in eachindex(solar_model.ww)
+                solar_model.ww[i] /= (1 + doppler_factor)
+            end
         end
     end
 
@@ -82,12 +100,12 @@ function calculate_solar_irradiance!(
 
     # Scale factor to account for unit differences! This must be applied before the
     # `pwl_value` operation, and then we revert!
-
-    unit_fac = 1.0 * solar_model.ww_unit / swin.ww_unit |> upreferred
-    @turbo for i in eachindex(solar_model.ww)
-        solar_model.ww[i] *= unit_fac
+    if hasproperty(solar_model, :ww)
+        unit_fac = 1.0 * solar_model.ww_unit / swin.ww_unit |> upreferred
+        @turbo for i in eachindex(solar_model.ww)
+            solar_model.ww[i] *= unit_fac
+        end
     end
-
 
     if solar_model isa OCOHDFSolarModel
         # Sample the solar spectrum at our Doppler-influenced
@@ -105,21 +123,56 @@ function calculate_solar_irradiance!(
         # Sample the TSIS irradiance (includes both transmittance
         # and continuum) and store in hires_solar.I
 
-        pwl_value_1d!(
-            solar_model.ww,
-            solar_model.irradiance,
-            swin.ww_grid,
-            rt.hires_solar.I
+        # Out-of-range will be set to 0.
+        if (
+            (swin.ww_grid[1] > solar_model.ww[end]) |
+            (swin.ww_grid[end] < solar_model.ww[1])
         )
+
+            @warn "[SOLAR] Solar model and spectral window $(swin) do not \
+                overlap! Hi-res solar irradiance will be zero!"
+            @views rt.hires_solar.I[:] .= 0
+
+        else
+
+            # Otherwise, interpolate!
+            pwl_value_1d!(
+                solar_model.ww,
+                solar_model.irradiance,
+                swin.ww_grid,
+                rt.hires_solar.I
+            )
+
+        end
 
     elseif solar_model isa ListSolarModel
 
-        pwl_value_1d!(
-            solar_model.ww,
-            solar_model.irradiance,
-            swin.ww_grid,
-            rt.hires_solar.I
+        # Out-of-range will be set to 0.
+        if (
+            (swin.ww_grid[1] > solar_model.ww[end]) |
+            (swin.ww_grid[end] < solar_model.ww[1])
         )
+
+            @warn "[SOLAR] Solar model and spectral window $(swin) do not \
+                overlap! Hi-res solar irradiance will be zero!"
+            @views rt.hires_solar.I[:] .= 0
+
+        else
+
+            pwl_value_1d!(
+                solar_model.ww,
+                solar_model.irradiance,
+                swin.ww_grid,
+                rt.hires_solar.I
+            )
+
+        end
+
+
+    elseif solar_model isa UnitSolarModel
+
+        rt.hires_solar.I[:] .= 1.0
+
     else
         # Revert solar model spectral grid unit before throwing.
         @turbo for i in eachindex(solar_model.ww)
@@ -130,81 +183,90 @@ function calculate_solar_irradiance!(
     end
 
     # Revert solar model spectral grid unit..
-    @turbo for i in eachindex(solar_model.ww)
-        solar_model.ww[i] /= unit_fac
-    end
+    if hasproperty(solar_model, :ww)
 
+        @turbo for i in eachindex(solar_model.ww)
+            solar_model.ww[i] /= unit_fac
+        end
+
+        # Restore original solar model grid
+        if solar_model.ww_unit isa Unitful.LengthUnits
+            # Very cheeky way of moving back from λ * (1 + Doppler) -> λ
+            @turbo for i in eachindex(solar_model.ww)
+                solar_model.ww[i] /= (1 + doppler_factor)
+            end
+        elseif solar_model.ww_unit isa Unitful.WavenumberUnits
+            # Very cheeky way of moving back from ν * (1 + Doppler) -> ν
+            @turbo for i in eachindex(solar_model.ww)
+                solar_model.ww[i] *= (1 + doppler_factor)
+            end
+        end
+
+    end
 
     # Apply the solar scaler
     @turbo for i in eachindex(rt.hires_solar.I)
         rt.hires_solar.S[i,1] *= rt.solar_scaler[i]
     end
 
-    # Restore original solar model grid
-    if solar_model.ww_unit isa Unitful.LengthUnits
-        # Very cheeky way of moving back from λ * (1 + Doppler) -> λ
-        @turbo for i in eachindex(solar_model.ww)
-            solar_model.ww[i] /= (1 + doppler_factor)
-        end
-    elseif solar_model.ww_unit isa Unitful.WavenumberUnits
-        # Very cheeky way of moving back from ν * (1 + Doppler) -> ν
-        @turbo for i in eachindex(solar_model.ww)
-            solar_model.ww[i] *= (1 + doppler_factor)
-        end
-    end
-
 end
 
 """
-    Converts solar model data from "ph/s/m^2/µm" to "W/m^2/µm"
+$(TYPEDSIGNATURES)
+
+Converts solar model data from "ph/s/m^2/µm" to "W/m^2/µm"
 """
 function convert_solar_model_to_W!(s::OCOHDFSolarModel)
 
     if s.irradiance_unit == u"ph/s/m^2/µm"
         @debug "[SOLAR] Solar model in units of ph/s/m2/µm - converting to W/m2/µm!"
         @views s.continuum[:] .*= ustrip.(Ref(u"W"),
-            1.0u"s^-1" .* SPEED_OF_LIGHT ./ (s.ww[:] .* u"µm") .* PLANCK
+            1.0u"s^-1" .* SPEED_OF_LIGHT ./ (s.ww[:] .* s.ww_unit) .* PLANCK
         )
 
         s.irradiance_unit = u"W/m^2/µm"
+        return true
 
     else
 
-        @warn "Units already in W/m^2/µm - skipping!"
-
+        error("This function does not (yet) accept irradiance units of \
+            $(s.irradiance_unit)!")
+        return false
     end
 
 end
 
 """
-    Converts solar model data from "W/m^2/nm" to "ph/s/m^2/µm"
+$(TYPEDSIGNATURES)
+
+Converts solar model data from "W/m^2/nm" to "ph/s/m^2/µm"
 """
 function convert_solar_model_to_photons!(s::TSISSolarModel)
 
     if s.irradiance_unit == u"W/m^2/nm"
         @debug "[SOLAR] Solar model in units of W/m^2/nm - converting to ph/s/m^2/µm!"
         @views s.irradiance[:] .*= ustrip.(u"m^-2 * µm^-1", # We want this in 1/m2 1/µm
-        s.irradiance_unit * 1.0u"s" ./ SPEED_OF_LIGHT .* (s.ww[:] .* u"nm") ./ PLANCK
+            s.irradiance_unit * 1.0u"s" ./ SPEED_OF_LIGHT .*
+            (s.ww[:] .* s.ww_unit) ./ PLANCK
         )
 
         s.irradiance_unit = u"ph/s/m^2/µm"
+        return true
 
     else
 
-        @warn "Units already in ph/s/m^2/µm - skipping!"
-
+        error("This function does not (yet) accept irradiance units of \
+            $(s.irradiance_unit)!")
+        return false
     end
-
-    return true
 
 end
 
 
 """
-Reads a JPL/OCO-type solar model HDF5 file and returns
-a `OCOHDFSolarModel` object.
 
-$(TYPEDSIGNATURES)
+
+Reads a JPL/OCO-type solar model HDF5 file and returns a `OCOHDFSolarModel` object.
 """
 function OCOHDFSolarModel(
     filename::String,
@@ -321,9 +383,6 @@ function TSISSolarModel(
     ww = ustrip.(Ref(u"µm"), wavelength * wavelength_unit)
     ww_unit = u"µm"
 
-    # Convert wavelength to µm
-    irradiance = ustrip.(Ref(u"W/m^2/µm"), irradiance * irradiance_unit)
-
     if spectral_unit == :Wavelength
 
         # Nothing to do here
@@ -332,13 +391,14 @@ function TSISSolarModel(
 
         # Turn irradiance into W/m^2/cm^-1 and reverse
         # array order to make them in increasing wavenumbers
-        irradiance ./= (1e4 ./ ww) .^ 2
-        irradiance = irradiance[end:-1:1]
+        @views irradiance[:] ./= (1e4 ./ ww[:]) .^ 2
+        reverse!(irradiance)
         # Set the new irradiance units
         irradiance_unit = u"W/m^2/cm^-1"
 
         # Turn µm into cm^-1 and reverse array
-        ww = 1e4 ./ ww[end:-1:1]
+        @views ww[:] .= 1e4 ./ ww[:]
+        reverse!(ww)
         ww_unit = u"cm^-1"
 
     else

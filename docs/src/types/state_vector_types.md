@@ -34,9 +34,21 @@ A `RetrievalStateVector` can be instantiated by passing a vector of  `AbstractSt
 RE.RetrievalStateVector
 ```
 
-# State Vector Element (SVE) Types
+## State Vector Element (SVE) Types
 
-An `AbstractStateVector` consists of a list of state vector element (SVE) types, which are all subtypes of `AbstractStateVectorElement`. Every `AbstractStateVectorElement` type must be implemented as a `mutable struct`, due to the overall design of RE. Since instantiating new state vectors and state vector elements for each new retrieval scene would impact highly negatively on the overall performance, mutable structs are used. Once instantiated, users must make sure to reset each state vector element at the beginning of a new retrieval by setting the appropriate values and emptying out the `iterations` vector field with `empty!(sve.iterations)`, with `sve` being the state vector element variable.
+An `AbstractStateVector` consists of a list of state vector element (SVE) types, which are all subtypes of `AbstractStateVectorElement`. Every `AbstractStateVectorElement` type must be implemented as a `mutable struct`, due to the overall design of RE. Since instantiating new state vectors and state vector elements for each new retrieval scene would impact highly negatively on the overall performance, mutable structs are used. Once instantiated, users must make sure to reset each state vector element at the beginning of a new retrieval by setting the appropriate values for first guess, prior value and prior covariance, and emptying out the `iterations` vector field with `empty!(sve.iterations)`, with `sve` being the state vector element variable. Alternatively, users can invoke `reset!(sv)` (`sv` being a `RetrievalStateVector`), which automatically empties each state vector element and adds the first guess value as the first and only new iteration value.
+
+## Gas volume mixing ratio profiles
+
+The `GasVMRProfileSVE` type provides a convenient interface to adjust the volume mixing ratio of a gas at various level indices. Users should create N `GasVMRProfileSVE` objects with the constructor function of the same name, `GasVMRProfileSVE(gas, unit; type)`, to automatically create the SVEs for all N levels of a `GasAbsorber` `gas`, where `unit` has to be a `Unitful.DimensionlessUnits`, like `u"ppm"`. Alternatively, users can simply manually create all N `GasVMRProfileSVE` by invoking the default type constructor, supplying the level index.
+
+!!! note
+    If users call the convenience function `GasVMRProfileSVE(gas, unit; type)` to create the SVEs for all levels of a gas profile, they **must** manually add reasonable values to `.first_guess`, `.prior_value`, `.prior_covariance` fields. The `.iterations` field must also be populated, however that may happen with a `RE.reset!(sv)` call to the state vector itself.
+
+```@docs
+RE.GasVMRProfileSVE
+```
+
 
 ## Gas scaling factors
 
@@ -55,6 +67,9 @@ This type requires a unit without dimensions, such as `Unitful.percent` or `Unit
 ```@docs
 RE.GasLevelScalingFactorSVE
 ```
+
+
+
 
 ## SIF radiance
 
@@ -88,7 +103,9 @@ RE.SurfacePressureSVE
 ## Surface albedo polynomial
 
 For a Lambertian surface model, in particular a `LambertianPolynomialSurface`, users can
-retrieve the polynomial coefficients. This state vector element has to be attached to a spectral window, since surfaces themselves are attached to a spectral window. Like all polynomial-related
+retrieve the polynomial coefficients. `LambertianPolynomialSurface` is used together with a `BeerLambertRTMethod`, and thus only meaningful for a Beer-Lambert type radiative transfer scheme.
+
+This state vector element has to be attached to a spectral window, since surfaces themselves are attached to a spectral window. Like all polynomial-related
 quantities, any state vector element must relate to a particular coefficient order. A convenience constructor exists which populates the `unit` field appropriately, given the coefficient order. One might call, for example
 
 ```julia
@@ -111,9 +128,37 @@ RE.SurfaceAlbedoPolynomialSVE
 
 In order to update the surface(s) given some state vector, a helper function exists which performs the in-place update within a `RE.EarthScene` object: `RE.surfaces_statevector_update!`.
 
+## Surface BRDF polynomial
+
+For a [`MonochromaticRTMethod`](@ref), in particular when using the XRTM radiative transfer library, users must specify `BRDFSurface` surface types. The following state vector element allows to retrieve the polynomial coefficients of a BRDF kernel (supported kernels are listed in [Surface types](@ref surface_types)). Note that the `BRDFPolynomialSVE` points to a **BRDF kernel type**, not to a BRDF surface object. It need not be the same `BRDFKernel` object, as currently the mechanism only checks for the kernel type, rather than the specific object.
+
+!!! warning
+    Currently, there are no checks on duplicate kernels in a `BRDFSurface` object. Users who insert multiple BRDF kernels of the same type in a `BRDFSurface` will likely see undefined behavior later on. **We strongly recommend not to use duplicate BRDF kernel types!**
+
+```@docs
+RE.BRDFPolynomialSVE
+```
+
+## Aerosol optical depth
+
+```@docs
+RE.AerosolOpticalDepthSVE
+```
+
+## Aerosol height
+
+```@docs
+RE.AerosolHeightSVE
+```
+
+## Aerosol width
+
+```@docs
+RE.AerosolWidthSVE
+```
+
+
 ## Dispersion polynomial
-
-
 
 ```@docs
 RE.DispersionPolynomialSVE
@@ -123,4 +168,16 @@ RE.DispersionPolynomialSVE
 
 ```@docs
 RE.ZeroLevelOffsetPolynomialSVE
+```
+
+## Temperature profile offset
+
+```@docs
+RE.TemperatureOffsetSVE
+```
+
+## Surface temperature
+
+```@docs
+RE.SurfaceTemperatureSVE
 ```

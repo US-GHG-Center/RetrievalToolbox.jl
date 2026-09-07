@@ -4,11 +4,11 @@ This section of the documentation deals with known pitfalls regarding the usage 
 
 ## Azimuthal angles and convention for use with XRTM
 
-
+TODO
 
 ## Mutability of many RetrievalToolbox objects
 
-
+TODO
 
 ## Angles and trigonometric functions with Unitful.jl
 
@@ -86,7 +86,7 @@ Further, users should be aware of implicit conversions when assigning angle-valu
 
 Assume some mutable, user-defined type `t` that accepts some float as its only field. We then instantiate a new variable `v` with some arbitrary value.
 
-```@repl type; continued = true
+```@example type; continued = true
 using Unitful # hide
 mutable struct t{T <: AbstractFloat}
     a::T

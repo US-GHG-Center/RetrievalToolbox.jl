@@ -1,5 +1,6 @@
 using RetrievalToolbox
 using Documenter
+using JLD2
 using Test
 using Unitful
 
@@ -11,7 +12,7 @@ using Unitful
         DocMeta.setdocmeta!(
             RetrievalToolbox,
             :DocTestSetup,
-            :(using RetrievalToolbox);
+            :(using RetrievalToolbox; using Unitful);
             recursive=true
         )
 
@@ -26,6 +27,9 @@ using Unitful
     end
     @testset "Atmosphere tests" begin
         include("atmosphere_tests.jl")
+    end
+    @testset "Compound tests" begin
+        include("compound_tests.jl")
     end
 
 end

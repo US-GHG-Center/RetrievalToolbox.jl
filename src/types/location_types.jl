@@ -2,8 +2,8 @@ struct EarthLocation{T1, T2} <: AbstractLocation
 
     longitude::T1
     latitude::T1
-    altitude::T2
-    altitude_unit::Unitful.LengthUnits
+    elevation::T2
+    elevation_unit::Unitful.LengthUnits
 
 end
 
@@ -17,7 +17,7 @@ function show(io::IO, ::MIME"text/plain", el::EarthLocation)
     println(io, "EarthLocation")
     println(io, "Longitude: $(el.longitude)")
     println(io, "Latitude:  $(el.latitude)")
-    println(io, "Altitude:  $(el.altitude * el.altitude_unit)")
+    println(io, "Elevation:  $(el.elevation * el.elevation_unit)")
 
 end
 
@@ -28,6 +28,6 @@ $(SIGNATURES)
 """
 function show(io::IO, el::EarthLocation)
 
-    print(io, "EarthLocation: $(el.longitude)/$(el.latitude)/$(el.altitude)")
+    print(io, "EarthLocation: $(el.longitude)/$(el.latitude)/$(el.elevation * el.elevation_unit)")
 
 end
