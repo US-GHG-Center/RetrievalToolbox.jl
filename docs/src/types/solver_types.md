@@ -70,7 +70,7 @@ or (equivalently)
 solver.forward_model(sv; fm_kwargs...)
 ```
 
-
+Again, note that the solver object field does **not** include the exclamation mark.
 
 ## Iterative maximum a-posteriori (IMAP) solver
 

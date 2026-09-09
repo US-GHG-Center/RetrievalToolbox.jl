@@ -1,4 +1,4 @@
-# Instrument functions
+# Instrument Functions
 
 RetrievalToolbox is mostly instrument-agnostic, meaning that none of the functions are
 written for specific instruments, even though a certain type of instrument class is

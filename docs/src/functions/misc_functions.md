@@ -1,4 +1,4 @@
-# Miscellaneous functions
+# Miscellaneous Functions
 
 Functions here are usually general "helper" or "utility" type functions that a likely used throughout different parts of RetrievalToolbox.
 
