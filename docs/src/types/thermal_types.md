@@ -17,3 +17,7 @@ RE.ThermalSurfaceIsotropic
 ```@docs
 RE.Planck_radiance(λ::Unitful.Length, T::Unitful.Temperature, rad_unit::Unitful.Units)
 ```
+
+```@docs
+RE.Planck_radiance(ν::Unitful.Wavenumber, T::Unitful.Temperature, rad_unit::Unitful.Units)
+```

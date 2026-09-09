@@ -4,6 +4,8 @@ To facilitate inversions of measured radiances in an organized way, RetrievalToo
 
 Users may write their own solver types to implement new inversion methods. In the type hierarchy tree, they should be a subtype of `AbstractSolver`. In order to allow for seamless functionality with some common functions from [Inversion Functions](@ref), we suggest to model the new solver type according to the `IMAPSolver` below, however advanced users may be able move away from that template. Once the type definition is written, users should then write a number of functions that implement the calculation of state vector updates, error analysis and so on. We recommend looking at the `src/inversion_IMAP.jl` file to get a feeling of how these functions should be written.
 
+Forward model functions can be rather complex, we highly recommend to study existing example implementations available on the [RetrievalToolbox Org Github](https://github.com/RetrievalToolbox).
+
 ## The forward model function
 
 Most solver types should have a function `forward_model` as a field within the solver type. These functions are supposed to have only one single argument: the state vector (of type `<:AbstractStateVector`). The function `forward_model` may have any number of **additional keyword arguments**, which in Julia are distinguished by a semi-colon. Further, it is expected by some other functions that the forward model return `true` if it executed successfully. The reasoning behind this is that forward model functions may be highly complex and it is very helpful to signal to the inversion methods that the forward model failed.
