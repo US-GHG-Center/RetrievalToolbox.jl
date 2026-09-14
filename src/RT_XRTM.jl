@@ -1230,7 +1230,7 @@ function _run_XRTM!(
             ampfac = evaluate_surface_at_idx(kernel, i_spectral)
 
             if (ampfac <= 0)
-                @error "[XRTM] Surface kernel amplitude factor must be > 0."
+                @warn "[XRTM] Surface kernel amplitude factor must be > 0."
                 thread_error_flags[myid] = true
                 break
             end
@@ -1240,7 +1240,8 @@ function _run_XRTM!(
         end
 
         if thread_error_flags[myid]
-            continue
+            @warn "Error flag on thread $(myid) - skipping further calculations."
+            break
         end
 
         # Let XRTM know which layers involve weighting functions
