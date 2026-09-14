@@ -141,7 +141,7 @@ function OCO_pull_atmosphere_from_met(
 
         psurf = _h5["surface_pressure_ecmwf"][idx...]u"Pa"
         #ptropo = _h5["blended_tropopause_pressure_ecwmf"][idx]u"Pa"
-        ptropo = similar(psurf)
+        ptropo = deepcopy(psurf) # `similar` does not work for scalars
         ptropo[:,:] .= 0.0u"Pa"
 
         pressure_levels_met = _h5["vector_pressure_levels_ecmwf"][:,idx...]u"Pa"
