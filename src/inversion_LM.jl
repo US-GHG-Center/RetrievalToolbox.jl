@@ -50,7 +50,7 @@ function next_iteration!(
 
     # Change in state vector. Solve this with the ACOS-type SVD approach
 
-    Δx = solve_LM_scaled(
+    Δx = _solve_LM_scaled(
         s.gamma,
         s.prior_covariance,
         K,
