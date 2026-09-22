@@ -10,13 +10,15 @@ tags:
 authors:
   - name: Peter Somkuti
     orcid: 0000-0002-5858-8471
-    affiliation: "1,2"
+    affiliation: "1,2,3"
 
 affiliations:
   - name: Earth System Science Interdisciplinary Center, University of Maryland, MD, USA
     index: 1
   - name: NASA Goddard Space Flight Center, MD, USA
     index: 2
+  - name: Institute of Environmental Physics, Univeristy of Bremen, FB 1, Bremen, Germany
+    index: 3
 
 date: 18 November 2025
 bibliography: paper.bib
