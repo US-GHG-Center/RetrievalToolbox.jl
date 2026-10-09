@@ -362,6 +362,7 @@ function create_XRTM(
     # Find out, which XRTM surface kernels we need
 
     swin = rt.optical_properties.spectral_window
+
     if swin isa BinnedSpectralWindow
         swin = swin.original_window
     end
@@ -1227,7 +1228,17 @@ function _run_XRTM!(
         # (due to XRTM's 0-based indexing.)
         for (k, kernel) in enumerate(surface.kernels)
 
-            ampfac = evaluate_surface_at_idx(kernel, i_spectral)
+
+            # Note that for binned RT objects, we must take the correct spectral point 
+            # referenced by the BinnedSpectralWindow object
+
+            if swin isa BinnedSpectralWindow
+                ampfac = evaluate_surface_at_idx(kernel, swin.spectral_idx)
+            else
+                ampfac = evaluate_surface_at_idx(kernel, i_spectral)
+            end
+
+            # Now check for negatives: XRTM can't do anything with negative ampfacs
 
             if (ampfac <= 0)
                 @warn "[XRTM] Surface kernel amplitude factor must be > 0."
