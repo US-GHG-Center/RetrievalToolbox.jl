@@ -1187,7 +1187,7 @@ function _lsi_correct_stokes!(
                 ∂_slope_adjust.S[1,s] = ∂_error_edge[l].S[1,s] - ∂_error_center[l].S[1,s]
                 ∂_slope_adjust.S[1,s] *= (ww_center - ww) / (ww_center - ww_edge)
 
-                ∂_stokes_error.S[1,s] += ∂_slope_adjust.S[1,s]
+                ∂_stokes_error.S[idx_spec,s] += ∂_slope_adjust.S[1,s]
             end
 
             wfunctions[l].S[idx_spec,1] -= radiance.S[idx_spec,1] * ∂_stokes_error.S[idx_spec,1]
