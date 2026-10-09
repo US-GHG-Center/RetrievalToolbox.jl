@@ -622,9 +622,9 @@ function calculate_gas_optical_depth_profiles!(
                 # Dry and wet (moist) air molecules per m^2
                 # (and correct for units)
                 unit_factor = ustrip(u"m^-2",
-                                     1.0 * unit(NA) * atm.pressure_unit
-                                     / (atm.gravity_unit * unit(MM_DRY_AIR))
-                                     )
+                    1.0 * unit(NA) * atm.pressure_unit
+                    / (atm.gravity_unit * unit(MM_DRY_AIR))
+                )
 
                 opt.nair_dry[l-1] += (1 - this_sh) * C_tmp * this_w * unit_factor
                 opt.nair_wet[l-1] += (1 + this_sh * (MM_AIR_TO_H2O - 1)) *
@@ -642,7 +642,7 @@ function calculate_gas_optical_depth_profiles!(
                     VMR_higher = this_gas.vmr_levels[l-1] * this_gas.vmr_unit
 
                     # Here, the VMR is automatically cast to a unitless quantity
-                    this_VMR = (1.0 - this_p_fac) * VMR_lower + this_p_fac * VMR_higher
+                    this_VMR = (1.0 - this_p_fac) * VMR_higher + this_p_fac * VMR_lower
 
                     # Rebind for convenience
                     spec = this_gas.spectroscopy
