@@ -235,7 +235,7 @@ function _calculate_dispersion_polynomial_jacobian_table!(
         end
 
         this_ww = lores_ww[i] * doppler_term
-        this_l1b_idx = lores_index[i - 1]
+        this_l1b_idx = lores_index[i]
 
         tmp1 = this_l1b_idx ^ order
 
