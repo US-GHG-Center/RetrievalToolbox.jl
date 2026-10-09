@@ -1,0 +1,1 @@
+# [Spectroscopy Types](@id spectroscopy_types)

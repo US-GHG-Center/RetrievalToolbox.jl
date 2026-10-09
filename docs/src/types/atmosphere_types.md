@@ -1,4 +1,4 @@
-# Atmosphere types
+# Atmosphere Types
 
 An `EarthAtmosphere` object, as the name suggests, characterizes an atmospheric state on Earth with a number of profiles and other quantities to the extent needed by most models to generate radiances.
 

@@ -1,4 +1,4 @@
-# [Surface types](@id surface_types)
+# [Surface Types](@id surface_types)
 
 Surface types are required by the scene objects ([`EarthScene`(@ref)]) to carry information about what type of surface model the radiative transfer calculations should use. As laid out in the `EarthScene` type, one surface is mapped to exactly one spectral window - there is currently no support for "sharing" a surface between different spectral windows. If users want to fix the retrieved surface properties between two separate retrieval windows, they must manually impose correlations through the prior covariance matrix.
 

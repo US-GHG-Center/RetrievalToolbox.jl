@@ -1,4 +1,4 @@
-# [Aerosol types](@id aerosol_types)
+# [Aerosol Types](@id aerosol_types)
 
 Aerosols are part of the `AbstractAtmosphereElement` type tree: `AbstractAtmosphereElement` → `AbstractAerosolType`, and have to be added to the model atmosphere into the `atm_elements` vector of an [`EarthAtmosphere`](@ref). Some aerosol type belonging to `AbstractAerosolType` is a more specific type implementation of an aerosol type. Aerosols may need optical properties, which a grouped into the `AbstractAerosolProperty` abstract types.
 

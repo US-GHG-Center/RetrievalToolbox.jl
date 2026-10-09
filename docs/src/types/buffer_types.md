@@ -1,6 +1,7 @@
-# [Buffer types](@id buffer_types)
+# [Buffer Types](@id buffer_types)
 
 Below are the currently supported buffer types which represent collections of pre-allocated objects that can be used over and over in situations where users want to e.g. perform many retrievals. The following buffers can be created once and then used repeatedly for different scenes. The slower the retrieval process itself is, the lower is the overall performance gain from re-using buffers, however. For very fast retrievals with completion times less then a few seconds, it is highly recommended to re-use the buffers.
+
 
 ## How to construct an `EarthAtmosphereBuffer`
 
@@ -43,7 +44,7 @@ RE.EarthAtmosphereBuffer(
     In **most** cases, users will want to make sure that `sv`, the state vector supplied to this convenience function, is the same state vector that is used to map the keys of the `jacobian` dictionary of the RT buffer `rt_buf`. There is currently **no check in place to verify this**.
 
 
-### [Surface types](@id surface_types_buffer)
+### [Surface Types](@id surface_types_buffer)
 
 Both `RT_models` and `surface_types` arguments must be ordered according to the `spectral_windows` argument (list of spectral windows). For example, let there be three spectral windows we want to use, `swin_A`, `swin_B`, `swin_C` such that `spectral_windows = [swin_A, swin_B, swin_C]`. Users have the choice to perform RT calculations with different models for each spectral window. So if the first two windows should be run with a Beer-Lambert-type RT and the last one use the XRTM library, one would write `RT_models = [:BeerLambert, :BeerLambert, :XRTM]`. Similarly, we proceed to assign surface types. At the moment only Lambertian-type surface are supported with the [`BeerLambertRTMethod`](@ref), but for a [`MonochromaticRTMethod`](@ref) that employs the XRTM solver, we can make use of the RPV BRDF kernel:
 
