@@ -421,9 +421,21 @@ end
 
 
 """
-$(TYPEDSIGNATURES)
+    calculate_solar_doppler_shift(
+        loc::EarthLocation,
+        dtime::DateTime,
+    ) -> Float64
 
 Calculates the solar Doppler shift for a given `EarthLocation` and `DateTime`.
+
+# Notes
+This function calculates the **relative** velocity between the provided location on Earth
+and the sun at some given time, this is not to be confused with some relative velocity between
+some spacecraft and the sun. This relative velocity component causes a shift of solar spectral
+features relative to the spectral features due to the gases in Earth's atmosphere.
+
+The value calculated here is used in `calculate_solar_irradiance!` by default when users do not
+supply their own solar Doppler factor to it.
 """
 function calculate_solar_doppler_shift(
     loc::EarthLocation,
@@ -437,7 +449,8 @@ function calculate_solar_doppler_shift(
     jd = jdcnv(dtime)
 
     # Need ground elevation in km, and strip units
-    elevation_km = loc.elevation * loc.elevation_unit |> u"km" |> ustrip
+    # (we cast this explicitly to Float64 for type stability)
+    elevation_km = Float64(loc.elevation * loc.elevation_unit |> u"km" |> ustrip)::Float64
 
     # Calculate ground coordinates in ECI in km
     coord_eci_km = geo2eci(loc.latitude, loc.longitude, elevation_km, jd)
