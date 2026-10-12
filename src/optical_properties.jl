@@ -553,8 +553,19 @@ function calculate_gas_optical_depth_profiles!(
             )
 
             if findany(spec_wl_idx_left[this_gas], -1)
-                @warn "[OPT] Spectroscopy for $(this_gas) out-of-bounds. " *
-                    "Gas optical depth values for some spectral points will be zero."
+
+                # This is a warning that tells you that the spectroscopy `this_spec`
+                # does not have any values for the wavelength range given by `swin`.
+                # This situation will come up a lot, so this warning may not be all
+                # that useful - hence we move it into the "debug" class of 
+                # messages.
+
+                @debug "[OPT] Spectroscopy for $(this_gas) out-of-bounds for \
+                    $(swin). Gas optical depth values for some spectral points \
+                    will be zero. Spectral bounds follow:"
+                
+                @debug "[OPT] $(this_spec): $(this_spec.ww[1]) <-> $(this_spec.ww[end]) [$(this_spec.ww_unit)]"
+                @debug "[OPT] $(swin): $(swin.ww[1]) <-> $(swin.ww[end])"
 
             end
 
