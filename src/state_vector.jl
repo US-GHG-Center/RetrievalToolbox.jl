@@ -233,7 +233,9 @@ end
 
 
 """
-$(TYPEDSIGNATURES)
+    print_state_vector_update(
+        SV::AbstractStateVector
+    ) -> nothing
 
 Prints the state vector update (current value minus value of iteration before) in a nicely
 formatted table.
