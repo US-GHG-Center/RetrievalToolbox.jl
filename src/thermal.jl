@@ -57,6 +57,20 @@ function Planck_radiance(
 
 end
 
+"""
+    dPlanck_radiance_dT(
+        λ::Unitful.Length,
+        T::Unitful.Temperature,
+        rad_unit::Unitful.Units
+    ) -> Unitful quantity converted to `rad_unit` divided by unit of `T`
+
+Top-level function to calculate the derivative of the Planckian blackbody radiation with
+respect to temperature. Mostly for internal use.
+
+Note that `rad_unit` refers to the radiance unit **without** the temperature-related unit,
+exactly like it would be passed into `Planck_radiance`. The result, however, does come attached
+with the proper division by the temperature unit of `unit(T)`.
+"""
 function dPlanck_radiance_dT(
     λ::Unitful.Length,
     T::Unitful.Temperature,
@@ -75,7 +89,7 @@ end
 
 """
     Planck_radiance(
-        λ::Unitful.Length,
+        ν::Unitful.Wavenumber,
         T::Unitful.Temperature,
         rad_unit::Unitful.Units
     ) -> Unitful quantity converted to `rad_unit`
@@ -98,6 +112,35 @@ function Planck_radiance(
 
 end
 
+
+"""
+    dPlanck_radiance_dT(
+        ν::Unitful.Wavenumber,
+        T::Unitful.Temperature,
+        rad_unit::Unitful.Units
+    ) -> Unitful quantity converted to `rad_unit` divided by unit of `T`
+
+Top-level function to calculate the derivative of the Planckian blackbody radiation with
+respect to temperature. Mostly for internal use.
+
+Note that `rad_unit` refers to the radiance unit **without** the temperature-related unit,
+exactly like it would be passed into `Planck_radiance`. The result, however, does come attached
+with the proper division by the temperature unit of `unit(T)`.
+"""
+function dPlanck_radiance_dT(
+    ν::Unitful.Wavenumber,
+    T::Unitful.Temperature,
+    rad_unit::Unitful.Units
+    )
+
+    # Note regarding the units: the unit going into `_dPlanck_radiance_dT` is the radiance
+    # unit **without** the per-temperature unit. We back-attach that missing unit when we
+    # produce the output.
+    # This is a slightly unfortunate hack needed keep the unit dispatch mechanism for
+    # Planck radiances here working..
+    return @inline _dPlanck_radiance_dT(ν, T, dimension(rad_unit)) |> rad_unit / unit(T)
+
+end
 
 
 """
