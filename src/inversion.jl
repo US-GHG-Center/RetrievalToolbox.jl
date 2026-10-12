@@ -774,7 +774,8 @@ end
     insert_gas_covariance_matrix!(
         Sa::AbstractMatrix,
         gas::GasAbsorber,
-        sv::AbstractStateVector
+        sv::AbstractStateVector,
+        cov::AbstractMatrix
         ) -> nothing
 
 Inserts a prior covariance matrix for a retrieved gas VMR profile into a full covariance
@@ -800,6 +801,15 @@ function insert_gas_prior_covariance_matrix!(
             [$(size(Sa, 1)), $(size(Sa, 2))], but we have N=$(length(idx_list)) indices
             belonging to gas $(gas)!
             """)
+    end
+
+    # Check the size of `cov`
+    if !(length(idx_list) == size(cov, 1) == size(cov, 2))
+        error("""
+        [SV] Covariance matrix has shape [$(size(cov))], but we have
+        $(length(idx_list)) state vector elements for gas $(gas)!
+        Covariance matrix must be of size [$(length(idx_list)), $(length(idx_list))]!
+        """)
     end
 
     # Copy over all elements from the requested covariance matrix `cov` into `Sa`, which
