@@ -438,7 +438,10 @@ function calculate_gas_optical_depth_profiles!(
     opt.nair_wet[:] .= 0.0
 
     # Manually set the temperature perturbation size
-    T_perturb = 10.0 # in [K]
+    # (Note: this value should possibly be smaller than the temperature grid spacing
+    #  of the underlying spectroscopy table(s). We could try to infer this dynamically
+    #  rather than hard-code it at a later stage..)
+    T_perturb = 5.0 # in [K]
 
     # Take out gas absorbers only, we don't want aerosols or others
     gases = [c for c in atm.atm_elements if c isa GasAbsorber]
