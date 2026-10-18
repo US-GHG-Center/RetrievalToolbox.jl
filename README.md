@@ -42,13 +42,17 @@ _Users are very welcome to submit their working set-ups to be listed here!_
 
 RetrievalToolbox can be installed directly from Julia by typing (via http)
 
+```julia
     using Pkg
     Pkg.add(url="https://github.com/US-GHG-Center/RetrievalToolbox.jl")
+```
 
 or (via ssh)
 
+```julia
     using Pkg
     Pkg.add(url="git@github.com:US-GHG-Center/RetrievalToolbox.jl")
+```
 
 This will install the RetrievalToolbox including all needed dependencies.
 
@@ -58,30 +62,39 @@ If you forked this repository, you must amend the above commands to pull the pac
 
 RetrievalToolbox is a software library that does not include a true stand-alone implementation of any particular application. However, the following lines can be seen as a minimum working example that ultimately produce instrument-level radiance for a high-spectral resolution instrument that measures top-of-atmosphere spectra in a down-looking viewing geometry. Note that this example requires the Julia package `Unitful` work correctly. Further, to create the figures as shown below, the package `Plots` is needed:
 
+```julia
     using Pkg
     Pkg.add("Unitful")
     Pkg.add("Plots") # optional
+```
 
 First, we load the required modules.
 
+```julia
     using Unitful
     using Plots # optional
     using RetrievalToolbox; const RE = RetrievalToolbox
+```
 
 We pick a small spectral window, in this case a small section of the famed oxygen A-band, which has been an important absorption band for trace gas remote sensing, as it allows to further constrain aerosol scattering as well as the total air column.
 
+```julia
     wavelength_start = 761.0u"nm"
     wavelength_end = 762.0u"nm"
     wavelength_ref = (wavelength_start + wavelength_end) / 2
 
     gas_name = "O2"
+```
 
 To produce a model atmosphere with meaningful meteorological profiles (specific humidity, temperature), we load an example data file that is part of the RetrievalToolbox repository.
 
+```julia
     my_source_atmosphere = RE.create_example_atmosphere("US-midwest-summer", 10)
+```
 
 Modelling gas absorption in RetrievalToolbox requires spectroscopy. These are fundamental to most atmospheric gas retrievals, as they allow us to translate atmospheric abundance to optical transmission for given wavelengths (or wavenumbers). Note, the following function downloads line lists from the online [HITRAN](https://hitran.org) library, and only works with an active internet connection.
 
+```julia
     my_spectroscopy = RE.create_ABSCO_from_HITRAN(
         gas_name,
         wavelength_start - 0.5u"nm", # Put some buffer around our requested wavelengths
@@ -89,22 +102,28 @@ Modelling gas absorption in RetrievalToolbox requires spectroscopy. These are fu
         wavelength_output=true, # Produce spectroscopy in wavelengths (rather than wavenumbers)
         h2o_broadening=false # Ignore broadening due to H2O
     )
+```
 
 We can now attach the spectroscopy object to something that represents a gaseous absorber.
 
+```julia
     my_gas = RE.GasAbsorber(
         gas_name,
         my_spectroscopy,
         fill(20.95, 10), # Oxygen VMR is 20.95%
         Unitful.percent # Unit of VMR profile
     )
+```
 
 .. and add the gas to the atmosphere object.
 
+```julia
     push!(my_source_atmosphere.atm_elements, my_gas)
+```
 
 A spectral window is needed to determine the underlying spectral grid on which the monochromatic radiative transfer calculations will be performed. Below function helps with creating that object.
 
+```julia
     my_spectral_window = RE.spectralwindow_from_ABSCO(
         "$(gas_name)_window",
         wavelength_start |> ustrip,
@@ -114,21 +133,27 @@ A spectral window is needed to determine the underlying spectral grid on which t
         my_spectroscopy,
         unit(wavelength_start)
     )
+```
 
 Sitting on top of a `SpectralWindow` is a so-called dispersion, which provides the relationship between a detector element (think of a pixel on a CCD detector) and the physical spectral quantity that we carry along in our model.
 
+```julia
     my_dispersion = RE.SimplePolynomialDispersion(
         [wavelength_start, 0.01u"nm"], # Linear dispersion: start and increment
         0:99, # Spectral element numbers (no particular meaning in this example)
         my_spectral_window
     )
+```
 
 For now, we are only interested in generating a spectrum, so we use a placeholder for the state vector object
 
+```julia
     my_state_vector = RE.ForwardModelStateVector()
+```
 
 The following lines set up so-called buffer objects. They are placeholders that will contain various results of intermediate computations required at different parts of most workflows.
 
+```julia
     N1 = 2 * length(my_spectroscopy.wavelength)
     N2 = 2 * length(my_dispersion.detector_samples)
 
@@ -160,15 +185,19 @@ The following lines set up so-called buffer objects. They are placeholders that 
         my_source_atmosphere.N_met_level, # The number of meteorological pressure levels
         Float64 # The chosen Float data type (e.g. Float16, Float32, Float64)
     )
+```
 
 The following steps are usually part of a separate, user-defined and therefore custom forward model function. For this minimal example, however, we skip defining this function and perform the few needed function calls manually.
 
 First, we compute the so-called *incides*, which is the term used for arrays of integers that map the results from the radiative transfer calculations to the corresponding positions in the buffer arrays. While this assignment might be trivial for an application with only one spectral window, it is a vital bookkeeping mechanism to keep track of the results for multiple spectral windows.
 
+```julia
     RE.calculate_indices!(my_buffer)
+```
 
 Set our custom pressure grid at which the gas VMRs are defined (all in Pa):
 
+```julia
     my_buffer.scene.atmosphere.pressure_levels[:] = [
         1.0, # 1
         1_00.0, # 2
@@ -181,48 +210,62 @@ Set our custom pressure grid at which the gas VMRs are defined (all in Pa):
         800_00.0, # 9
        1000_00.0, # 10 - this is the surface pressure!
     ]
+```
 
 Let RetrievalToolbox calculate the mid-layer altitudes and gravity values. This is based on the location of the scene (which can be accessed via `my_buffer.scene.location`), which defaults to (0°, 0°) and 0 m surface elevation. This also re-calculates ALL relevant mid-layer values from level quantities.
 
+```julia
     RE.calculate_altitude_and_gravity!(my_buffer.scene)
+```
 
 Now we should set the surface reflectance to some value. Here we simply pick the zeroth-order coefficient to be some reasonable value, which makes the surface reflectance spectrally flat at that value.
 
+```julia
     my_buffer.scene.surfaces[my_spectral_window].coefficients[1] = 0.25
+```
 
 Let RetrievalToolbox calculate the optical properties due to gas absorption. This would also calculate e.g. Rayleigh scattering, aerosol absorption and scattering optical depth profiles etc., if we had added them to the list of atmospheric components.
 
+```julia
     RE.calculate_earth_optical_properties!(
         my_buffer.rt[my_spectral_window].optical_properties,
         my_buffer.scene,
         my_state_vector
     )
+```
 
 Solar irradiance must also be calculated, otherwise, the TOA radiance will end up being simply zero everywhere. Since we use a simple solar model (`UnitSolarModel`), the solar irradiance will show up as a series of 1s, which we could have manually done. This however, is good practice to make sure we do not forget the solar irradiance calculation.
 
+```julia
     RE.calculate_solar_irradiance!(
         my_buffer.rt[my_spectral_window],
         my_spectral_window,
         my_buffer.rt[my_spectral_window].solar_model
     )
+```
 
 Finally, we can trigger the calculation which produces the TOA radiance according to the Beer-Lambert-Bouguer law, which assumes an absorption-only atmosphere (no scattering processes, no thermal emission). The observation geometry is stored in `my_buffer.scene.observer`, which in our case defaults to a `SatelliteObserver` that looks straight down for a viewing zenith angle of 0°. Of course the solar geometry also matters (which is stored in `my_buffer.scene.solar_zenith_angle` etc.) for the actual calculation, however we can ignore that for now since it also defaults to 0°, meaning the sun is straight above the location of interest.
 
+```julia
     RE.calculate_radiances_and_jacobians!(my_buffer.rt[my_spectral_window])
+```
 
 Plot the results of the radiative transfer on the high-resolution model spectral grid:
 
+```julia
     plot(
         my_spectral_window.wavelength_grid * my_spectral_window.wavelength_unit,
         my_buffer.rt[my_spectral_window].hires_radiance,
         label="High resolution model radiance",
         ylabel="Radiance [1]"
     )
+```
 
 ![Figure showing the high-resolution model radiance for the O₂ A-band near 760 nm at roughly 0.0006 nm spacing (~ 0.01 cm⁻¹ wavenumbers).](figures/MWE_plot1.svg)
 
 In order to model what this spectrum would look like if measured by an instrument with a finite spectral response, we can apply an instrument spectral response function. For this example, we choose a simple Gauss-shaped response with a specific width (given by its full width at half-maximum, or FWHM).
 
+```julia
     my_isrf = RE.GaussISRF(0.05, u"nm")
 
     RE.apply_isrf_to_spectrum!(
@@ -231,9 +274,11 @@ In order to model what this spectrum would look like if measured by an instrumen
         my_dispersion,
         my_buffer.rt[my_spectral_window].hires_radiance.I
     )
+```
 
 And finally, we can plot the at-instrument radiance which is temporarily stored in the instrument buffer object `my_instrument_buffer`:
 
+```julia
     plot(
         my_spectral_window.wavelength_grid * my_spectral_window.wavelength_unit,
         my_buffer.rt[my_spectral_window].hires_radiance,
@@ -248,7 +293,7 @@ And finally, we can plot the at-instrument radiance which is temporarily stored 
         linewidth=2.0,
         marker=:circle, markersize=2
     )
-
+```
 
 ![Figure showing the both the high-resolution and the lower-resolution at-instrument model radiance for the O₂ A-band near 760 nm using a Gaussian spectral response function with 0.05 nm full width at half-maximum.](figures/MWE_plot2.svg)
 
@@ -288,7 +333,7 @@ Or if you use RetrievalToolbox in a jupyter environment, start it up appropriate
 
 Alternatively, if that variable is exported beforehand, the variable will be also correctly set in Julia. Environment variables in Julia are accessible in the `ENV` dictionary, which is also writable from within a Julia session. So if `XRTM_PATH` is not set before the Julia session started, you can simply change it before loading the RetrievalToolbox module:
 
-``` julia
+```julia
 ENV["XRTM_PATH"] = "/path/to/xrtm"
 using RetrievalToolbox
 ```
