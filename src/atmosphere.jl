@@ -336,12 +336,13 @@ function calculate_altitude_and_gravity_levels!(
 
         # This one has a unit (hopefully 'K')
         Tv = T[i] * T_unit * (1.0 + q[i] * q_unit * ε)
+
         # Tv has a unit, and we use the supplied gravity unit to then cast to
         # the supplied altitude unit and strip them before storing as `dz`
-        dz = logratio * Tv * Rd / (g[i] * g_unit) |> z_unit |> ustrip
-
+        dz = logratio * Tv * Rd / (g[i] * g_unit) |> z_unit |> ustrip        
+        
         z[i-1] = z[i] + dz # Add to the last altitude (now has same units)
-        g[i-1] = JPL_gravity(location.latitude, z[i-1]) |> g_unit |> ustrip
+        g[i-1] = JPL_gravity(location.latitude, z[i-1] * z_unit) |> g_unit |> ustrip
 
     end
 
