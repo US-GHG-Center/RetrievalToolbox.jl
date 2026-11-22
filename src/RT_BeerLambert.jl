@@ -848,14 +848,14 @@ function calculate_rt_jacobian!(
     for gas in keys(rt.optical_properties.gas_derivatives)
 
         # We can double-check here if a ∂τ/∂T was actually calculated
-        if !haskey(rt.optical_properties.gas_derivatives[gas], "dTau_dT")
-            @debug "[RT] No ∂τ/∂T found for $(gas)"
+        if !haskey(rt.optical_properties.gas_derivatives[gas], "dTau_dToffset")
+            @debug "[RT] No ∂τ/∂Toffset found for $(gas)"
             continue
         end
 
-        dTau_dT = rt.optical_properties.gas_derivatives[gas]["dTau_dT"]
+        dTau_dToffset = rt.optical_properties.gas_derivatives[gas]["dTau_dToffset"]
         # Sum up contributions for layers
-        avx_add_along_columns!(dTau_dT_sum, dTau_dT)
+        avx_add_along_columns!(dTau_dT_sum, dTau_dToffset)
 
 
     end
@@ -895,15 +895,15 @@ function calculate_rt_jacobian!(
     for gas in keys(rt.optical_properties.gas_derivatives)
 
         # We can double-check here if a ∂τ/∂T was actually calculated
-        if !haskey(rt.optical_properties.gas_derivatives[gas], "dTau_dT")
+        if !haskey(rt.optical_properties.gas_derivatives[gas], "dTau_dToffset")
             @debug "[RT] No ∂τ/∂T found for $(gas)"
             continue
         end
 
-        dTau_dT = rt.optical_properties.gas_derivatives[gas]["dTau_dT"]
+        dTau_dToffset = rt.optical_properties.gas_derivatives[gas]["dTau_dToffset"]
         # Sum up contributions for layers
         # (and add them to dTau_dT_sum)
-        avx_add_along_columns!(dTau_dT_sum, dTau_dT)
+        avx_add_along_columns!(dTau_dT_sum, dTau_dToffset)
 
 
     end

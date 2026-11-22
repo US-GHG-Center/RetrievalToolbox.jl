@@ -45,6 +45,9 @@ function create_empty_EarthAtmosphereOpticalProperties(
 
             # Note: this only creates an empty Dict, and is
             # filled just below if needed.
+            # TODO: this currently overwrites existing keys, so
+            # some nicer logic may be a good idea to make this a little
+            # more sensible.
             gas_derivatives[atm] = Dict{String, AbstractArray}()
 
             if sv isa RetrievalStateVector
@@ -65,9 +68,16 @@ function create_empty_EarthAtmosphereOpticalProperties(
                             zeros(T, swin.N_hires, N_layer, 2)
                     end
 
-                    if _sve isa TemperatureOffsetSVE
-                        gas_derivatives[atm]["dTau_dT"] =
+                    # For now, T profile retrievals also requires
+                    # ∂τ / ∂T (offset)
+                    if (_sve isa TemperatureOffsetSVE) | (_sve isa TemperatureProfileSVE)
+                        gas_derivatives[atm]["dTau_dToffset"] =
                             zeros(T, swin.N_hires, N_layer)
+                    end
+
+                    if _sve isa TemperatureProfileSVE
+                        gas_derivatives[atm]["dTau_dTprofile"] =
+                            zeros(T, swin.N_hires, N_layer, 2)
                     end
 
                 end
@@ -211,7 +221,8 @@ function calculate_earth_optical_properties!(
 
     # Determine, whether we want optical depth derivatives
     return_dpsurf = false
-    return_dT = false
+    return_dToffset = false
+    return_dTprofile = false
     return_dVMR = false
 
     if typeof(state_vector) == RetrievalStateVector
@@ -233,9 +244,15 @@ function calculate_earth_optical_properties!(
             end
 
             if _sve isa TemperatureOffsetSVE
-                @debug "[OPT] Temperature offset retrieval: need dTau_dT"
-                return_dT = true
+                @debug "[OPT] Temperature offset retrieval: need dTau_dToffset"
+                return_dToffset = true
             end
+
+             if _sve isa TemperatureProfileSVE
+                @debug "[OPT] Temperature profile retrieval: need dTau_dTprofile"
+                return_dTprofile = true
+                return_dToffset = true # T profile also requires T offset results
+            end           
 
         end
     end
@@ -260,7 +277,8 @@ function calculate_earth_optical_properties!(
             atm,
             swin,
             N_sublayer=N_sublayer,
-            return_dT=false,
+            return_dToffset=false,
+            return_dTprofile=false,
             return_dVMR=false,
             do_only_last_layer=true,
         )
@@ -295,7 +313,8 @@ function calculate_earth_optical_properties!(
         atm,
         swin,
         N_sublayer=N_sublayer,
-        return_dT=return_dT,
+        return_dToffset=return_dToffset,
+        return_dTprofile=return_dTprofile,
         return_dVMR=return_dVMR
     )
 
@@ -407,7 +426,8 @@ function calculate_gas_optical_depth_profiles!(
     atm::EarthAtmosphere,
     swin::AbstractSpectralWindow;
     N_sublayer = 10,
-    return_dT = false,
+    return_dToffset = false,
+    return_dTprofile = false,
     return_dVMR = false,
     do_only_last_layer = false,
     )
@@ -441,7 +461,7 @@ function calculate_gas_optical_depth_profiles!(
     # (Note: this value should possibly be smaller than the temperature grid spacing
     #  of the underlying spectroscopy table(s). We could try to infer this dynamically
     #  rather than hard-code it at a later stage..)
-    T_perturb = 5.0 # in [K]
+    T_perturb = 0.1 # in [K]
 
     # Take out gas absorbers only, we don't want aerosols or others
     gases = [c for c in atm.atm_elements if c isa GasAbsorber]
@@ -475,10 +495,16 @@ function calculate_gas_optical_depth_profiles!(
         end
     end
 
-    if return_dT
+    if return_dToffset
         for gas in keys(opt.gas_derivatives)
-            opt.gas_derivatives[gas]["dTau_dT"][:,:] .= 0.0
+            opt.gas_derivatives[gas]["dTau_dToffset"][:,:] .= 0.0
         end
+    end
+
+    if return_dTprofile
+         for gas in keys(opt.gas_derivatives)
+            opt.gas_derivatives[gas]["dTau_dTprofile"][:,:,:] .= 0.0
+        end       
     end
 
     # Note that we do not zero out dTau_dpsurf here! (not needed)
@@ -501,6 +527,10 @@ function calculate_gas_optical_depth_profiles!(
     # is quick and fast, does not allocate much much memory. By default, extrapolation
     # (linear) is activated, since the met profiles tend to not fully cover the full
     # pressure range used in the retrieval grid.
+    # NOTE
+    # This is a somewhat important part of the optical property calculation
+    # We decide that the meteorological variables here depend *linearly* on
+    # pressure between the nodes in which these variables are provided!
 
     T_int = linear_interpolation(p_met, T, extrapolation_bc = Line())
     sh_int = linear_interpolation(p_met, sh, extrapolation_bc = Line())
@@ -701,25 +731,36 @@ function calculate_gas_optical_depth_profiles!(
                         opt.tmp_Nhi1[:] * this_VMR * C_tmp * (1 - this_sh) * unit_fac
                     )
 
-                    ######################################
-                    # Derivatives w.r.t. level VMR changes
-                    ######################################
+                    ##########################################
+                    # Derivatives w.r.t. gas level VMR changes
+                    ##########################################
                     if return_dVMR
                         # "Higher" (i.e. closer to TOA)
                         @views @. opt.gas_derivatives[this_gas]["dTau_dVMR"][:,l-1,1] +=
-                            opt.tmp_Nhi1[:] * this_p_fac * C_tmp *
+                            opt.tmp_Nhi1[:] * (1 - this_p_fac) * C_tmp *
                             (1 - this_sh) * unit_fac
                         # "Lower" (i.e. closer to surface)
                         @views @. opt.gas_derivatives[this_gas]["dTau_dVMR"][:,l-1,2] +=
-                            opt.tmp_Nhi1[:] * (1 - this_p_fac) * C_tmp *
+                            opt.tmp_Nhi1[:] * this_p_fac * C_tmp *
                             (1 - this_sh) * unit_fac
                     end
 
 
-                    if return_dT
+                    ########################################
+                    # Derivatives w.r.t. Temperature changes
+                    ########################################
+                    if return_dToffset | return_dTprofile
 
                         # zero out
                         @views @. opt.tmp_Nhi2[:] = 0.0
+
+                        if return_dTprofile
+                            # Do a double-check here to make sure that the MET
+                            # profiles line up EXACTLY with the retrieval grid.
+                            check_T = T[l-1] * (1 - this_p_fac) + T[l] * (this_p_fac)
+                            @assert this_T ≈ check_T "[OPT] Temperature profile not consisent for \
+                                profile retrieval! MET pressures must be the same as retrieval pressures!"
+                        end
 
                         # Perturb temperature
                         get_cross_section_value_at!(
@@ -733,9 +774,13 @@ function calculate_gas_optical_depth_profiles!(
                             this_H2O,
                         )
 
-                        @views @. opt.gas_derivatives[this_gas]["dTau_dT"][:,l-1] +=
-                            opt.tmp_Nhi2[:] * this_VMR * C_tmp * (1 - this_sh) * unit_fac
+                        # T offset Jacobian part
+                        if return_dToffset
+                            @views @. opt.gas_derivatives[this_gas]["dTau_dToffset"][:,l-1] +=
+                                opt.tmp_Nhi2[:] * this_VMR * C_tmp * (1 - this_sh) * unit_fac
                         end
+
+                    end
 
                 end # End gas loop
 
@@ -745,15 +790,28 @@ function calculate_gas_optical_depth_profiles!(
 
     end # End layer loop
 
-    if return_dT
+    if return_dToffset
         for this_gas in gases
             for l in 1:atm.N_layer
                 # Calculate τ(T + ΔT) - τ(T)
-                @views @. opt.gas_derivatives[this_gas]["dTau_dT"][:,l] -=
+                @views @. opt.gas_derivatives[this_gas]["dTau_dToffset"][:,l] -=
                     opt.gas_tau[this_gas][:, l]
                 # Calculate [τ(T + ΔT) - τ(T)] / ΔT
-                @views @. opt.gas_derivatives[this_gas]["dTau_dT"][:,l] /=
+                @views @. opt.gas_derivatives[this_gas]["dTau_dToffset"][:,l] /=
                     T_perturb
+            end
+        end
+    end
+
+    if return_dTprofile
+        for this_gas in gases
+            for l in 1:atm.N_layer
+                # Calculate τ(T + ΔT) - τ(T)
+                @views @. opt.gas_derivatives[this_gas]["dTau_dTprofile"][:,l,1] =
+                    opt.gas_derivatives[this_gas]["dTau_dToffset"][:,l] * 0.5
+                # Calculate [τ(T + ΔT) - τ(T)] / ΔT
+                @views @. opt.gas_derivatives[this_gas]["dTau_dTprofile"][:,l,:] =
+                    opt.gas_derivatives[this_gas]["dTau_dToffset"][:,l] * 0.5
             end
         end
     end

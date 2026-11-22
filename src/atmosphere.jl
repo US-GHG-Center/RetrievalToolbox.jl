@@ -58,6 +58,41 @@ function calculate_layers!(atm::EarthAtmosphere)
 
 end
 
+"""
+$(TYPEDSIGNATURES)
+
+Prints the meterological contents of an `EarthAtmosphere` `atm` as a nice table.
+"""
+function print_atmosphere(atm::EarthAtmosphere)
+
+        pretty_table(
+        permutedims(hcat([
+            [
+                "$(i)",
+                atm.met_pressure[i],
+                atm.temperature[i],
+                atm.specific_humidity[i],
+                atm.altitude[i],
+                atm.gravity[i]
+            ] for i in 1:atm.N_met_level
+            ]...
+            )),
+        alignment=[:l, :r, :r, :r, :r, :r],
+        title="EarthAtmosphere (met. profiles)",
+        column_labels=[
+            "",
+            "Pressure [$(atm.met_pressure_unit)]",
+            "Temperature [$(atm.temperature_unit)]",
+            "Sp. Humidity [$(atm.specific_humidity_unit)]",
+            "Altitude [$(atm.altitude_unit)]",
+            "Gravity [$(atm.gravity_unit)]"
+        ],
+        show_column_labels=true,
+        display_size=(150, 200)
+    )
+
+end
+
 
 """
 $(TYPEDSIGNATURES)
@@ -339,7 +374,7 @@ function calculate_altitude_and_gravity_levels!(
         # Tv has a unit, and we use the supplied gravity unit to then cast to
         # the supplied altitude unit and strip them before storing as `dz`
         dz = logratio * Tv * Rd / (g[i] * g_unit) |> z_unit |> ustrip
-
+        
         z[i-1] = z[i] + dz # Add to the last altitude (now has same units)
         g[i-1] = JPL_gravity(location.latitude, z[i-1]) |> g_unit |> ustrip
 
@@ -869,6 +904,34 @@ end
 """
 $(TYPEDSIGNATURES)
 
+Updates the atmosphere `atm` for a `TemperatureProfileSVE` state vector element.
+"""
+function atmosphere_statevector_update!(
+    atm::AbstractAtmosphere,
+    sve::TemperatureProfileSVE
+)
+
+    #=
+        Representing temperature differences consistently betweend different units, such
+        as K and °C (and possibly °F), is difficult. So for now, we require the SVE
+        temperature unit to be the same as the temperature profile in the atmosphere
+        object.
+    =#
+
+    if sve.unit != atm.temperature_unit
+        error("Unit for SVE $(sve) must be the same as atmosphere temperature profile " *
+              "($(sve.unit) vs. $(atm.temperature_unit))")
+    end
+
+    atm.temperature[sve.level] = get_current_value(sve)
+
+end
+
+
+
+"""
+$(TYPEDSIGNATURES)
+
 Rolls back the atmosphere `atm` for a `TemperatureOffsetSVE` state vector element.
 """
 function atmosphere_statevector_rollback!(
@@ -948,6 +1011,7 @@ function update_specific_humidity_from_H2O!(atm::EarthAtmosphere)
     return false
 
 end
+
 
 
 """
