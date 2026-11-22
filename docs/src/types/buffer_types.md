@@ -8,7 +8,7 @@ The `EarthAtmosphereBuffer` type requires itself several other objects based on 
 
 Before an `EarthAtmosphereBuffer` can be successfully created, users must first have various other objects prepared beforehand.
 
-* `sv`: some `AbstractRetrievalStateVector` objects, which can be empty, i.e. write `sv = RetrievalStateVector([])`. Note the following, however.
+* `sv`: some `AbstractRetrievalStateVector` objects, which can be empty, i.e. write `sv = RetrievalStateVector([])`.
 * `spectral_windows`: a list of `AbstractSpectralWindow` objects
 * `surface_types`: a list of tuples, indicating the type of surface to be used, along with parameters (see below: [surface types](@ref surface_types_buffer))
 * `atmospheric_elements`: a list of `AbstractAtmosphereElement` objects
