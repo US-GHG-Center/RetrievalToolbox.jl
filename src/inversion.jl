@@ -24,6 +24,19 @@ function create_K_from_solver(s::AbstractSolver)
 
 end
 
+function get_Jacobian_from_solver(s::AbstractSolver, sve::AbstractStateVectorElement)
+
+    N_wl = map(length, values(s.indices)) |> sum
+    jac = zeros(N_wl)
+
+    for (swin, indices) in s.indices
+        @views jac[indices] .= s.jacobians[sve].I[indices]
+    end
+
+    return jac
+
+end
+
 """
 $(TYPEDSIGNATURES)
 
@@ -687,6 +700,7 @@ that (F(x + Δx) - F(x)) / Δx can be computed. `Δx` must have units. Returns F
 """
 function compute_finite_difference_jacobian(
     s::AbstractSolver,
+    fm_kwargs,
     sve::AbstractStateVectorElement,
     Δx
 )
@@ -735,7 +749,7 @@ function compute_finite_difference_jacobian(
     end
 
     # Compute the forward model for `x` (F(x))
-    s.forward_model(s.state_vector)
+    s.forward_model(s.state_vector; fm_kwargs...)
 
     # Extract the result
     @views result_1[:,:] = s.radiance[:,:]
@@ -748,7 +762,7 @@ function compute_finite_difference_jacobian(
     @info "SVE perturbed: $(sve)"
 
     # Compute the forward model for `x + Δx` (F(x + Δx))
-    s.forward_model(s.state_vector)
+    s.forward_model(s.state_vector; fm_kwargs...)
 
     # Extract the result and add to the numerator
     @views result_2[:,:] = s.radiance[:,:]
