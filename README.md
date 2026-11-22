@@ -9,6 +9,12 @@ RetrievalToolbox was developed at the Earth System Science Interdisciplinary Cen
 
 ## Recent noteworthy changes
 
+### 0.5.0
+
+New `TemperatureProfileSVE` state vector element type for retrieving temperature profiles (documentation coming soon). Retrieving a full temperature profile requires the meteorological pressure grid to be exactly the same as the retrieval pressure grid.
+
+Minor bug fixes.
+
 ### 0.4.0
 
 The `EarthAtmosphere` type was restructured. Meteorological profiles now no longer have level/layer descriptions to reduce confusion about whether they are considered to be on levels or layers. That distinction is not truly used in RetrievalToolbox at the moment. The `*_layers` vectors for meteorological profiles have been removed.
