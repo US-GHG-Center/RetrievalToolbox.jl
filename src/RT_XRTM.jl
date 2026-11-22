@@ -129,6 +129,18 @@ function _create_weighting_function_dictonary!(
         end
     end
 
+    if any_SVE_is_type(sv, TemperatureProfileSVE)
+        @debug "[XRTM] Found TemperatureProfileSVE! Need ∂I/∂τ"
+        need_dI_dTau = true
+
+        # If we do atmospheric thermal emission, we also have to calculate partial
+        # derivatives with respect to that.
+        if findanytype(rt.scene.atmosphere.atm_elements, AbstractThermalAtmosphere)
+            @debug "[XRTM] .. and also ∂I/∂blevels"
+            need_dI_dblevel = true
+        end
+    end
+
     if any_SVE_is_type(sv, SurfaceTemperatureSVE)
         @debug "[XRTM] Found SurfaceTemperatureSVE! Need ∂I/∂bsurface"
         need_dI_dbsurface = true

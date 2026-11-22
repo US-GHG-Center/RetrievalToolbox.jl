@@ -169,6 +169,7 @@ function calculate_rt_jacobian!(
             end
 
         end
+
     elseif sve.level == rt.scene.atmosphere.N_level
 
         # BOA level change
@@ -194,6 +195,7 @@ function calculate_rt_jacobian!(
                 end
             end
         end
+
     else
         # Everything in between
         #=
@@ -466,7 +468,6 @@ function calculate_rt_jacobian!(
     τ = opt.total_tau
     ω = opt.total_omega
 
-
     # ====================================================================================
     # Calculate ∂I/∂T due to spectroscopy, i.e. the impacts of a change in T on the
     # gas absorption coefficients and thus optical depth τ, and thus also the single-
@@ -477,18 +478,19 @@ function calculate_rt_jacobian!(
     for gas in keys(opt.gas_derivatives)
 
         # We can double-check here if a ∂τ/∂T was actually calculated for this gas
-        if !haskey(opt.gas_derivatives[gas], "dTau_dT")
-            @warn "No ∂τ/∂T found for $(gas)"
+        if !haskey(opt.gas_derivatives[gas], "dTau_dToffset")
+            @warn "[OPT] No ∂τ/∂T (offset) found for $(gas)!"
             continue
         end
+
+        # Get fresh reference to ∂τ/∂T for this specific gas
+        ∂τ_∂T = opt.gas_derivatives[gas]["dTau_dToffset"]
 
         for l in 1:atm.N_layer
 
             wf_idx_tau = rt.wfunctions_map["dI_dTau"][l]
             # [spectral, stokes]
             ∂I_∂τ = rt.hires_wfunctions[wf_idx_tau]
-            # [spectral, layer]
-            ∂τ_∂T = opt.gas_derivatives[gas]["dTau_dT"]
 
             @turbo for i in axes(jac, 1)
                 for s in axes(jac, 2)
@@ -516,7 +518,7 @@ function calculate_rt_jacobian!(
     #   Below section will only be executed if there is some AbstractThermalAtmosphere
     #   object inside the rt.scene.atmosphere.atm_elements list, and also requires that
     #   the RT module produces the partial derivatives of the radiance w.r.t. to the
-    #    per-level (thermal) emission.
+    #   per-level (thermal) emission.
     # ====================================================================================
 
     has_tatm = findanytype(atm.atm_elements, AbstractThermalAtmosphere)
@@ -568,12 +570,201 @@ end
 function calculate_rt_jacobian!(
     jac::Radiance,
     rt::MonochromaticRTMethod,
+    sve::TemperatureProfileSVE
+    )
+
+    # Zero out
+    jac[:] .= 0
+
+    # Calculate unit factor to translate between atmosphere T units and
+    # statevector T units
+    unit_fac = ustrip(rt.scene.atmosphere.temperature_unit, 1.0 * sve.unit)
+
+    # Short-cuts
+    atm = rt.scene.atmosphere
+    opt = rt.optical_properties
+    τ = opt.total_tau
+    ω = opt.total_omega
+    # We only need the derivative for this level!
+    lev = sve.level
+    
+
+    # ====================================================================================
+    # Calculate ∂I/∂T due to spectroscopy, i.e. the impacts of a change in T on the
+    # gas absorption coefficients and thus optical depth τ, and thus also the single-
+    # scatter albedo ω.
+    # ====================================================================================
+
+    # Must do this calculation for every gas present
+    for gas in keys(opt.gas_derivatives)
+
+        # We can double-check here if a ∂τ/∂T was actually calculated for this gas
+        if !haskey(opt.gas_derivatives[gas], "dTau_dTprofile")
+            @warn "[OPT] No ∂τ/∂T (profile) found for $(gas)!"
+            continue
+        end
+
+        # Take a fresh reference that points to ∂τ/∂T for this gas!
+        ∂τ_∂T = opt.gas_derivatives[gas]["dTau_dTprofile"]
+
+        # Seperate branches for different situations: top, bottom, or every other level
+        if sve.level == 1
+
+            lay = 1
+            # TOA level change
+            wf_idx_tau = rt.wfunctions_map["dI_dTau"][lay]
+            # This is an Radiance object
+            ∂I_∂τ = rt.hires_wfunctions[wf_idx_tau]
+
+            # Add ∂I/∂τ contributions
+            
+            @turbo for i in axes(jac, 1)
+                for s in axes(jac, 2)
+                    jac.S[i,s] += ∂I_∂τ.S[i,s] * ∂τ_∂T[i,lay,1] # only upper level change
+                end
+            end
+            
+            # Only use ∂I/∂ω contributions if they exist
+            if haskey(rt.wfunctions_map, "dI_dOmega")
+
+                wf_idx_omega = rt.wfunctions_map["dI_dOmega"][lay]
+                ∂I_∂ω = rt.hires_wfunctions[wf_idx_omega]
+                
+                @turbo for i in axes(jac, 1) # Spectral
+                    for s in axes(jac, 2) # Stokes
+                        jac.S[i,s] += ∂I_∂ω.S[i,s] * (-ω[i,lay] / τ[i,lay]) * ∂τ_∂T[i,lay,1]
+                    end
+                end
+                
+            end
+
+        elseif sve.level == rt.scene.atmosphere.N_level
+            
+            lay = rt.scene.atmosphere.N_layer
+
+            # TOA level change
+            wf_idx_tau = rt.wfunctions_map["dI_dTau"][lay]
+            # This is an Radiance object
+            ∂I_∂τ = rt.hires_wfunctions[wf_idx_tau]
+
+            # Add ∂I/∂τ contributions
+            
+            @turbo for i in axes(jac, 1)
+                for s in axes(jac, 2)
+                    jac.S[i,s] += ∂I_∂τ.S[i,s] * ∂τ_∂T[i,lay,2] # only lower level change
+                end
+            end
+            
+            # Only use ∂I/∂ω contributions if they exist
+            if haskey(rt.wfunctions_map, "dI_dOmega")
+
+                wf_idx_omega = rt.wfunctions_map["dI_dOmega"][lay]
+                ∂I_∂ω = rt.hires_wfunctions[wf_idx_omega]
+                
+                @turbo for i in axes(jac, 1) # Spectral
+                    for s in axes(jac, 2) # Stokes
+                        jac.S[i,s] += ∂I_∂ω.S[i,s] * (-ω[i,lay] / τ[i,lay]) * ∂τ_∂T[i,lay,2]
+                    end
+                end
+                
+            end
+
+        else
+
+            wf_idx_tau_up = rt.wfunctions_map["dI_dTau"][sve.level - 1]
+            wf_idx_tau_lo = rt.wfunctions_map["dI_dTau"][sve.level]
+            l_up = sve.level - 1
+            l_lo = sve.level
+            ∂I_∂τ_up = rt.hires_wfunctions[wf_idx_tau_up]
+            ∂I_∂τ_lo = rt.hires_wfunctions[wf_idx_tau_lo]
+
+            # ∂I/∂τ * ∂τ/∂T, and account for level-layer chain rule
+            
+            @turbo for i in axes(jac, 1) # Spectral
+                for s in axes(jac, 2) # Stokes
+                    jac.S[i,s] += ∂I_∂τ_up.S[i,s] * ∂τ_∂T[i,l_up,1]
+                    jac.S[i,s] += ∂I_∂τ_lo.S[i,s] * ∂τ_∂T[i,l_lo,2]
+                end
+            end
+            
+
+            # Only use ∂I/∂ω contributions if they exist
+            # (+ ∂I/∂ω * ∂ω/∂T = + ∂I/∂ω * (-ω/τ) * ∂τ/∂T)
+            if haskey(rt.wfunctions_map, "dI_dOmega")
+
+                wf_idx_omega_up = rt.wfunctions_map["dI_dOmega"][sve.level - 1]
+                wf_idx_omega_lo = rt.wfunctions_map["dI_dOmega"][sve.level]
+                ∂I_∂ω_up = rt.hires_wfunctions[wf_idx_omega_up]
+                ∂I_∂ω_lo = rt.hires_wfunctions[wf_idx_omega_lo]
+                
+                @turbo for i in axes(jac, 1) # Spectral
+                    for s in axes(jac, 2) # Stokes
+                        jac.S[i,s] += ∂I_∂ω_up.S[i,s] * (- ω[i,l_up] / τ[i,l_up]) *
+                            ∂τ_∂T[i,l_up,1]
+                        jac.S[i,s] += ∂I_∂ω_lo.S[i,s] * (- ω[i,l_lo] / τ[i,l_lo]) *
+                            ∂τ_∂T[i,l_lo,2]
+                    end
+                end
+                
+            end
+
+        end # End level branch
+
+    end # End gas loop
+    
+    # ====================================================================================
+    # Calculate ∂I/∂T due to thermal emission in the atmosphere.
+    #   Below section will only be executed if there is some AbstractThermalAtmosphere
+    #   object inside the rt.scene.atmosphere.atm_elements list, and also requires that
+    #   the RT module produces the partial derivatives of the radiance w.r.t. to the
+    #   per-level (thermal) emission.
+    # ====================================================================================
+
+    has_tatm = findanytype(atm.atm_elements, AbstractThermalAtmosphere)
+    has_∂I_∂blev = haskey(rt.wfunctions_map, "dI_dblevel")
+
+    if has_tatm & has_∂I_∂blev
+        
+        wf_idx_b = rt.wfunctions_map["dI_dblevel"][lev]
+        ∂I_∂b = rt.hires_wfunctions[wf_idx_b]
+
+        # Grab temperature (with units) for level `lev`.
+        # For a T profile retrieval, we can safely assume that we have
+        # exactly the number of retrieval grid T values, since the MET
+        # grid is the same by design:
+        T = atm.temperature[lev] * atm.temperature_unit
+
+        for i in axes(jac, 1) # Spectral
+
+            # Keep in mind: we get ∂I/∂b from the RT solver, now we must multiply with
+            # ∂b/∂T to get ∂I/∂T. This value depends on both the temperature at level
+            # `l` *and* the spectral point (wavelength or wavenumber) ww:
+            ww = opt.spectral_window.ww_grid[i] * opt.spectral_window.ww_unit
+
+            # Note! This function wants Unitful-type quantities, but also returns a
+            # Unitful-type one. We can make a cheeky check here if the unit actually
+            # adds up, such that it becomes a one-less one.
+            ∂b_∂T = dPlanck_radiance_dT(ww, T, rt.radiance_unit) /
+                rt.radiance_unit * unit(T)
+
+            # For now, we only care about the intensity component
+            # (thermal emission does not produce polarized light I believe)
+            jac.S[i,1] += ∂I_∂b.S[i,1] * ∂b_∂T * unit_fac
+
+        end
+
+    end
+end
+
+
+function calculate_rt_jacobian!(
+    jac::Radiance,
+    rt::MonochromaticRTMethod,
     sve::SurfaceTemperatureSVE
     )
 
     if haskey(rt.wfunctions_map, "dI_dbsurface")
         # RT object has the right weighting function type
-
 
         opt = rt.optical_properties
 
@@ -598,7 +789,6 @@ function calculate_rt_jacobian!(
             jac.S[i,1] += ∂I_∂b.S[i,1] * ∂b_∂T
 
         end
-
 
     else
         @warn "[RT] Trying to calculate ∂I/∂Tsurf, but the RT object does not have the \
