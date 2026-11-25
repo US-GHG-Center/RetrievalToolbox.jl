@@ -1068,8 +1068,7 @@ function _get_abscoaer_cross_section_value_at!(
 
     if !is_matched_ww
 
-
-        @turbo for ww_idx in eachindex(ww)
+        for ww_idx in eachindex(ww)
 
             idx_l_ww = absco_ww_idx_left[ww_idx]
             idx_r_ww = idx_l_ww + 1
@@ -1116,7 +1115,7 @@ function _get_abscoaer_cross_section_value_at!(
 
     else
 
-        @turbo for ww_idx in eachindex(ww)
+        for ww_idx in eachindex(ww)
 
             idx_l_ww = absco_ww_idx_left[ww_idx]
 
