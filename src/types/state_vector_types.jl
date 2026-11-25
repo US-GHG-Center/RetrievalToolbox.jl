@@ -486,6 +486,31 @@ mutable struct TemperatureOffsetSVE{T <: AbstractFloat} <: AbstractStateVectorEl
 end
 
 """
+    TemperatureProfileSVE{T <: Real} <: AbstractStateVectorElement
+
+A type to represent a temperature profile to be retrieved
+
+# Fields
+
+- `level::Integer`: Atmospheric level affected by this SVE
+- `unit::Unitful.TemperatureUnits`: Require temperature unit; only `Unitful.K` allowed!
+- `first_guess::T`: First guess VMR
+- `prior_value::T`: Prior VMR
+- `prior_covariance::T`: Prior VMR covariance
+- `iterations::Vector{T}`: Per-iteration VMR values
+"""
+mutable struct TemperatureProfileSVE{T <: Real} <: AbstractStateVectorElement
+
+    level::Integer
+    unit::Unitful.TemperatureUnits
+    first_guess::T
+    prior_value::T
+    prior_covariance::T
+    iterations::Vector{T}
+    
+end
+
+"""
 $(TYPEDFIELDS)
 
 State factor type for surface temperature

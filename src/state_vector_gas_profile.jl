@@ -1,7 +1,7 @@
 """
 $(TYPEDSIGNATURES)
 
-Returns the name of this dispersion state vector element as a string.
+Returns the name of this gas profile state vector element as a string.
 """
 function get_name(sve::GasVMRProfileSVE)
     return "GasVMRProfileSVE $(sve.gas.gas_name) ($(sve.level))"
